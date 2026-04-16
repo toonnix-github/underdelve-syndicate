@@ -1,0 +1,11 @@
+# Underdelve Syndicate - Git Ignore
+output/
+*.log
+.DS_Store
+Thumbs.db
+node_modules/
+dist/
+.env
+.ipynb_checkpoints/
+__pycache__/
+*.pyc
