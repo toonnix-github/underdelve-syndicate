@@ -430,7 +430,7 @@
         // --- EXPLORATION PHASE COMPONENT ---
         const ExplorationPhase = ({ floor, enemies, setEnemies, onEncounter, onNextFloor, onPrevFloor, onTrap, onHeal, openInventory }) => {
             const GRID_SIZE = 7;
-            const TORCH_RADIUS = 1.6;
+            const TORCH_RADIUS = 1.2;
 
             // 1 = Walkable Path, 0 = Void/Wall
             const proceduralGenerateLayout = (size) => {
@@ -633,26 +633,26 @@
                     const hasDoorE = x < GRID_SIZE - 1 && DUNGEON_LAYOUT[y][x+1] === 1;
 
                     const renderEdge = (direction, hasDoor) => {
-                        const baseColor = isCurrentlyVisible ? (isScouted ? "bg-zinc-500/60" : "bg-zinc-400") : "bg-zinc-700";
+                        const baseColor = isCurrentlyVisible ? "bg-zinc-300" : isScouted ? "bg-zinc-700/70" : "bg-zinc-800";
                         if (direction === 'N') {
                             return hasDoor
-                                ? <React.Fragment><div className={`absolute top-0 left-0 w-[20%] h-[2px] ${baseColor} z-20`} /><div className={`absolute top-0 right-0 w-[20%] h-[2px] ${baseColor} z-20`} /></React.Fragment>
-                                : <div className={`absolute top-0 left-0 right-0 h-[2px] ${baseColor} z-20`} />;
+                                ? <React.Fragment><div className={`absolute top-0 left-0 w-[20%] h-[3px] ${baseColor} z-20`} /><div className={`absolute top-0 right-0 w-[20%] h-[3px] ${baseColor} z-20`} /></React.Fragment>
+                                : <div className={`absolute top-0 left-0 right-0 h-[3px] ${baseColor} z-20`} />;
                         }
                         if (direction === 'S') {
                             return hasDoor
-                                ? <React.Fragment><div className={`absolute bottom-0 left-0 w-[20%] h-[2px] ${baseColor} z-20`} /><div className={`absolute bottom-0 right-0 w-[20%] h-[2px] ${baseColor} z-20`} /></React.Fragment>
-                                : <div className={`absolute bottom-0 left-0 right-0 h-[2px] ${baseColor} z-20`} />;
+                                ? <React.Fragment><div className={`absolute bottom-0 left-0 w-[20%] h-[3px] ${baseColor} z-20`} /><div className={`absolute bottom-0 right-0 w-[20%] h-[3px] ${baseColor} z-20`} /></React.Fragment>
+                                : <div className={`absolute bottom-0 left-0 right-0 h-[3px] ${baseColor} z-20`} />;
                         }
                         if (direction === 'W') {
                             return hasDoor
-                                ? <React.Fragment><div className={`absolute top-0 left-0 h-[20%] w-[2px] ${baseColor} z-20`} /><div className={`absolute bottom-0 left-0 h-[20%] w-[2px] ${baseColor} z-20`} /></React.Fragment>
-                                : <div className={`absolute top-0 bottom-0 left-0 w-[2px] ${baseColor} z-20`} />;
+                                ? <React.Fragment><div className={`absolute top-0 left-0 h-[20%] w-[3px] ${baseColor} z-20`} /><div className={`absolute bottom-0 left-0 h-[20%] w-[3px] ${baseColor} z-20`} /></React.Fragment>
+                                : <div className={`absolute top-0 bottom-0 left-0 w-[3px] ${baseColor} z-20`} />;
                         }
                         if (direction === 'E') {
                             return hasDoor
-                                ? <React.Fragment><div className={`absolute top-0 right-0 h-[20%] w-[2px] ${baseColor} z-20`} /><div className={`absolute bottom-0 right-0 h-[20%] w-[2px] ${baseColor} z-20`} /></React.Fragment>
-                                : <div className={`absolute top-0 bottom-0 right-0 w-[2px] ${baseColor} z-20`} />;
+                                ? <React.Fragment><div className={`absolute top-0 right-0 h-[20%] w-[3px] ${baseColor} z-20`} /><div className={`absolute bottom-0 right-0 h-[20%] w-[3px] ${baseColor} z-20`} /></React.Fragment>
+                                : <div className={`absolute top-0 bottom-0 right-0 w-[3px] ${baseColor} z-20`} />;
                         }
                         return null;
                     };
@@ -665,8 +665,8 @@
 
                     cells.push(
                         <div key={`${x}-${y}`} ref={isPlayer ? heroCellRef : null} className={`w-[25vmin] h-[25vmin] min-w-[120px] min-h-[120px] max-w-[28vw] max-h-[28vw] flex items-center justify-center relative transition-all duration-500
-                            ${!showTile ? 'bg-transparent border-transparent opacity-0 scale-75' : isCurrentlyVisible ? 'bg-zinc-800 shadow-[inset_0_2px_18px_rgba(250,204,21,0.12)]' : 'bg-zinc-950 opacity-55'}
-                            ${isScouted && !isCurrentlyVisible ? 'bg-zinc-950/30' : ''}
+                            ${!showTile ? 'bg-transparent border-transparent opacity-0 scale-75' : isCurrentlyVisible ? 'bg-zinc-900 shadow-[inset_0_1px_10px_rgba(250,204,21,0.07)]' : 'bg-zinc-950 opacity-35'}
+                            ${isScouted && !isCurrentlyVisible ? 'bg-zinc-950/10' : ''}
                         `}>
                             {/* Render Physical Walls & Doorways */}
                             {showTile && renderEdge('N', hasDoorN)}
@@ -676,10 +676,10 @@
                             {/* Path Decoration */}
                             {showTile && <span className="absolute top-1 left-1 text-[8px] text-zinc-700 pointer-events-none">{x},{y}</span>}
                             {showTile && (x+y)%2===0 && <div className="absolute inset-0 bg-white opacity-[0.02]" />}
-                            {showTile && !isCurrentlyVisible && <div className="absolute inset-0 bg-black/70 pointer-events-none z-0" />}
+                            {showTile && !isCurrentlyVisible && <div className="absolute inset-0 bg-black/88 pointer-events-none z-0" />}
 
                             {/* Scout Indicator */}
-                            {isScouted && isCurrentlyVisible && <span className="text-zinc-700 font-black text-xl select-none opacity-40">?</span>}
+                            {isScouted && isCurrentlyVisible && <span className="text-zinc-800 font-black text-lg select-none opacity-25">?</span>}
 
                             {/* Interactables (Only shown if explored) */}
                             {showEntity && showTile && intObj && (
