@@ -633,26 +633,26 @@
                     const hasDoorE = x < GRID_SIZE - 1 && DUNGEON_LAYOUT[y][x+1] === 1;
 
                     const renderEdge = (direction, hasDoor) => {
-                        const baseColor = isScouted ? "bg-zinc-800/40" : "bg-zinc-800";
+                        const baseColor = isCurrentlyVisible ? (isScouted ? "bg-zinc-500/60" : "bg-zinc-400") : "bg-zinc-700";
                         if (direction === 'N') {
                             return hasDoor
-                                ? <React.Fragment><div className={`absolute top-0 left-0 w-[20%] h-[2px] ${baseColor}`} /><div className={`absolute top-0 right-0 w-[20%] h-[2px] ${baseColor}`} /></React.Fragment>
-                                : <div className={`absolute top-0 left-0 right-0 h-[2px] ${baseColor}`} />;
+                                ? <React.Fragment><div className={`absolute top-0 left-0 w-[20%] h-[2px] ${baseColor} z-20`} /><div className={`absolute top-0 right-0 w-[20%] h-[2px] ${baseColor} z-20`} /></React.Fragment>
+                                : <div className={`absolute top-0 left-0 right-0 h-[2px] ${baseColor} z-20`} />;
                         }
                         if (direction === 'S') {
                             return hasDoor
-                                ? <React.Fragment><div className={`absolute bottom-0 left-0 w-[20%] h-[2px] ${baseColor}`} /><div className={`absolute bottom-0 right-0 w-[20%] h-[2px] ${baseColor}`} /></React.Fragment>
-                                : <div className={`absolute bottom-0 left-0 right-0 h-[2px] ${baseColor}`} />;
+                                ? <React.Fragment><div className={`absolute bottom-0 left-0 w-[20%] h-[2px] ${baseColor} z-20`} /><div className={`absolute bottom-0 right-0 w-[20%] h-[2px] ${baseColor} z-20`} /></React.Fragment>
+                                : <div className={`absolute bottom-0 left-0 right-0 h-[2px] ${baseColor} z-20`} />;
                         }
                         if (direction === 'W') {
                             return hasDoor
-                                ? <React.Fragment><div className={`absolute top-0 left-0 h-[20%] w-[2px] ${baseColor}`} /><div className={`absolute bottom-0 left-0 h-[20%] w-[2px] ${baseColor}`} /></React.Fragment>
-                                : <div className={`absolute top-0 bottom-0 left-0 w-[2px] ${baseColor}`} />;
+                                ? <React.Fragment><div className={`absolute top-0 left-0 h-[20%] w-[2px] ${baseColor} z-20`} /><div className={`absolute bottom-0 left-0 h-[20%] w-[2px] ${baseColor} z-20`} /></React.Fragment>
+                                : <div className={`absolute top-0 bottom-0 left-0 w-[2px] ${baseColor} z-20`} />;
                         }
                         if (direction === 'E') {
                             return hasDoor
-                                ? <React.Fragment><div className={`absolute top-0 right-0 h-[20%] w-[2px] ${baseColor}`} /><div className={`absolute bottom-0 right-0 h-[20%] w-[2px] ${baseColor}`} /></React.Fragment>
-                                : <div className={`absolute top-0 bottom-0 right-0 w-[2px] ${baseColor}`} />;
+                                ? <React.Fragment><div className={`absolute top-0 right-0 h-[20%] w-[2px] ${baseColor} z-20`} /><div className={`absolute bottom-0 right-0 h-[20%] w-[2px] ${baseColor} z-20`} /></React.Fragment>
+                                : <div className={`absolute top-0 bottom-0 right-0 w-[2px] ${baseColor} z-20`} />;
                         }
                         return null;
                     };
@@ -664,7 +664,7 @@
                     const showEntity = showTile && isCurrentlyVisible;
 
                     cells.push(
-                        <div key={`${x}-${y}`} ref={isPlayer ? heroCellRef : null} className={`w-[15vmin] h-[15vmin] min-w-[88px] min-h-[88px] max-w-[18vw] max-h-[18vw] flex items-center justify-center relative transition-all duration-500
+                        <div key={`${x}-${y}`} ref={isPlayer ? heroCellRef : null} className={`w-[25vmin] h-[25vmin] min-w-[120px] min-h-[120px] max-w-[28vw] max-h-[28vw] flex items-center justify-center relative transition-all duration-500
                             ${!showTile ? 'bg-transparent border-transparent opacity-0 scale-75' : isCurrentlyVisible ? 'bg-zinc-800 shadow-[inset_0_2px_18px_rgba(250,204,21,0.12)]' : 'bg-zinc-950 opacity-55'}
                             ${isScouted && !isCurrentlyVisible ? 'bg-zinc-950/30' : ''}
                         `}>
@@ -676,7 +676,7 @@
                             {/* Path Decoration */}
                             {showTile && <span className="absolute top-1 left-1 text-[8px] text-zinc-700 pointer-events-none">{x},{y}</span>}
                             {showTile && (x+y)%2===0 && <div className="absolute inset-0 bg-white opacity-[0.02]" />}
-                            {showTile && !isCurrentlyVisible && <div className="absolute inset-0 bg-black/75 pointer-events-none z-10" />}
+                            {showTile && !isCurrentlyVisible && <div className="absolute inset-0 bg-black/70 pointer-events-none z-0" />}
 
                             {/* Scout Indicator */}
                             {isScouted && isCurrentlyVisible && <span className="text-zinc-700 font-black text-xl select-none opacity-40">?</span>}
