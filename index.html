@@ -708,7 +708,7 @@
 
                             {/* Interactables (Only shown if explored) */}
                             {showEntity && showTile && intObj && (
-                                <div className={`w-[5vh] h-[5vh] rounded shrink-0 shadow-lg flex items-center justify-center text-[3vh] z-0 ${intObj.type === 'CHEST' ? 'bg-amber-600' : intObj.type === 'TRAP' ? 'bg-zinc-700 text-red-500 font-black rotate-45' : intObj.type === 'PREV_FLOOR' ? 'bg-indigo-900 border-2 border-purple-500 animate-pulse' : 'bg-blue-800 border-2 border-cyan-400 animate-pulse'}`}>
+                                <div className={`w-[5vh] h-[5vh] rounded shrink-0 shadow-lg flex items-center justify-center text-[3vh] z-30 ${intObj.type === 'CHEST' ? 'bg-amber-600' : intObj.type === 'TRAP' ? 'bg-zinc-700 text-red-500 font-black rotate-45' : intObj.type === 'PREV_FLOOR' ? 'bg-indigo-900 border-2 border-purple-400 animate-pulse shadow-[0_0_18px_rgba(168,85,247,0.65)]' : 'bg-blue-800 border-2 border-cyan-300 animate-pulse shadow-[0_0_18px_rgba(34,211,238,0.65)]'}`}>
                                     {intObj.type === 'CHEST' ? '🎁' : intObj.type === 'TRAP' ? 'X' : intObj.type === 'PREV_FLOOR' ? '↓' : '↑'}
                                 </div>
                             )}
@@ -728,6 +728,11 @@
                             {/* Player Avatar (Digital Tabletop Style) */}
                             {isPlayer && !isWall && isExplored && (
                                 <div className="w-[7vh] h-[7vh] rounded-full border-2 border-blue-400 bg-zinc-900 overflow-hidden shadow-[0_0_20px_rgba(96,165,250,0.8)] z-20 transform transition-all duration-200 flex flex-col items-center justify-center gap-[2px]">
+                                    {intObj && (intObj.type === 'PREV_FLOOR' || intObj.type === 'STAIRS') && (
+                                        <div className={`absolute -top-2 -right-2 w-[2.2vh] h-[2.2vh] min-w-5 min-h-5 rounded-full border border-white text-[1.2vh] font-black flex items-center justify-center z-40 ${intObj.type === 'PREV_FLOOR' ? 'bg-purple-700 text-white' : 'bg-cyan-500 text-black'}`}>
+                                            {intObj.type === 'PREV_FLOOR' ? '↓' : '↑'}
+                                        </div>
+                                    )}
                                     <div className="flex justify-center w-full">
                                         <div className="w-[1.5vh] h-[1.5vh] rounded-full bg-amber-500 border border-black shadow-inner shrink-0" />
                                     </div>
