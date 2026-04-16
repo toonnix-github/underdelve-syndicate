@@ -211,8 +211,9 @@
 
                     {unit.showImpact && (
                         <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-50">
-                            <div className="text-4xl md:text-5xl font-black text-amber-200 drop-shadow-[0_0_12px_rgba(251,191,36,0.8)] animate-impact-pop">
-                                ✴
+                            <div className="relative w-14 h-14 md:w-16 md:h-16 rounded-full border-2 border-amber-100/90 bg-gradient-to-br from-amber-300/90 to-orange-500/80 shadow-[0_0_18px_rgba(251,191,36,0.75)] animate-impact-pop flex items-center justify-center">
+                                <div className="w-5 h-5 md:w-6 md:h-6 rounded-full bg-amber-100/90 shadow-[0_0_10px_rgba(255,255,255,0.6)]" />
+                                <div className="absolute w-8 md:w-9 h-1 bg-amber-100/90 rounded-full rotate-45" />
                             </div>
                         </div>
                     )}
