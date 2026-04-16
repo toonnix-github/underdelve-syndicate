@@ -1,5 +1,5 @@
 # TICKET-08: Persistent Save Data
-**STATUS: ACTIVE**
+**STATUS: DONE**
 
 ## Description
 Currently, when a player reloads or forces a refresh, they lose all heroes, loot, and floor progress. We need a mechanism to persist game state between sessions.

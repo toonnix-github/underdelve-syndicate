@@ -1,5 +1,5 @@
-# TICKET-09: Unique Passive Traits for Epic Loot
-**STATUS: READY FOR DEVELOPMENT**
+**STATUS: BLOCKED BY ENV (See TICKET-11)**
+**BRANCH: main**
 
 ## Description
 To align with the "Equipment-First" progression philosophy, we need loot to provide more than just raw stats. Higher-tier items should grant "Passives" that fundamentally change how a Hero performs in combat, making loot feel like a permanent upgrade without the need for level grinding.
@@ -20,4 +20,10 @@ To align with the "Equipment-First" progression philosophy, we need loot to prov
 - **TC-04: Rarity Gating** (Verify that passives are strictly reserved for Epic/Legendary tiers)
 
 ## Dev Notes
-*Waiting on Developer to bridge Item class properties with Combat logic.*
+- Implemented `passives` array in `Item` constructor.
+- Added `getPassives()` method to `Combatant` class to aggregate equipment passives.
+- Integrated **Lifesteal**, **Thorns**, and **Quickening** logic into `BattlePhase.executeTurn`.
+- Updated Stash and Character Equipment UI to display passive names and descriptions.
+- Added passive roll logic in `generateLoot` for Epic/Legendary items.
+
+**QA Update**: Automated testing is currently blocked due to `file:///` access permissions. Moved to BLOCKED.
