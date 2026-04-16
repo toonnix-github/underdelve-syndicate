@@ -575,6 +575,7 @@
             };
 
             const [DUNGEON_LAYOUT, setDungeonLayout] = useState(Array(GRID_SIZE).fill().map(() => Array(GRID_SIZE).fill(0)));
+            const [tileBgs, setTileBgs] = useState({}); // Mapping of 'x,y' to background ID
             const [playerPos, setPlayerPos] = useState({ x: 3, y: 3 });
             const [exploredCells, setExploredCells] = useState(new Set(['3,3']));
             const [revealingCells, setRevealingCells] = useState(new Set());
@@ -627,6 +628,15 @@
                         { id: 'p2', x: 3, y: 3, type: 'PREV_FLOOR' }
                     ]);
                 }
+
+                // Generate random backgrounds for each tile positions
+                const backgrounds = {};
+                for (let y = 0; y < GRID_SIZE; y++) {
+                    for (let x = 0; x < GRID_SIZE; x++) {
+                        backgrounds[`${x},${y}`] = Math.floor(Math.random() * 5);
+                    }
+                }
+                setTileBgs(backgrounds);
 
                 // Route enemies onto randomized valid paths
                 setEnemies(prev => prev.map(e => ({ ...e, ...getLoc() })));
@@ -790,10 +800,18 @@
                     const showTile = isExplored || isScouted;
                     const showEntity = isExplored;
 
+                    const bgTypes = ['stone', 'moss', 'ruins', 'bone', 'shadow'];
+                    const tileBg = bgTypes[tileBgs[cellKey] || 0];
+
                     cells.push(
                         <div
                             key={`${x}-${y}`}
-                            style={{ width: `${tileSize}px`, height: `${tileSize}px` }}
+                            style={{ 
+                                width: `${tileSize}px`, 
+                                height: `${tileSize}px`,
+                                backgroundImage: showTile ? `url('assets/tile_${tileBg}.png')` : 'none',
+                                backgroundSize: 'cover'
+                            }}
                             onAnimationEnd={() => {
                                 if (!revealingCells.has(cellKey)) return;
                                 setRevealingCells(prev => {
@@ -804,8 +822,9 @@
                             }}
                             className={`flex items-center justify-center relative transition-all duration-500
                             ${!showTile ? 'bg-transparent border-transparent opacity-0 scale-90' : 'bg-zinc-900 shadow-[inset_0_2px_15px_rgba(0,0,0,0.5)]'}
+                            ${showTile ? 'before:absolute before:inset-0 before:bg-black/40 before:pointer-events-none' : ''}
                             ${isExplored && revealingCells.has(cellKey) ? 'animate-tile-reveal' : ''}
-                            ${isScouted ? 'bg-zinc-950/90 ring-1 ring-zinc-600/30 shadow-[inset_0_0_18px_rgba(148,163,184,0.14)] backdrop-blur-[1px]' : ''}
+                            ${isScouted ? 'ring-1 ring-zinc-600/30 shadow-[inset_0_0_18px_rgba(148,163,184,0.14)] backdrop-blur-[1px]' : ''}
                         `}
                         >
                             {/* Render Physical Walls & Doorways */}
