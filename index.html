@@ -1087,16 +1087,15 @@
                 }
             };
             
-            // Party HP State modification
-            const handleTrap = () => { 
+            // Party HP State modification - damage scales with floor depth
+            const handleTrap = () => {
+                const damagePercent = 0.15 + (floor * 0.05); // F1=20%, F2=25%, F3=30%
                 setHeroes(prev => {
                     const next = prev.map(hero => {
-                        if (hero.hp <= 0) return hero; // Do not damage already slain heroes
+                        if (hero.hp <= 0) return hero;
                         const nextHero = Object.assign(Object.create(Object.getPrototypeOf(hero)), hero);
                         nextHero.equipment = { ...hero.equipment };
-                        
-                        // Treat traps as 20% Max HP pure damage
-                        const damage = Math.floor(nextHero.maxHp * 0.20);
+                        const damage = Math.floor(nextHero.maxHp * damagePercent);
                         nextHero.hp = Math.max(0, nextHero.hp - damage);
                         return nextHero;
                     });
@@ -1107,7 +1106,8 @@
                             window.location.reload();
                         }, 50);
                     } else {
-                        setTimeout(() => alert("Triggered a Spike Trap! All living party members sustained 20% damage!"), 50);
+                        const pct = Math.round(damagePercent * 100);
+                        setTimeout(() => alert(`Triggered a Spike Trap! All living party members sustained ${pct}% damage!`), 50);
                     }
                     return next;
                 });
