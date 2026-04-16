@@ -488,13 +488,30 @@
             const [playerPos, setPlayerPos] = useState({ x: 3, y: 3 });
             const [exploredCells, setExploredCells] = useState(new Set(['3,3']));
             const [interactables, setInteractables] = useState([]);
-            const heroCellRef = useRef(null);
+            const mapFrameRef = useRef(null);
+            const [frameSize, setFrameSize] = useState({ w: 0, h: 0 });
+            const [viewportSize, setViewportSize] = useState({
+                w: typeof window !== 'undefined' ? window.innerWidth : 1440,
+                h: typeof window !== 'undefined' ? window.innerHeight : 900
+            });
 
             useEffect(() => {
-                if (heroCellRef.current) {
-                    heroCellRef.current.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
-                }
-            }, [playerPos]);
+                const onResize = () => setViewportSize({ w: window.innerWidth, h: window.innerHeight });
+                window.addEventListener('resize', onResize);
+                return () => window.removeEventListener('resize', onResize);
+            }, []);
+
+            useEffect(() => {
+                if (!mapFrameRef.current || typeof ResizeObserver === 'undefined') return;
+                const observer = new ResizeObserver((entries) => {
+                    const entry = entries[0];
+                    if (entry?.contentRect) {
+                        setFrameSize({ w: entry.contentRect.width, h: entry.contentRect.height });
+                    }
+                });
+                observer.observe(mapFrameRef.current);
+                return () => observer.disconnect();
+            }, []);
 
             useEffect(() => {
                 const { layout, validTiles } = proceduralGenerateLayout(GRID_SIZE);
@@ -607,6 +624,18 @@
             };
 
             const cells = [];
+            const TILE_GAP = 4;
+            const tileSize = Math.min(Math.max(Math.min(viewportSize.w, viewportSize.h) * 0.25, 120), viewportSize.w * 0.28);
+            const mapPixelSize = (GRID_SIZE * tileSize) + ((GRID_SIZE - 1) * TILE_GAP);
+            const centerOffset = (axis, frameAxisSize) => {
+                const targetCenter = (axis * (tileSize + TILE_GAP)) + (tileSize / 2);
+                const unclamped = (frameAxisSize / 2) - targetCenter;
+                const minOffset = frameAxisSize - mapPixelSize;
+                return Math.min(0, Math.max(minOffset, unclamped));
+            };
+            const offsetX = centerOffset(playerPos.x, frameSize.w);
+            const offsetY = centerOffset(playerPos.y, frameSize.h);
+
             for (let y = 0; y < GRID_SIZE; y++) {
                 for (let x = 0; x < GRID_SIZE; x++) {
                     const isPlayer = playerPos.x === x && playerPos.y === y;
@@ -661,7 +690,7 @@
                     const showEntity = isExplored;
 
                     cells.push(
-                        <div key={`${x}-${y}`} ref={isPlayer ? heroCellRef : null} className={`w-[25vmin] h-[25vmin] min-w-[120px] min-h-[120px] max-w-[28vw] max-h-[28vw] flex items-center justify-center relative transition-all duration-500
+                        <div key={`${x}-${y}`} style={{ width: `${tileSize}px`, height: `${tileSize}px` }} className={`flex items-center justify-center relative transition-all duration-500
                             ${!showTile ? 'bg-transparent border-transparent opacity-0 scale-75' : 'bg-zinc-900 shadow-[inset_0_2px_15px_rgba(0,0,0,0.5)]'}
                             ${isScouted ? 'bg-zinc-950/40' : ''}
                         `}>
@@ -715,18 +744,18 @@
 
             return (
                 <div className="h-screen w-screen bg-neutral-950 flex flex-col lg:flex-row items-stretch lg:justify-between relative animate-in fade-in duration-500 text-white tracking-widest font-sans overflow-hidden">
-                    <section className="w-full lg:flex-1 h-[58vh] sm:h-[62vh] lg:h-screen px-3 py-3 sm:px-4 sm:py-4 lg:p-5 flex items-center justify-start">
-                        <div className="bg-zinc-950 p-[1vh] border-4 border-zinc-800 rounded-xl shadow-2xl backdrop-blur-md relative overflow-auto max-h-[82vh] max-w-[82vw] flex-shrink-0 scroll-smooth">
+                    <section className="w-full lg:w-[60vw] h-screen px-2 py-2 lg:px-3 lg:py-3 flex items-stretch justify-start">
+                        <div ref={mapFrameRef} className="w-full h-full bg-zinc-950 p-[1vh] border-4 border-zinc-800 rounded-xl shadow-2xl backdrop-blur-md relative overflow-hidden flex-shrink-0">
                             {/* Fog Vignette Overlay */}
                             <div className="absolute inset-0 bg-radial-vignette opacity-80 pointer-events-none z-10" />
 
-                            <div className="grid grid-cols-7 grid-rows-7 gap-1 relative z-0">
+                            <div className="grid grid-cols-7 grid-rows-7 gap-1 relative z-0 transition-transform duration-300 ease-out" style={{ transform: `translate(${offsetX}px, ${offsetY}px)` }}>
                                 {cells}
                             </div>
                         </div>
                     </section>
 
-                    <aside className="w-full lg:w-[380px] xl:w-[420px] bg-black/35 border-t-2 lg:border-t-0 lg:border-l-2 border-zinc-800 px-4 py-4 sm:px-6 lg:px-5 xl:px-6 flex flex-col gap-4 sm:gap-5 lg:gap-6 overflow-y-auto">
+                    <aside className="w-full lg:w-[40vw] h-screen bg-black/35 border-t-2 lg:border-t-0 lg:border-l-2 border-zinc-800 px-4 py-4 sm:px-6 lg:px-5 xl:px-6 flex flex-col gap-4 sm:gap-5 lg:gap-6 overflow-y-auto">
                         <div className="font-black italic tracking-widest border border-zinc-800 bg-black/60 px-4 py-2 drop-shadow-xl text-zinc-300 inline-block">
                             FLOOR {floor}
                         </div>
