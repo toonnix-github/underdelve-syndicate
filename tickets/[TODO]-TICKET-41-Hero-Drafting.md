@@ -10,6 +10,14 @@ Runs currently start with a fixed party. To increase replayability, we are intro
 - **The Choice**: User must click to "Enlist" exactly 3 heroes.
 - **Deployment**: After selection, move to a "Deployment" screen to assign heroes to Vanguard or Rearguard positions.
 
+## Acceptance Criteria
+- [ ] **Pool Generation**: Starting a new run generates exactly 5 random heroes from the master roster of 13.
+- [ ] **Selection Limit**: User must select exactly 3 heroes to proceed (Enlist button disabled until selection is 3).
+- [ ] **Stat Initialization**: Drafted heroes are initialized with the correct HP/ATK/DEF/SPD from the Stats Table.
+- [ ] **Positional Assignment**: Users can assign each of the 3 heroes to either `VANGUARD` or `REARGUARD` before the map loads.
+- [ ] **State Persistence**: The selected party and their positions correctly carry over into the Exploration and Battle phases.
+- [ ] **Visuals**: Each hero in the draft displays their Name, Role, Quote, and Flavor details (Traits remain as non-functional labels).
+
 ## Defined Hero Roster (Expansion Pack 1)
 > [!IMPORTANT]
 > **SCOPE REMARK**: The "Trait/Passive" logic is **OUT OF SCOPE** for this ticket. The developer should focus only on the Draft Phase logic, Stat integration, and the new visual roster. Traits will be implemented in TICKET-42.
