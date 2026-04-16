@@ -430,6 +430,7 @@
         // --- EXPLORATION PHASE COMPONENT ---
         const ExplorationPhase = ({ floor, enemies, setEnemies, onEncounter, onNextFloor, onPrevFloor, onTrap, onHeal, openInventory }) => {
             const GRID_SIZE = 7;
+            const TORCH_RADIUS = 1.6;
 
             // 1 = Walkable Path, 0 = Void/Wall
             const proceduralGenerateLayout = (size) => {
@@ -488,6 +489,13 @@
             const [playerPos, setPlayerPos] = useState({ x: 3, y: 3 });
             const [exploredCells, setExploredCells] = useState(new Set(['3,3']));
             const [interactables, setInteractables] = useState([]);
+            const heroCellRef = useRef(null);
+
+            useEffect(() => {
+                if (heroCellRef.current) {
+                    heroCellRef.current.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+                }
+            }, [playerPos]);
 
             useEffect(() => {
                 const { layout, validTiles } = proceduralGenerateLayout(GRID_SIZE);
@@ -650,13 +658,15 @@
                     };
 
                     const isStart = x === 3 && y === 3 && floor === 1;
+                    const torchDistance = Math.hypot(playerPos.x - x, playerPos.y - y);
+                    const isCurrentlyVisible = torchDistance <= TORCH_RADIUS;
                     const showTile = isExplored || isScouted;
-                    const showEntity = isExplored;
+                    const showEntity = showTile && isCurrentlyVisible;
 
                     cells.push(
-                        <div key={`${x}-${y}`} className={`w-[10vh] h-[10vh] max-w-[14vw] max-h-[14vw] flex items-center justify-center relative transition-all duration-500
-                            ${!showTile ? 'bg-transparent border-transparent opacity-0 scale-75' : 'bg-zinc-900 shadow-[inset_0_2px_15px_rgba(0,0,0,0.5)]'}
-                            ${isScouted ? 'bg-zinc-950/40' : ''}
+                        <div key={`${x}-${y}`} ref={isPlayer ? heroCellRef : null} className={`w-[15vmin] h-[15vmin] min-w-[88px] min-h-[88px] max-w-[18vw] max-h-[18vw] flex items-center justify-center relative transition-all duration-500
+                            ${!showTile ? 'bg-transparent border-transparent opacity-0 scale-75' : isCurrentlyVisible ? 'bg-zinc-800 shadow-[inset_0_2px_18px_rgba(250,204,21,0.12)]' : 'bg-zinc-950 opacity-55'}
+                            ${isScouted && !isCurrentlyVisible ? 'bg-zinc-950/30' : ''}
                         `}>
                             {/* Render Physical Walls & Doorways */}
                             {showTile && renderEdge('N', hasDoorN)}
@@ -666,9 +676,10 @@
                             {/* Path Decoration */}
                             {showTile && <span className="absolute top-1 left-1 text-[8px] text-zinc-700 pointer-events-none">{x},{y}</span>}
                             {showTile && (x+y)%2===0 && <div className="absolute inset-0 bg-white opacity-[0.02]" />}
+                            {showTile && !isCurrentlyVisible && <div className="absolute inset-0 bg-black/75 pointer-events-none z-10" />}
 
                             {/* Scout Indicator */}
-                            {isScouted && <span className="text-zinc-700 font-black text-xl select-none opacity-40">?</span>}
+                            {isScouted && isCurrentlyVisible && <span className="text-zinc-700 font-black text-xl select-none opacity-40">?</span>}
 
                             {/* Interactables (Only shown if explored) */}
                             {showEntity && showTile && intObj && (
@@ -678,7 +689,7 @@
                             )}
 
                             {/* Enemy Rendering (Fog check!) */}
-                            {enemy && showEntity && showTile && (
+                            {enemy && showEntity && (
                                 <div className="w-[6vh] h-[6vh] rounded-full border-[3px] border-red-500 overflow-hidden shadow-[0_0_15px_rgba(239,68,68,0.5)] z-10 animate-pulse relative">
                                     <img src={`assets/${enemy.instances[0].imageId}.png`} className="w-full h-full object-cover" />
                                     {enemy.instances.length > 1 && (
@@ -709,7 +720,7 @@
             return (
                 <div className="h-screen w-screen bg-neutral-950 flex flex-col lg:flex-row items-stretch lg:justify-between relative animate-in fade-in duration-500 text-white tracking-widest font-sans overflow-hidden">
                     <section className="w-full lg:flex-1 h-[58vh] sm:h-[62vh] lg:h-screen px-3 py-3 sm:px-4 sm:py-4 lg:p-5 flex items-center justify-start">
-                        <div className="bg-zinc-950 p-[1vh] border-4 border-zinc-800 rounded-xl shadow-2xl backdrop-blur-md relative overflow-hidden flex-shrink-0">
+                        <div className="bg-zinc-950 p-[1vh] border-4 border-zinc-800 rounded-xl shadow-2xl backdrop-blur-md relative overflow-auto max-h-[82vh] max-w-[82vw] flex-shrink-0 scroll-smooth">
                             {/* Fog Vignette Overlay */}
                             <div className="absolute inset-0 bg-radial-vignette opacity-80 pointer-events-none z-10" />
 
