@@ -749,7 +749,15 @@
                             {/* Fog Vignette Overlay */}
                             <div className="absolute inset-0 bg-radial-vignette opacity-80 pointer-events-none z-10" />
 
-                            <div className="grid grid-cols-7 grid-rows-7 gap-1 relative z-0 transition-transform duration-300 ease-out" style={{ transform: `translate(${offsetX}px, ${offsetY}px)` }}>
+                            <div
+                                className="grid relative z-0 transition-transform duration-300 ease-out"
+                                style={{
+                                    transform: `translate(${offsetX}px, ${offsetY}px)`,
+                                    gridTemplateColumns: `repeat(${GRID_SIZE}, ${tileSize}px)`,
+                                    gridTemplateRows: `repeat(${GRID_SIZE}, ${tileSize}px)`,
+                                    gap: `${TILE_GAP}px`
+                                }}
+                            >
                                 {cells}
                             </div>
                         </div>
