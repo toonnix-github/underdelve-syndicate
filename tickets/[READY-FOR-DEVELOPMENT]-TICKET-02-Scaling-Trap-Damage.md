@@ -1,5 +1,6 @@
-# TICKET-02: Interactive Trap Damage
-**STATUS: BACKLOG**
+# TICKET-02: Scaling Trap Damage
+**STATUS: READY FOR DEVELOPMENT**
+**BRANCH: feature/trap-scaling**
 
 ## Description
 When the player token hits an interactable `TRAP` on the grid, an alert says "Simulated Damage". We need the trap to actually siphon HP from the global Hero array.
