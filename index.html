@@ -577,6 +577,7 @@
             const [DUNGEON_LAYOUT, setDungeonLayout] = useState(Array(GRID_SIZE).fill().map(() => Array(GRID_SIZE).fill(0)));
             const [playerPos, setPlayerPos] = useState({ x: 3, y: 3 });
             const [exploredCells, setExploredCells] = useState(new Set(['3,3']));
+            const [revealingCells, setRevealingCells] = useState(new Set());
             const [interactables, setInteractables] = useState([]);
             const mapFrameRef = useRef(null);
             const [frameSize, setFrameSize] = useState({ w: 0, h: 0 });
@@ -608,6 +609,7 @@
                 setDungeonLayout(layout);
                 setPlayerPos({ x: 3, y: 3 });
                 setExploredCells(new Set(['3,3']));
+                setRevealingCells(new Set());
 
                 const getLoc = () => validTiles.length > 0 ? validTiles.pop() : {x:3, y:3};
 
@@ -660,8 +662,16 @@
 
                 // Update Fog of War
                 setExploredCells(prev => {
+                    const cellKey = `${newX},${newY}`;
+                    if (!prev.has(cellKey)) {
+                        setRevealingCells(revealPrev => {
+                            const nextReveal = new Set(revealPrev);
+                            nextReveal.add(cellKey);
+                            return nextReveal;
+                        });
+                    }
                     const next = new Set(prev);
-                    next.add(`${newX},${newY}`);
+                    next.add(cellKey);
                     return next;
                 });
 
@@ -728,12 +738,13 @@
 
             for (let y = 0; y < GRID_SIZE; y++) {
                 for (let x = 0; x < GRID_SIZE; x++) {
+                    const cellKey = `${x},${y}`;
                     const isPlayer = playerPos.x === x && playerPos.y === y;
                     const enemy = enemies.find(e => e.x === x && e.y === y);
                     const intObj = interactables.find(i => i.x === x && i.y === y);
 
                     const isWall = DUNGEON_LAYOUT[y][x] === 0;
-                    const isExplored = exploredCells.has(`${x},${y}`);
+                    const isExplored = exploredCells.has(cellKey);
 
                     // Scouting Logic: Hidden traversable tiles adjacent to explored ones
                     const neighbors = [
@@ -780,10 +791,23 @@
                     const showEntity = isExplored;
 
                     cells.push(
-                        <div key={`${x}-${y}`} style={{ width: `${tileSize}px`, height: `${tileSize}px` }} className={`flex items-center justify-center relative transition-all duration-500
-                            ${!showTile ? 'bg-transparent border-transparent opacity-0 scale-75' : 'bg-zinc-900 shadow-[inset_0_2px_15px_rgba(0,0,0,0.5)]'}
+                        <div
+                            key={`${x}-${y}`}
+                            style={{ width: `${tileSize}px`, height: `${tileSize}px` }}
+                            onAnimationEnd={() => {
+                                if (!revealingCells.has(cellKey)) return;
+                                setRevealingCells(prev => {
+                                    const next = new Set(prev);
+                                    next.delete(cellKey);
+                                    return next;
+                                });
+                            }}
+                            className={`flex items-center justify-center relative transition-all duration-500
+                            ${!showTile ? 'bg-transparent border-transparent opacity-0 scale-90' : 'bg-zinc-900 shadow-[inset_0_2px_15px_rgba(0,0,0,0.5)]'}
+                            ${isExplored && revealingCells.has(cellKey) ? 'animate-tile-reveal' : ''}
                             ${isScouted ? 'bg-zinc-950/90 ring-1 ring-zinc-600/30 shadow-[inset_0_0_18px_rgba(148,163,184,0.14)] backdrop-blur-[1px]' : ''}
-                        `}>
+                        `}
+                        >
                             {/* Render Physical Walls & Doorways */}
                             {showTile && renderEdge('N', hasDoorN)}
                             {showTile && renderEdge('S', hasDoorS)}
@@ -1389,6 +1413,17 @@
                         }
                         .animate-heal-glow {
                             animation: heal-glow 0.45s ease-out forwards;
+                        }
+
+                        @keyframes tile-reveal {
+                            0% { opacity: 0; transform: scale(0.86); filter: brightness(0.75) blur(1px); }
+                            65% { opacity: 1; transform: scale(1.04); filter: brightness(1.08) blur(0); }
+                            100% { opacity: 1; transform: scale(1); filter: brightness(1) blur(0); }
+                        }
+                        .animate-tile-reveal {
+                            animation: tile-reveal 360ms cubic-bezier(0.2, 0.8, 0.2, 1);
+                            transform-origin: center;
+                            will-change: transform, opacity, filter;
                         }
                     `}</style>
                 </div>

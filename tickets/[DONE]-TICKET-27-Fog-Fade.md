@@ -1,5 +1,5 @@
-# TICKET-27: Fog Reveal Fading
-**STATUS: BACKLOG**
+# [DONE] TICKET-27: Fog Reveal Fading
+**STATUS: DONE**
 
 ## Description
 Revealing tiles currently has a hard pop-in.
