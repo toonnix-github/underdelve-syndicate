@@ -48,6 +48,9 @@
                 this.isActing = false;
                 this.attackPhase = 'idle'; // 'idle' | 'advance' | 'strike' | 'return'
                 this.impactPulse = false;
+                this.hitShake = false;
+                this.showImpact = false;
+                this.healSparkle = false;
                 this.vfx = []; // Store active floating text
                 this.equipment = {
                     weapon1: null,
@@ -140,7 +143,7 @@
                         ${unit.hp <= 0 ? 'opacity-40 grayscale' : 'opacity-100'} flex flex-col`}
                 >
                     {/* Full Character Art */}
-                    <div className="absolute inset-0 bg-zinc-900">
+                    <div className={`absolute inset-0 bg-zinc-900 ${unit.hitShake ? 'animate-hit-shake' : ''}`}>
                         <img src={`assets/${unit.imageId}.png`} alt={unit.name} className="w-full h-full object-cover opacity-95" />
                         <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/75" />
                         {unit.hp <= 0 && <div className="absolute inset-0 bg-black/80 flex items-center justify-center font-black text-red-600 text-sm tracking-widest uppercase shadow-black">Slain</div>}
@@ -205,6 +208,23 @@
                             {effect.text}
                         </div>
                     ))}
+
+                    {unit.showImpact && (
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-50">
+                            <div className="text-4xl md:text-5xl font-black text-amber-200 drop-shadow-[0_0_12px_rgba(251,191,36,0.8)] animate-impact-pop">
+                                ✴
+                            </div>
+                        </div>
+                    )}
+
+                    {unit.healSparkle && (
+                        <div className="absolute inset-0 pointer-events-none z-40">
+                            <div className="absolute left-1/2 top-[30%] -translate-x-1/2 text-emerald-300 text-2xl animate-heal-sparkle" style={{ animationDelay: '0ms' }}>✦</div>
+                            <div className="absolute left-[35%] top-[55%] text-emerald-200 text-xl animate-heal-sparkle" style={{ animationDelay: '80ms' }}>✧</div>
+                            <div className="absolute left-[65%] top-[50%] text-lime-200 text-lg animate-heal-sparkle" style={{ animationDelay: '140ms' }}>✦</div>
+                            <div className="absolute inset-0 bg-emerald-400/15 animate-heal-glow" />
+                        </div>
+                    )}
                 </div>
             );
         };
@@ -308,6 +328,12 @@
                         const amount = selectedAbility.val;
                         target.hp = Math.min(target.maxHp, target.hp + amount);
                         target.addVfx(`+${amount}`, 'heal');
+                        target.healSparkle = true;
+                        setTimeout(() => {
+                            target.healSparkle = false;
+                            setHeroes([...heroes]);
+                            setEnemies([...enemies]);
+                        }, 450);
                     } else {
                         let amount = selectedAbility.val;
 
@@ -319,6 +345,14 @@
 
                         target.hp = Math.max(0, target.hp - amount);
                         target.addVfx(`-${amount}`, 'damage');
+                        target.hitShake = true;
+                        target.showImpact = true;
+                        setTimeout(() => {
+                            target.hitShake = false;
+                            target.showImpact = false;
+                            setHeroes([...heroes]);
+                            setEnemies([...enemies]);
+                        }, 320);
 
                         // --- PASSIVES INTEGRATION ---
                         const unitPassives = unit.getPassives();
@@ -353,6 +387,9 @@
                         unit.isActing = false;
                         unit.attackPhase = 'idle';
                         target.impactPulse = false;
+                        target.hitShake = false;
+                        target.showImpact = false;
+                        target.healSparkle = false;
                         const unitPassivesFinal = unit.getPassives();
                         if (unitPassivesFinal.includes('quickening') && Math.random() < 0.15) {
                             unit.atb = 50;
@@ -1313,6 +1350,44 @@
                         }
                         .animate-heal-pulse {
                             animation: heal-pulse 0.6s cubic-bezier(0.4, 0, 0.6, 1);
+                        }
+
+                        @keyframes hit-shake {
+                            0% { transform: translateX(0); }
+                            25% { transform: translateX(-5px) rotate(-0.8deg); }
+                            50% { transform: translateX(5px) rotate(0.8deg); }
+                            75% { transform: translateX(-3px) rotate(-0.4deg); }
+                            100% { transform: translateX(0); }
+                        }
+                        .animate-hit-shake {
+                            animation: hit-shake 0.24s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+                        }
+
+                        @keyframes impact-pop {
+                            0% { opacity: 0; transform: scale(0.5); }
+                            40% { opacity: 1; transform: scale(1.2); }
+                            100% { opacity: 0; transform: scale(1.5); }
+                        }
+                        .animate-impact-pop {
+                            animation: impact-pop 0.3s ease-out forwards;
+                        }
+
+                        @keyframes heal-sparkle {
+                            0% { opacity: 0; transform: translateY(8px) scale(0.8); }
+                            30% { opacity: 1; transform: translateY(0) scale(1.05); }
+                            100% { opacity: 0; transform: translateY(-14px) scale(1.1); }
+                        }
+                        .animate-heal-sparkle {
+                            animation: heal-sparkle 0.55s ease-out forwards;
+                        }
+
+                        @keyframes heal-glow {
+                            0% { opacity: 0; }
+                            30% { opacity: 1; }
+                            100% { opacity: 0; }
+                        }
+                        .animate-heal-glow {
+                            animation: heal-glow 0.45s ease-out forwards;
                         }
                     `}</style>
                 </div>
