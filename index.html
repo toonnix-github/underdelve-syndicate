@@ -1199,10 +1199,6 @@
 
         // --- MASTER APP CONTROLLER ---
         const App = () => {
-            const [gamePhase, setGamePhase] = useState('EXPLORATION'); // 'EXPLORATION' | 'BATTLE' | 'INVENTORY'
-            const [floor, setFloor] = useState(1);
-            const [activeEncounter, setActiveEncounter] = useState(null);
-
             // Phase 41: Master Roster Expansion
             const HERO_ROSTER = [
                 { name: 'Valerius', hp: 140, atk: 8, def: 18, spd: 10, role: 'TANK', skills: [{name: 'Shield Slam', val: 12, type: 'damage'}, {name: 'Fortify', val: 15, type: 'heal'}] },
