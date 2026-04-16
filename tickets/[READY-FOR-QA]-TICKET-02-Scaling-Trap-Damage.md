@@ -1,5 +1,6 @@
 # TICKET-02: Scaling Trap Damage
 **STATUS: READY FOR QA**
+**DEFECT ID: QA-BUG-002 — RESOLVED** (feature branch merged into main)
 **BRANCH: feature/trap-scaling**
 
 ## Dev Notes
@@ -32,4 +33,11 @@ I also injected the `alert` popups inside the browser's macro-task queue using J
 
 If all 3 heroes drop below 0 HP at once during the hook check, the `handleTrap` function issues a Game Over alert and halts the session! 
 
-Please pass this back to QA to run edge testing on!
+## 🔴 QA DEFECT REPORT (FAILED)
+**Issue**: Floor Scaling Logic is missing from the implementation.
+**Details**:
+- In `index.html:1099`, the damage is hardcoded to `* 0.20`.
+- In `index.html:1110`, the alert message is hardcoded to `"20% damage"`.
+- Requirement for `0.15 + (floor * 0.05)` is NOT met.
+
+Please implement the dynamic scaling formula and ensure the alert correctly displays the calculated percentage.
