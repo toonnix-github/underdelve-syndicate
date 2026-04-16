@@ -1,6 +1,15 @@
 # TICKET-02: Scaling Trap Damage
-**STATUS: READY FOR DEVELOPMENT**
+**STATUS: READY FOR QA**
 **BRANCH: feature/trap-scaling**
+
+## Dev Notes
+Implemented floor-scaled trap damage. Formula: `damagePercent = 0.15 + (floor * 0.05)`
+- Floor 1: 20% Max HP
+- Floor 2: 25% Max HP
+- Floor 3: 30% Max HP
+
+Alert message now dynamically displays the correct percentage per floor.
+
 
 ## Description
 When the player token hits an interactable `TRAP` on the grid, an alert says "Simulated Damage". We need the trap to actually siphon HP from the global Hero array.
