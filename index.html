@@ -801,9 +801,11 @@
                     const showEntity = isExplored;
                     const isScoutedOnly = isScouted && !isExplored;
 
-                    // Proximity check for torchlight spill
-                    const distToPlayer = Math.max(Math.abs(x - playerPos.x), Math.abs(y - playerPos.y));
-                    const hasTorchSpill = isExplored && distToPlayer === 1;
+                    // Proximity check for torchlight spill (Refined: Cardinal only, connected doors only)
+                    const dx = Math.abs(x - playerPos.x);
+                    const dy = Math.abs(y - playerPos.y);
+                    const isManhattanAdjacent = (dx === 1 && dy === 0) || (dx === 0 && dy === 1);
+                    const hasTorchSpill = isExplored && isManhattanAdjacent && DUNGEON_LAYOUT[y][x] === 1;
 
                     const bgTypes = ['stone', 'moss', 'ruins', 'bone', 'shadow'];
                     // Mystery rooms logic: uses 'unknown' asset if scouted but not explored
@@ -830,7 +832,7 @@
                             ${!showTile ? 'bg-transparent border-transparent opacity-0 scale-90' : 'bg-zinc-900 shadow-[inset_0_2px_15px_rgba(0,0,0,0.5)]'}
                             ${isExplored ? 'before:absolute before:inset-0 before:bg-black/40 before:pointer-events-none' : ''}
                             ${isScoutedOnly ? 'before:absolute before:inset-0 before:bg-black/80 before:pointer-events-none' : ''}
-                            ${hasTorchSpill ? 'after:absolute after:inset-0 after:bg-amber-500/10 after:pointer-events-none after:shadow-[inset_0_0_30px_rgba(251,191,36,0.15)] after:animate-torch-spill' : ''}
+                            ${hasTorchSpill ? 'after:absolute after:inset-0 after:z-10 after:pointer-events-none after:animate-torch-spill' : ''}
                             ${isExplored && revealingCells.has(cellKey) ? 'animate-tile-reveal' : ''}
                             ${isScouted ? 'ring-1 ring-zinc-600/30' : ''}
                         `}
@@ -869,10 +871,10 @@
                             {/* Player Avatar (Digital Tabletop Style) */}
                             {isPlayer && !isWall && isExplored && (
                                 <div className="relative z-20 transition-all duration-200">
-                                    {/* Torch Glow Effect */}
-                                    <div className="absolute inset-0 rounded-full animate-torch pointer-events-none" />
+                                    {/* High Quality Torch Glow (Refined) */}
+                                    <div className="absolute inset-[-150%] rounded-full animate-torch pointer-events-none opacity-80" />
                                     
-                                    <div className="w-[7vh] h-[7vh] rounded-full border-2 border-blue-400 bg-zinc-900 overflow-hidden shadow-[0_0_20px_rgba(96,165,250,0.8)] transform flex flex-col items-center justify-center gap-[2px]">
+                                    <div className="relative w-[7vh] h-[7vh] rounded-full border-2 border-blue-400 bg-zinc-900 overflow-hidden shadow-[0_0_25px_rgba(96,165,250,0.6)] transform flex flex-col items-center justify-center gap-[2px]">
                                         {intObj && (intObj.type === 'PREV_FLOOR' || intObj.type === 'STAIRS') && (
                                             <div className={`absolute -top-2 -right-2 w-[2.2vh] h-[2.2vh] min-w-5 min-h-5 rounded-full border border-white text-[1.2vh] font-black flex items-center justify-center z-40 ${intObj.type === 'PREV_FLOOR' ? 'bg-purple-700 text-white' : 'bg-cyan-500 text-black'}`}>
                                                 {intObj.type === 'PREV_FLOOR' ? '↓' : '↑'}
@@ -1459,16 +1461,20 @@
                         }
 
                         @keyframes torch-flicker {
-                            0%, 100% { opacity: 0.6; box-shadow: 0 0 22px 10px rgba(251, 191, 36, 0.4); }
-                            40% { opacity: 0.9; box-shadow: 0 0 35px 18px rgba(245, 158, 11, 0.6); }
-                            80% { opacity: 0.7; box-shadow: 0 0 28px 14px rgba(251, 191, 36, 0.5); }
+                            0%, 100% { opacity: 0.7; transform: scale(1); filter: blur(12px); }
+                            50% { opacity: 1; transform: scale(1.15); filter: blur(8px); }
+                        }
+                        .animate-torch {
+                            animation: torch-flicker 2s infinite ease-in-out;
+                            background: radial-gradient(circle, rgba(251, 191, 36, 0.45) 0%, rgba(245, 158, 11, 0.2) 50%, transparent 80%);
                         }
                         @keyframes torch-spill {
-                            0%, 100% { opacity: 0.8; }
-                            50% { opacity: 1; }
+                            0%, 100% { opacity: 0.8; transform: scale(1); }
+                            50% { opacity: 1; transform: scale(1.05); }
                         }
                         .animate-torch-spill {
                             animation: torch-spill 2.5s infinite ease-in-out;
+                            background: radial-gradient(circle, rgba(251, 191, 36, 0.2) 0%, rgba(245, 158, 11, 0.1) 40%, transparent 85%);
                         }
                     `}</style>
                 </div>
