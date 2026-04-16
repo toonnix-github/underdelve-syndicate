@@ -518,7 +518,7 @@
         };
 
         // --- EXPLORATION PHASE COMPONENT ---
-        const ExplorationPhase = ({ floor, enemies, setEnemies, onEncounter, onNextFloor, onPrevFloor, onTrap, onHeal, openInventory }) => {
+        const ExplorationPhase = ({ floor, heroes, enemies, setEnemies, onEncounter, onNextFloor, onPrevFloor, onTrap, onHeal, openInventory }) => {
             const GRID_SIZE = 7;
 
             // 1 = Walkable Path, 0 = Void/Wall
@@ -880,12 +880,12 @@
                                                 {intObj.type === 'PREV_FLOOR' ? '↓' : '↑'}
                                             </div>
                                         )}
-                                        <div className="flex justify-center w-full">
-                                            <div className="w-[1.5vh] h-[1.5vh] rounded-full bg-amber-500 border border-black shadow-inner shrink-0" />
-                                        </div>
-                                        <div className="flex justify-center gap-[0.5vh] w-full relative">
-                                            <div className="w-[1.5vh] h-[1.5vh] rounded-full bg-emerald-500 border border-black shadow-inner shrink-0" />
-                                            <div className="w-[1.5vh] h-[1.5vh] rounded-full bg-purple-500 border border-black shadow-inner shrink-0" />
+                                        <div className="flex -space-x-2">
+                                            {heroes.map((hero, i) => (
+                                                <div key={hero.id} className="w-[3vh] h-[3vh] rounded-full border border-black overflow-hidden shadow-inner shrink-0 bg-zinc-800">
+                                                    <img src={`assets/${hero.imageId}.png`} className="w-full h-full object-cover" />
+                                                </div>
+                                            ))}
                                         </div>
                                     </div>
                                 </div>
@@ -1203,16 +1203,53 @@
             const [floor, setFloor] = useState(1);
             const [activeEncounter, setActiveEncounter] = useState(null);
 
-            // Phase 10: Global Party Models & Inventory Cache
+            // Phase 41: Master Roster Expansion
+            const HERO_ROSTER = [
+                { name: 'Valerius', hp: 140, atk: 8, def: 18, spd: 10, role: 'TANK', skills: [{name: 'Shield Slam', val: 12, type: 'damage'}, {name: 'Fortify', val: 15, type: 'heal'}] },
+                { name: 'Slyn', hp: 75, atk: 22, def: 6, spd: 28, role: 'DPS', skills: [{name: 'Backstab', val: 35, type: 'damage'}, {name: 'Shadow Dash', val: 20, type: 'damage'}] },
+                { name: 'Morgra', hp: 95, atk: 12, def: 12, spd: 15, role: 'HEALER', skills: [{name: 'Blood Mend', val: 20, type: 'heal'}, {name: 'Spirit Link', val: 30, type: 'heal'}] },
+                { name: 'Krix', hp: 80, atk: 18, def: 10, spd: 22, role: 'DPS', skills: [{name: 'Gatling Blast', val: 25, type: 'damage'}, {name: 'Overheat', val: 35, type: 'damage'}] },
+                { name: 'Draka', hp: 160, atk: 12, def: 20, spd: 6, role: 'TANK', skills: [{name: 'Dragon Breath', val: 20, type: 'damage'}, {name: 'Roar', val: 10, type: 'damage'}] },
+                { name: 'Vex', hp: 85, atk: 24, def: 8, spd: 18, role: 'DPS', skills: [{name: 'Soul Siphon', val: 28, type: 'damage'}, {name: 'Death Nova', val: 40, type: 'damage'}] },
+                { name: 'Leora', hp: 70, atk: 26, def: 5, spd: 25, role: 'DPS', skills: [{name: 'Sniper Shot', val: 45, type: 'damage'}, {name: 'Wind Arrow', val: 25, type: 'damage'}] },
+                { name: 'Grimm', hp: 110, atk: 14, def: 15, spd: 12, role: 'TANK', skills: [{name: 'Tremor', val: 18, type: 'damage'}, {name: 'Stone Wall', val: 20, type: 'heal'}] },
+                { name: 'Lira', hp: 85, atk: 10, def: 10, spd: 20, role: 'HEALER', skills: [{name: 'Serenade', val: 25, type: 'heal'}, {name: 'Song of Hope', val: 35, type: 'heal'}] },
+                { name: 'Borum', hp: 100, atk: 20, def: 12, spd: 8, role: 'DPS', skills: [{name: 'Hammer Crash', val: 30, type: 'damage'}, {name: 'Forge Fire', val: 25, type: 'damage'}] },
+                { name: 'Valthea', hp: 120, atk: 10, def: 15, spd: 12, role: 'TANK', skills: [{name: 'Vanguard Strike', val: 15, type: 'damage'}, {name: 'Bulwark', val: 20, type: 'heal'}] },
+                { name: 'Elara', hp: 70, atk: 14, def: 15, spd: 6, role: 'HEALER', skills: [{name: 'Holy Rain', val: 25, type: 'heal'}, {name: 'Divine Shield', val: 15, type: 'heal'}] },
+                { name: 'Kael', hp: 85, atk: 18, def: 22, spd: 10, role: 'DPS', skills: [{name: 'Twin Arrow', val: 2*15, type: 'damage'}, {name: 'Steady Aim', val: 35, type: 'damage'}] }
+            ];
+
+            const [gamePhase, setGamePhase] = useState('MAIN_MENU'); // 'MAIN_MENU' | 'DRAFT' | 'DEPLOYMENT' | 'EXPLORATION' | 'BATTLE' | 'INVENTORY'
+            const [floor, setFloor] = useState(1);
+            const [activeEncounter, setActiveEncounter] = useState(null);
+
+            // Phase 41: Global Party Models & Inventory Cache
             const [inventory, setInventory] = useState([
                 new Item("Healing Potion", "CONSUMABLE", { heal: 40 }, "🧪", "Uncommon"),
                 new Item("Healing Potion", "CONSUMABLE", { heal: 40 }, "🧪", "Uncommon")
             ]);
-            const [heroes, setHeroes] = useState([
-                new Combatant("Jax", "TANK", 120, 10, 8, 15, "hero_jax", [{name: 'Shield Bash', val: 12, type: 'damage'}, {name: 'Heavy Cleave', val: 18, type: 'damage'}], 'VANGUARD'),
-                new Combatant("Elara", "HEALER", 70, 14, 15, 6, "hero_elara", [{name: 'Cure', val: 25, type: 'heal'}, {name: 'Holy Light', val: 40, type: 'heal'}], 'REARGUARD'),
-                new Combatant("Kael", "DPS", 85, 18, 22, 10, "hero_kael", [{name: 'Piercing Shot', val: 30, type: 'damage'}, {name: 'Quick Volley', val: 20, type: 'damage'}], 'REARGUARD')
-            ]);
+            const [heroes, setHeroes] = useState([]);
+            const [draftPool, setDraftPool] = useState([]);
+
+            const startDraft = () => {
+                const pool = [...HERO_ROSTER].sort(() => Math.random() - 0.5).slice(0, 5);
+                setDraftPool(pool);
+                setGamePhase('DRAFT');
+            };
+
+            const finalizeDraft = (selectedHeroes) => {
+                const combatants = selectedHeroes.map(h => 
+                    new Combatant(h.name, h.role, h.hp, h.atk, h.def, h.spd, `hero_${h.name.toLowerCase()}`, h.skills, 'VANGUARD')
+                );
+                setHeroes(combatants);
+                setGamePhase('DEPLOYMENT');
+            };
+
+            const finalizeDeployment = (deployedHeroes) => {
+                setHeroes(deployedHeroes);
+                setGamePhase('EXPLORATION');
+            };
 
 
 
@@ -1346,9 +1383,146 @@
 
                     <div className="relative z-10">
                         {/* Persistent state via CSS display trick! Exploration never actually unmounts. */}
+                        {gamePhase === 'MAIN_MENU' && (
+                            <div className="h-screen w-screen flex flex-col items-center justify-center bg-black relative overflow-hidden">
+                                <div className="z-10 text-center space-y-8 animate-in fade-in zoom-in duration-1000">
+                                    <h1 className="text-8xl font-black italic tracking-tighter text-white drop-shadow-[0_0_30px_rgba(255,255,255,0.3)]">
+                                        UNDERDELVE <span className="text-amber-500">SYNDICATE</span>
+                                    </h1>
+                                    <p className="text-zinc-500 tracking-[0.5em] text-sm uppercase">Tactical Roguelite Expedition</p>
+                                    <button 
+                                        onClick={startDraft}
+                                        className="px-12 py-4 bg-amber-600 hover:bg-amber-500 text-white font-black italic text-2xl border-4 border-amber-800 shadow-[0_0_50px_rgba(217,119,6,0.4)] transition-all hover:scale-105 active:scale-95"
+                                    >
+                                        BEGIN EXPEDITION
+                                    </button>
+                                </div>
+                                <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=2560&auto=format&fit=crop')] bg-cover opacity-20 grayscale brightness-50" />
+                            </div>
+                        )}
+
+                        {gamePhase === 'DRAFT' && (
+                            <div className="h-screen w-screen bg-zinc-950 flex flex-col items-center p-12 text-white animate-in slide-in-from-bottom-8 duration-500">
+                                <div className="text-center mb-12">
+                                    <h2 className="text-4xl font-black italic text-amber-500 mb-2">MUSTER YOUR SYNDICATE</h2>
+                                    <p className="text-zinc-500 text-sm tracking-widest uppercase">Select exactly 3 champions to enlist for this run.</p>
+                                </div>
+
+                                <div className="flex gap-6 mb-12">
+                                    {draftPool.map(hero => {
+                                        const isSelected = heroes.find(h => h.name === hero.name);
+                                        return (
+                                            <div 
+                                                key={hero.name}
+                                                onClick={() => {
+                                                    if (isSelected) {
+                                                        setHeroes(prev => prev.filter(h => h.name !== hero.name));
+                                                    } else if (heroes.length < 3) {
+                                                        setHeroes(prev => [...prev, hero]);
+                                                    }
+                                                }}
+                                                className={`w-64 bg-zinc-900 border-4 p-4 rounded-xl cursor-pointer transition-all hover:translate-y-[-8px] relative overflow-hidden
+                                                    ${isSelected ? 'border-amber-500 shadow-[0_0_30px_rgba(217,119,6,0.3)] scale-105' : 'border-zinc-800 opacity-60 hover:opacity-100'}`}
+                                            >
+                                                {isSelected && <div className="absolute top-2 right-2 bg-amber-500 text-black text-[10px] font-black px-2 py-0.5 rounded">SELECTED</div>}
+                                                <div className="h-64 bg-zinc-800 rounded-lg mb-4 flex items-center justify-center overflow-hidden border-2 border-zinc-700">
+                                                    <img src={`assets/hero_${hero.name.toLowerCase()}.png`} className="w-full h-full object-cover grayscale brightness-75 hover:grayscale-0 transition-all" alt={hero.name} />
+                                                </div>
+                                                <h3 className="text-xl font-black italic">{hero.name}</h3>
+                                                <div className="text-[10px] space-x-2 text-zinc-500 font-bold uppercase mb-3">
+                                                    <span className="bg-zinc-800 px-1 rounded text-zinc-300">{hero.role}</span>
+                                                    <span>HP {hero.hp}</span>
+                                                    <span>ATK {hero.atk}</span>
+                                                </div>
+                                                <div className="space-y-1">
+                                                    {hero.skills.map(s => (
+                                                        <div key={s.name} className="text-[10px] text-zinc-400 bg-black/40 px-2 py-1 rounded">
+                                                            {s.type === 'heal' ? '💚' : '⚔️'} {s.name}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+
+                                <button 
+                                    disabled={heroes.length !== 3}
+                                    onClick={() => finalizeDraft(heroes)}
+                                    className={`px-12 py-4 font-black italic text-xl border-4 transition-all
+                                        ${heroes.length === 3 
+                                            ? 'bg-amber-600 border-amber-800 text-white cursor-pointer hover:scale-105' 
+                                            : 'bg-zinc-800 border-zinc-700 text-zinc-600 cursor-not-allowed opacity-50'}`}
+                                >
+                                    LEGALIZE SYNDICATE ({heroes.length}/3)
+                                </button>
+                            </div>
+                        )}
+
+                        {gamePhase === 'DEPLOYMENT' && (
+                            <div className="h-screen w-screen bg-zinc-950 flex flex-col items-center p-12 text-white animate-in fade-in duration-500">
+                                <div className="text-center mb-12">
+                                    <h2 className="text-4xl font-black italic text-emerald-500 mb-2">STRATEGIZE FORMATION</h2>
+                                    <p className="text-zinc-500 text-sm tracking-widest uppercase">Assign your champions to the Vanguard (Front) or Rearguard (Back).</p>
+                                </div>
+
+                                <div className="flex gap-12 mb-16">
+                                    {/* Vanguard Area */}
+                                    <div className="flex flex-col items-center gap-4">
+                                        <h3 className="font-black italic text-zinc-500 tracking-widest uppercase text-xs">VANGUARD (FRONT)</h3>
+                                        <div className="grid grid-cols-1 gap-4 bg-zinc-900/50 p-6 border-2 border-dashed border-zinc-700 rounded-2xl min-h-[300px] w-72">
+                                            {heroes.filter(h => h.positionLine === 'VANGUARD').map(hero => (
+                                                <div 
+                                                    key={hero.name} 
+                                                    className="bg-zinc-800 border-2 border-zinc-600 p-4 rounded-lg flex items-center justify-between group"
+                                                >
+                                                    <span className="font-bold">{hero.name}</span>
+                                                    <button 
+                                                        onClick={() => setHeroes(prev => prev.map(h => h.name === hero.name ? {...h, positionLine: 'REARGUARD'} : h))}
+                                                        className="text-[10px] bg-zinc-700 hover:bg-zinc-600 px-2 py-1 rounded"
+                                                    >
+                                                        MOVE BACK →
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Rearguard Area */}
+                                    <div className="flex flex-col items-center gap-4">
+                                        <h3 className="font-black italic text-zinc-500 tracking-widest uppercase text-xs">REARGUARD (BACK)</h3>
+                                        <div className="grid grid-cols-1 gap-4 bg-zinc-900/50 p-6 border-2 border-dashed border-zinc-700 rounded-2xl min-h-[300px] w-72">
+                                            {heroes.filter(h => h.positionLine === 'REARGUARD').map(hero => (
+                                                <div 
+                                                    key={hero.name} 
+                                                    className="bg-zinc-800 border-2 border-zinc-600 p-4 rounded-lg flex items-center justify-between group"
+                                                >
+                                                    <button 
+                                                        onClick={() => setHeroes(prev => prev.map(h => h.name === hero.name ? {...h, positionLine: 'VANGUARD'} : h))}
+                                                        className="text-[10px] bg-zinc-700 hover:bg-zinc-600 px-2 py-1 rounded"
+                                                    >
+                                                        ← MOVE FRONT
+                                                    </button>
+                                                    <span className="font-bold">{hero.name}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <button 
+                                    onClick={() => finalizeDeployment(heroes)}
+                                    className="px-16 py-4 bg-emerald-600 hover:bg-emerald-500 border-4 border-emerald-800 text-white font-black italic text-2xl transition-all hover:scale-105 active:scale-95"
+                                >
+                                    ENTER THE UNDERDELVE
+                                </button>
+                            </div>
+                        )}
+
                         <div style={{ display: gamePhase === 'EXPLORATION' ? 'block' : 'none' }}>
                             <ExplorationPhase
                                 floor={floor}
+                                heroes={heroes}
                                 enemies={activeMapEnemies}
                                 setEnemies={setActiveMapEnemies}
                                 onEncounter={handleEncounter}
