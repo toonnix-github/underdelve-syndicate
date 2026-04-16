@@ -1168,6 +1168,7 @@
             const [gamePhase, setGamePhase] = useState('EXPLORATION'); // 'EXPLORATION' | 'BATTLE' | 'INVENTORY'
             const [floor, setFloor] = useState(1);
             const [activeEncounter, setActiveEncounter] = useState(null);
+            const [parallaxOffset, setParallaxOffset] = useState({ x: 0, y: 0 });
 
             // Phase 10: Global Party Models & Inventory Cache
             const [inventory, setInventory] = useState([
@@ -1236,6 +1237,34 @@
             };
 
             const [activeMapEnemies, setActiveMapEnemies] = useState(getEnemiesForFloor(1));
+
+            useEffect(() => {
+                const PARALLAX_MAX = 8;
+                let rafId = null;
+
+                const updateParallax = (event) => {
+                    if (rafId) cancelAnimationFrame(rafId);
+                    rafId = requestAnimationFrame(() => {
+                        const normalizedX = ((event.clientX / window.innerWidth) - 0.5) * 2;
+                        const normalizedY = ((event.clientY / window.innerHeight) - 0.5) * 2;
+                        setParallaxOffset({
+                            x: -(normalizedX * PARALLAX_MAX),
+                            y: -(normalizedY * PARALLAX_MAX)
+                        });
+                    });
+                };
+
+                const resetParallax = () => setParallaxOffset({ x: 0, y: 0 });
+
+                window.addEventListener('mousemove', updateParallax);
+                window.addEventListener('mouseleave', resetParallax);
+
+                return () => {
+                    if (rafId) cancelAnimationFrame(rafId);
+                    window.removeEventListener('mousemove', updateParallax);
+                    window.removeEventListener('mouseleave', resetParallax);
+                };
+            }, []);
 
             const handleEncounter = (enemyData) => {
                 setActiveEncounter(enemyData);
@@ -1307,7 +1336,18 @@
             return (
                 <div className="selection:bg-yellow-400 selection:text-black font-sans relative">
                     {/* Persistent Backgrounds */}
-                    <div className="fixed inset-0 bg-[url('https://images.unsplash.com/photo-1544200175-ca6e80a7b323?q=80&w=2670&auto=format&fit=crop')] bg-cover opacity-10 grayscale brightness-50 pointer-events-none z-0" />
+                    <div
+                        className="fixed inset-0 bg-[url('https://images.unsplash.com/photo-1544200175-ca6e80a7b323?q=80&w=2670&auto=format&fit=crop')] bg-cover opacity-10 grayscale brightness-50 pointer-events-none z-0 transition-[background-position] duration-200 ease-out"
+                        style={{
+                            backgroundPosition: `calc(50% + ${parallaxOffset.x}px) calc(50% + ${parallaxOffset.y}px)`
+                        }}
+                    />
+                    <div
+                        className="fixed inset-0 dust-particle-overlay pointer-events-none z-0 transition-transform duration-300 ease-out"
+                        style={{
+                            transform: `translate3d(${parallaxOffset.x * 1.6}px, ${parallaxOffset.y * 1.6}px, 0)`
+                        }}
+                    />
                     <div className="fixed inset-0 bg-radial-vignette opacity-70 pointer-events-none z-0" />
 
                     <div className="relative z-10">
@@ -1349,6 +1389,15 @@
                     <style>{`
                         .bg-radial-vignette {
                             background: radial-gradient(circle at center, transparent 0%, rgba(0,0,0,1) 100%);
+                        }
+                        .dust-particle-overlay {
+                            background-image:
+                                radial-gradient(circle at 20% 30%, rgba(255,255,255,0.08) 0 1px, transparent 2px),
+                                radial-gradient(circle at 70% 20%, rgba(255,255,255,0.06) 0 1px, transparent 2px),
+                                radial-gradient(circle at 40% 80%, rgba(255,255,255,0.08) 0 1px, transparent 2px);
+                            background-size: 180px 180px, 240px 240px, 300px 300px;
+                            opacity: 0.35;
+                            mix-blend-mode: screen;
                         }
                         @keyframes pulse {
                             0% { opacity: 0.4; }
