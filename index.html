@@ -1412,11 +1412,13 @@
                                     <p className="text-zinc-500 text-[10px] sm:text-xs tracking-widest uppercase">Select exactly 3 champions to enlist for this run.</p>
                                 </div>
 
-                                <div className="flex-1 w-full max-w-[1400px] overflow-y-auto px-4 mb-6 scrollbar-hide">
-                                    <div className="flex flex-wrap justify-center gap-4 py-4">
+                                <div className="flex-1 w-full max-w-[1400px] overflow-y-auto px-4 mb-4 scrollbar-hide">
+                                    <div className="flex flex-wrap justify-center gap-6 py-8">
                                         {draftPool.map(hero => {
                                             const isSelected = heroes.find(h => h.name === hero.name);
-                                            const roleColor = hero.role === 'TANK' ? 'border-zinc-400' : hero.role === 'DPS' ? 'border-red-900' : 'border-emerald-900';
+                                            const roleInfo = ROLES[hero.role] || ROLES.DPS;
+                                            const roleBadgeTone = hero.role === 'TANK' ? 'bg-amber-500/95' : hero.role === 'HEALER' ? 'bg-emerald-500/95' : 'bg-rose-500/95';
+                                            
                                             return (
                                                 <div 
                                                     key={hero.name}
@@ -1427,30 +1429,46 @@
                                                             setHeroes(prev => [...prev, hero]);
                                                         }
                                                     }}
-                                                    className={`w-40 sm:w-48 bg-zinc-900 border-4 p-3 rounded-xl cursor-pointer transition-all hover:translate-y-[-4px] relative overflow-hidden shrink-0
-                                                        ${isSelected ? 'border-amber-500 shadow-[0_0_30px_rgba(217,119,6,0.3)] scale-105' : roleColor + ' opacity-70 hover:opacity-100'}`}
+                                                    className={`relative w-[160px] h-[230px] rounded-xl shadow-2xl overflow-hidden border-[3px] transform cursor-pointer transition-all hover:scale-105 active:scale-95 flex flex-col shrink-0 -rotate-2
+                                                        ${isSelected ? 'border-amber-400 ring-4 ring-amber-500/50 z-20 scale-105' : 'bg-zinc-900 border-zinc-700 opacity-80 hover:opacity-100 hover:-translate-y-2'}`}
                                                 >
-                                                    {isSelected && <div className="absolute top-2 right-2 bg-amber-500 text-black text-[10px] font-black px-2 py-0.5 rounded z-20">SELECTED</div>}
-                                                    <div className="h-40 sm:h-48 bg-zinc-800 rounded-lg mb-3 flex items-center justify-center overflow-hidden border-2 border-zinc-700 relative">
+                                                    {/* Art Layer */}
+                                                    <div className="absolute inset-0 bg-zinc-900">
                                                         <img 
                                                             src={`assets/hero_${hero.name.toLowerCase()}.png`} 
-                                                            className="w-full h-full object-cover grayscale brightness-75 hover:grayscale-0 transition-all" 
-                                                            alt={hero.name} 
+                                                            className="w-full h-full object-cover grayscale brightness-75 hover:grayscale-0 transition-all opacity-95" 
                                                             onError={(e) => { e.target.style.display = 'none'; }}
                                                         />
-                                                        <span className="text-6xl font-black italic text-zinc-700 select-none">{hero.name[0]}</span>
+                                                        <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/80" />
+                                                        <span className="absolute inset-0 flex items-center justify-center text-5xl font-black italic text-zinc-700 select-none">{hero.name[0]}</span>
                                                     </div>
-                                                    <h3 className="text-base sm:text-lg font-black italic truncate">{hero.name}</h3>
-                                                    <div className="text-[9px] space-x-2 text-zinc-500 font-bold uppercase mb-2">
-                                                        <span className="bg-zinc-800 px-1 rounded text-zinc-300">{hero.role}</span>
-                                                        <span>HP {hero.hp}</span>
+
+                                                    {/* Role Badge */}
+                                                    <div className="relative z-10 w-full h-7">
+                                                        <div className={`absolute top-2 left-2 w-7 h-7 rounded-lg border border-black/60 flex items-center justify-center shadow-lg ${roleBadgeTone}`}>
+                                                            <span className="text-sm drop-shadow-md">{roleInfo.icon}</span>
+                                                        </div>
+                                                        {isSelected && (
+                                                            <div className="absolute top-2 right-2 bg-amber-500 text-black text-[8px] font-black px-1.5 py-0.5 rounded shadow-lg animate-in zoom-in">SELECTED</div>
+                                                        )}
                                                     </div>
-                                                    <div className="space-y-1">
-                                                        {hero.skills.slice(0, 2).map(s => (
-                                                            <div key={s.name} className="text-[8px] text-zinc-400 bg-black/40 px-2 py-0.5 rounded truncate">
-                                                                {s.type === 'heal' ? '💚' : '⚔️'} {s.name}
-                                                            </div>
-                                                        ))}
+
+                                                    {/* Bottom Info */}
+                                                    <div className="relative z-10 mt-auto px-2 py-1.5 flex flex-col justify-end bg-black/45">
+                                                        <h3 className="font-black italic text-sm text-white truncate mb-1">{hero.name}</h3>
+                                                        <div className="flex justify-between items-center text-[10px] mb-1">
+                                                            <span className="text-rose-300 font-black flex items-center gap-0.5 bg-black/45 rounded px-1 py-0.5"><span className="text-xs">⚔️</span>{hero.atk}</span>
+                                                            <span className="text-amber-200 font-black flex items-center gap-0.5 bg-black/45 rounded px-1 py-0.5"><span className="text-xs">🛡️</span>{hero.def}</span>
+                                                            <span className="text-cyan-200 font-black flex items-center gap-0.5 bg-black/45 rounded px-1 py-0.5"><span className="text-xs">⚡</span>{hero.spd}</span>
+                                                        </div>
+                                                        {/* Skill Preview */}
+                                                        <div className="flex gap-1 overflow-hidden">
+                                                            {hero.skills.slice(0, 1).map(s => (
+                                                                <div key={s.name} className="text-[7px] text-zinc-400 bg-zinc-950/80 px-1 py-0.5 rounded truncate border border-zinc-800">
+                                                                    {s.type === 'heal' ? '✨' : '⚔️'} {s.name}
+                                                                </div>
+                                                            ))}
+                                                        </div>
                                                     </div>
                                                 </div>
                                             );
@@ -1478,32 +1496,37 @@
                                     <p className="text-zinc-500 text-[10px] sm:text-xs tracking-widest uppercase">Assign your champions to the Vanguard (Front) or Rearguard (Back).</p>
                                 </div>
 
-                                <div className="flex-1 w-full flex flex-wrap justify-center gap-6 mb-8 overflow-y-auto px-4 content-start">
+                                <div className="flex-1 w-full flex flex-wrap justify-center gap-6 mb-4 overflow-y-auto px-4 content-start">
                                     {/* Vanguard Area */}
-                                    <div className="flex flex-col items-center gap-3">
-                                        <h3 className="font-black italic text-zinc-500 tracking-widest uppercase text-[10px]">VANGUARD (FRONT)</h3>
-                                        <div className="flex flex-col gap-3 bg-zinc-900/50 p-4 border-2 border-dashed border-zinc-700 rounded-2xl min-h-[200px] w-72">
+                                    <div className="flex flex-col items-center gap-2">
+                                        <h3 className="font-black italic text-zinc-500 tracking-widest uppercase text-[9px]">VANGUARD (FRONT)</h3>
+                                        <div className="grid grid-cols-2 lg:grid-cols-2 gap-2 bg-zinc-900/50 p-2 border-2 border-dashed border-zinc-700 rounded-xl min-h-[160px] w-[340px]">
                                             {heroes.filter(h => h.positionLine === 'VANGUARD').map(hero => {
-                                                const accentColor = hero.role === 'TANK' ? 'border-zinc-400' : hero.role === 'DPS' ? 'border-red-900' : 'border-emerald-900';
+                                                const roleBadgeTone = hero.role === 'TANK' ? 'bg-amber-500/95' : hero.role === 'HEALER' ? 'bg-emerald-500/95' : 'bg-rose-500/95';
                                                 return (
-                                                    <div key={hero.name} className={`bg-zinc-800 border-2 ${accentColor} p-3 rounded-lg flex items-center gap-4 group shadow-lg transition-all hover:scale-[1.02]`}>
-                                                        <div className="w-12 h-12 rounded-full overflow-hidden bg-black shrink-0 border-2 border-zinc-700 flex items-center justify-center relative">
-                                                            <img 
-                                                                src={`assets/${hero.imageId}.png`} 
-                                                                className="w-full h-full object-cover" 
-                                                                onError={(e) => { e.target.style.display = 'none'; }}
-                                                            />
-                                                            <span className="text-xl font-black italic text-zinc-500">{hero.name[0]}</span>
+                                                    <div key={hero.name} className={`bg-zinc-900 border-2 border-zinc-700 p-2 rounded-lg flex flex-col gap-1 group shadow-lg transition-all hover:border-amber-500/50 w-[158px] h-[72px] relative overflow-hidden`}>
+                                                        <div className="absolute top-1 left-1 w-6 h-6 rounded border border-black/40 flex items-center justify-center scale-75 z-20 pointer-events-none">
+                                                            <div className={`absolute inset-0 ${roleBadgeTone} opacity-90 rounded`} />
+                                                            <span className="text-[10px] relative z-10">{ROLES[hero.role]?.icon}</span>
                                                         </div>
-                                                        <div className="flex-1 min-w-0">
-                                                            <p className="font-black italic text-sm truncate uppercase tracking-tighter">{hero.name}</p>
-                                                            <p className="text-[9px] text-zinc-500 font-bold uppercase mb-1">{hero.role}</p>
-                                                            <button 
-                                                                onClick={() => setHeroes(prev => prev.map(h => h.name === hero.name ? Object.assign(h.clone(), {positionLine: 'REARGUARD'}) : h))}
-                                                                className="text-[9px] bg-zinc-700 hover:bg-zinc-600 px-3 py-1 rounded text-zinc-100 font-bold transition-colors"
-                                                            >
-                                                                MOVE BACK →
-                                                            </button>
+                                                        <div className="flex items-center gap-2 relative z-10">
+                                                            <div className="w-10 h-10 rounded overflow-hidden bg-black shrink-0 border border-zinc-800 flex items-center justify-center relative">
+                                                                <img 
+                                                                    src={`assets/${hero.imageId}.png`} 
+                                                                    className="w-full h-full object-cover" 
+                                                                    onError={(e) => { e.target.style.display = 'none'; }}
+                                                                />
+                                                                <span className="text-lg font-black italic text-zinc-700">{hero.name[0]}</span>
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <p className="font-black italic text-[10px] truncate uppercase text-zinc-200">{hero.name}</p>
+                                                                <button 
+                                                                    onClick={() => setHeroes(prev => prev.map(h => h.name === hero.name ? Object.assign(h.clone(), {positionLine: 'REARGUARD'}) : h))}
+                                                                    className="text-white bg-zinc-800 hover:bg-zinc-700 px-1.5 py-0.5 rounded-sm border border-zinc-700 text-[8px] font-black uppercase transition-colors"
+                                                                >
+                                                                    MOVE BACK →
+                                                                </button>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 );
@@ -1512,30 +1535,35 @@
                                     </div>
 
                                     {/* Rearguard Area */}
-                                    <div className="flex flex-col items-center gap-3">
-                                        <h3 className="font-black italic text-zinc-500 tracking-widest uppercase text-[10px]">REARGUARD (BACK)</h3>
-                                        <div className="flex flex-col gap-3 bg-zinc-900/50 p-4 border-2 border-dashed border-zinc-700 rounded-2xl min-h-[200px] w-72">
+                                    <div className="flex flex-col items-center gap-2">
+                                        <h3 className="font-black italic text-zinc-500 tracking-widest uppercase text-[9px]">REARGUARD (BACK)</h3>
+                                        <div className="grid grid-cols-2 lg:grid-cols-2 gap-2 bg-zinc-900/50 p-2 border-2 border-dashed border-zinc-700 rounded-xl min-h-[160px] w-[340px]">
                                             {heroes.filter(h => h.positionLine === 'REARGUARD').map(hero => {
-                                                const accentColor = hero.role === 'TANK' ? 'border-zinc-400' : hero.role === 'DPS' ? 'border-red-900' : 'border-emerald-900';
+                                                const roleBadgeTone = hero.role === 'TANK' ? 'bg-amber-500/95' : hero.role === 'HEALER' ? 'bg-emerald-500/95' : 'bg-rose-500/95';
                                                 return (
-                                                    <div key={hero.name} className={`bg-zinc-800 border-2 ${accentColor} p-3 rounded-lg flex items-center gap-4 group shadow-lg transition-all hover:scale-[1.02]`}>
-                                                        <div className="w-12 h-12 rounded-full overflow-hidden bg-black shrink-0 border-2 border-zinc-700 flex items-center justify-center relative">
-                                                            <img 
-                                                                src={`assets/${hero.imageId}.png`} 
-                                                                className="w-full h-full object-cover" 
-                                                                onError={(e) => { e.target.style.display = 'none'; }}
-                                                            />
-                                                            <span className="text-xl font-black italic text-zinc-500">{hero.name[0]}</span>
+                                                    <div key={hero.name} className={`bg-zinc-900 border-2 border-zinc-700 p-2 rounded-lg flex flex-col gap-1 group shadow-lg transition-all hover:border-blue-500/50 w-[158px] h-[72px] relative overflow-hidden`}>
+                                                        <div className="absolute top-1 left-1 w-6 h-6 rounded border border-black/40 flex items-center justify-center scale-75 z-20 pointer-events-none">
+                                                            <div className={`absolute inset-0 ${roleBadgeTone} opacity-90 rounded`} />
+                                                            <span className="text-[10px] relative z-10">{ROLES[hero.role]?.icon}</span>
                                                         </div>
-                                                        <div className="flex-1 min-w-0">
-                                                            <p className="font-black italic text-sm truncate uppercase tracking-tighter">{hero.name}</p>
-                                                            <p className="text-[9px] text-zinc-500 font-bold uppercase mb-1">{hero.role}</p>
-                                                            <button 
-                                                                onClick={() => setHeroes(prev => prev.map(h => h.name === hero.name ? Object.assign(h.clone(), {positionLine: 'VANGUARD'}) : h))}
-                                                                className="text-[9px] bg-zinc-700 hover:bg-zinc-600 px-3 py-1 rounded text-zinc-100 font-bold transition-colors"
-                                                            >
-                                                                ← MOVE FRONT
-                                                            </button>
+                                                        <div className="flex items-center gap-2 relative z-10">
+                                                            <div className="w-10 h-10 rounded overflow-hidden bg-black shrink-0 border border-zinc-800 flex items-center justify-center relative">
+                                                                <img 
+                                                                    src={`assets/${hero.imageId}.png`} 
+                                                                    className="w-full h-full object-cover" 
+                                                                    onError={(e) => { e.target.style.display = 'none'; }}
+                                                                />
+                                                                <span className="text-lg font-black italic text-zinc-700">{hero.name[0]}</span>
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <p className="font-black italic text-[10px] truncate uppercase text-zinc-200">{hero.name}</p>
+                                                                <button 
+                                                                    onClick={() => setHeroes(prev => prev.map(h => h.name === hero.name ? Object.assign(h.clone(), {positionLine: 'VANGUARD'}) : h))}
+                                                                    className="text-white bg-zinc-800 hover:bg-zinc-700 px-1.5 py-0.5 rounded-sm border border-zinc-700 text-[8px] font-black uppercase transition-colors"
+                                                                >
+                                                                    ← MOVE FRONT
+                                                                </button>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 );
