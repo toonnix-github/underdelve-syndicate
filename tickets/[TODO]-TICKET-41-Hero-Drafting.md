@@ -11,17 +11,32 @@ Runs currently start with a fixed party. To increase replayability, we are intro
 - **Deployment**: After selection, move to a "Deployment" screen to assign heroes to Vanguard or Rearguard positions.
 
 ## Defined Hero Roster (Expansion Pack 1)
-To streamline development, the follow 10 heroes are pre-balanced for the Expansion:
+> [!IMPORTANT]
+> **SCOPE REMARK**: The "Trait/Passive" logic is **OUT OF SCOPE** for this ticket. The developer should focus only on the Draft Phase logic, Stat integration, and the new visual roster. Traits will be implemented in TICKET-42.
 
-| Name | Role | Base HP | ATK | DEF | SPD | Image ID | Trait (Passive) |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Valerius** | TANK | 140 | 8 | 18 | 10 | `hero_valerius` | **Aura of Iron**: Allies take 10% less damage. |
-| **Slyn** | DPS | 75 | 22 | 6 | 28 | `hero_slyn` | **Infiltrator**: Ignores Vanguard/Rearguard targeting. |
-| **Morgra** | HEALER | 95 | 12 | 12 | 15 | `hero_morgra` | **Blood Pact**: +40% Heal power, but loses 5 HP on cast. |
-| **Krix** | DPS | 80 | 18 | 10 | 22 | `hero_krix` | **Overclock**: 15% chance to immediately act again. |
-| **Draka** | TANK | 160 | 12 | 20 | 6 | `hero_draka` | **Scales**: Reflects 6 damage when hit. |
-| **Vex** | DPS | 85 | 24 | 8 | 18 | `hero_vex` | **Soul Reaper**: Heals 10 HP on killing blow. |
-| **Leora** | DPS | 70 | 26 | 5 | 25 | `hero_leora` | **Eagle Eye**: +15% Crit chance. |
-| **Grimm** | TANK | 110 | 14 | 15 | 12 | `hero_grimm` | **Undying**: Once per battle, returns to 1 HP on death. |
-| **Lira** | HEALER | 85 | 10 | 10 | 20 | `hero_lira` | **Inspire**: Party ATB fills 5% faster every time she acts. |
-| **Borum** | DPS | 100 | 20 | 12 | 8 | `hero_borum` | **Sunder**: Attacks reduce target DEF by 5 (permanent). |
+| Name | Role | Race/Gender | Appearance (AI Prompting Guide) | Quote | **Trait** (SCOPED OUT) |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Valerius** | TANK | Human Male | Heavy gold-trimmed plate, blue cape, massive kite shield. | "The shield is my temple." | Aura of Iron |
+| **Slyn** | DPS | Void Elf Female | Purple hood, dual glowing daggers, shadow wisps. | "You won't even hear the air move." | Infiltrator |
+| **Morgra** | HEALER | Orc Female | Furs, skull-topped staff, red tribal paint. | "Pain is just the cost of life." | Blood Pact |
+| **Krix** | DPS | Goblin Male | Brass mechanical arm, bag of ticking gadgets. | "Why hit once when you can explode twice?" | Overclock |
+| **Draka** | TANK | Dragonkin Male | Crimson scales, brass gorget, scorched mace. | "Fire in blood, steel in hand." | Scales |
+| **Vex** | DPS | Undead Female | Gothic robes, floating soul-flames, iron-bound book. | "Your soul will serve a better master." | Soul Reaper |
+| **Leora** | DPS | Wood Elf Female | Green leather, longbow of white wood, hawk feather. | "One shot. One truth." | Eagle Eye |
+| **Grimm** | TANK | Dwarf Male | Dirty grey beard, shovel-glaive, stone shield. | "Deeper we go, the more I feel at home." | Undying |
+| **Lira** | HEALER | Human Female | Colorful poncho, silver lute, golden headband. | "Let the rhythm mend the steel." | Inspire |
+| **Borum** | DPS | Dwarf Male | Iron apron, twin blacksmith hammers, red tattoos. | "I'll forge your path." | Sunder |
+
+### Detailed Stats Table (For Data Initialization)
+| Name | Base HP | ATK | DEF | SPD | Image ID |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| Valerius | 140 | 8 | 18 | 10 | `hero_valerius` |
+| Slyn | 75 | 22 | 6 | 28 | `hero_slyn` |
+| Morgra | 95 | 12 | 12 | 15 | `hero_morgra` |
+| Krix | 80 | 18 | 10 | 22 | `hero_krix` |
+| Draka | 160 | 12 | 20 | 6 | `hero_draka` |
+| Vex | 85 | 24 | 8 | 18 | `hero_vex` |
+| Leora | 70 | 26 | 5 | 25 | `hero_leora` |
+| Grimm | 110 | 14 | 15 | 12 | `hero_grimm` |
+| Lira | 85 | 10 | 10 | 20 | `hero_lira` |
+| Borum | 100 | 20 | 12 | 8 | `hero_borum` |
