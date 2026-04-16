@@ -11,7 +11,7 @@
     <!-- React UMD for maximum stability -->
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    
+
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
@@ -110,11 +110,11 @@
 
         const Card = ({ unit }) => {
             const roleInfo = ROLES[unit.role] || ROLES.DPS;
-            
+
             return (
-                <div 
+                <div
                     className={`relative w-[96px] h-[140px] rounded-lg shadow-xl overflow-hidden border-[3px] transition-all duration-500 transform
-                        ${unit.isHero ? 'bg-zinc-900 border-zinc-700' : 'bg-red-950 border-red-900'} 
+                        ${unit.isHero ? 'bg-zinc-900 border-zinc-700' : 'bg-red-950 border-red-900'}
                         ${unit.isActing ? 'ring-2 ring-yellow-400 -translate-y-2 scale-110 z-20' : 'translate-y-0 scale-100'}
                         ${unit.hp <= 0 ? 'opacity-40 grayscale' : 'opacity-100'} flex flex-col`}
                 >
@@ -142,10 +142,10 @@
                             <span className="text-amber-500 font-bold" title="Defense">🛡️{unit.getDEF()}</span>
                             <span className="text-blue-400 font-bold" title="Speed">⚡{unit.getSPD()}</span>
                         </div>
-                        
+
                         {/* HP Bar */}
                         <div className="w-full h-1 bg-zinc-800 rounded-full mb-0.5 border border-black overflow-hidden relative">
-                            <div 
+                            <div
                                 style={{ width: `${(unit.hp / unit.maxHp) * 100}%` }}
                                 className="absolute left-0 top-0 h-full bg-gradient-to-r from-red-600 to-rose-500 transition-all duration-300"
                             />
@@ -156,7 +156,7 @@
 
                         {/* ATB Bar */}
                         <div className="w-full h-[2px] bg-zinc-950 border-x border-black rounded-sm relative overflow-hidden">
-                            <div 
+                            <div
                                 style={{ width: `${unit.atb}%` }}
                                 className={`absolute left-0 top-0 h-full transition-all duration-100 ${unit.atb >= 100 ? 'bg-yellow-400 shadow-[0_0_10px_rgba(250,204,21,0.5)]' : 'bg-blue-600'}`}
                             />
@@ -174,7 +174,7 @@
 
                     {/* Floating Combat Text (VFX) */}
                     {unit.vfx.map((effect) => (
-                        <div 
+                        <div
                             key={effect.id}
                             className={`absolute left-1/2 top-1/3 -translate-x-1/2 -translate-y-1/2 font-black text-2xl drop-shadow-[0_4px_4px_rgba(0,0,0,0.8)] stroke-black pointer-events-none animate-float-up z-50
                                 ${effect.type === 'damage' ? 'text-red-500' : 'text-emerald-400'}`}
@@ -193,7 +193,7 @@
             const [hasStarted, setHasStarted] = useState(false);
             const [winner, setWinner] = useState(null);
             const [battleLog, setBattleLog] = useState([`Encountered enemies! Waiting for authorization...`]);
-            
+
             // Multipack enemies from the map encounter
             const [enemies, setEnemies] = useState(packSetup);
 
@@ -204,7 +204,7 @@
                 let lastTime = performance.now();
                 const timerId = setInterval(() => {
                     const now = performance.now();
-                    const dt = Math.min((now - lastTime) / 1000, 0.1); 
+                    const dt = Math.min((now - lastTime) / 1000, 0.1);
                     lastTime = now;
                     setHeroes(prev => {
                         const next = [...prev];
@@ -258,11 +258,11 @@
                     const foes = isHero ? enemies : heroes;
                     const livingFoes = foes.filter(u => u.hp > 0);
                     if (livingFoes.length === 0) return;
-                    
+
                     // Vanguard mechanic: Prioritize front line if any exist
                     const vanguardFoes = livingFoes.filter(u => u.positionLine === 'VANGUARD');
                     const targetPool = vanguardFoes.length > 0 ? vanguardFoes : livingFoes;
-                    
+
                     target = targetPool[Math.floor(Math.random() * targetPool.length)];
                     const damageAbilities = unit.abilities.filter(a => a.type === 'damage');
                     selectedAbility = damageAbilities.length > 0 ? damageAbilities[Math.floor(Math.random() * damageAbilities.length)] : unit.abilities[0];
@@ -278,13 +278,13 @@
                         target.addVfx(`+${amount}`, 'heal');
                     } else {
                         let amount = selectedAbility.val;
-                        
+
                         // Defense logic integration
                         amount = Math.max(1, amount - Math.floor(target.getDEF() / 2));
-                        
+
                         // Rearguard Protection: 25% damage mitigation
                         if (target.positionLine === 'REARGUARD') amount = Math.floor(amount * 0.75);
-                        
+
                         target.hp = Math.max(0, target.hp - amount);
                         target.addVfx(`-${amount}`, 'damage');
 
@@ -308,7 +308,7 @@
                             log(`🌵 Thorns deals ${reflectDmg} damage to ${unit.name}!`);
                         }
                     }
-                    
+
                     // QUICKENING (Post-turn ATB)
                     unit.isActing = false;
                     const unitPassivesFinal = unit.getPassives();
@@ -342,7 +342,7 @@
             return (
                 <div className="h-screen w-screen bg-neutral-950 text-white flex flex-col items-center relative animate-in fade-in duration-500">
                     <main className="relative z-10 flex-1 flex flex-row items-center justify-between w-full max-w-5xl px-4 py-2 overflow-hidden mx-auto gap-4">
-                        
+
                         {/* LEFT SIDE: ENEMIES */}
                         <div className="flex-1 flex justify-end">
                             {/* Enemy Rearguard (Far left) */}
@@ -415,7 +415,7 @@
                             <p className="text-zinc-400 tracking-[0.4em] uppercase font-bold text-sm mb-12">
                                 {winner === 'VICTORY' ? "Threat eliminated. Returning to sector navigation." : "The syndicate has fallen."}
                             </p>
-                            <button 
+                            <button
                                 onClick={() => onBattleEnd(winner)}
                                 className="px-8 py-3 outline outline-2 outline-white text-white font-black tracking-widest hover:bg-white hover:text-black transition-colors"
                             >
@@ -430,12 +430,12 @@
         // --- EXPLORATION PHASE COMPONENT ---
         const ExplorationPhase = ({ floor, enemies, setEnemies, onEncounter, onNextFloor, onPrevFloor, onTrap, onHeal, openInventory }) => {
             const GRID_SIZE = 7;
-            
-            // 1 = Walkable Path, 0 = Void/Wall 
+
+            // 1 = Walkable Path, 0 = Void/Wall
             const proceduralGenerateLayout = (size) => {
                 let layout = Array(size).fill().map(() => Array(size).fill(0));
                 let validTiles = [];
-                
+
                 // Spawn point
                 layout[3][3] = 1;
 
@@ -467,7 +467,7 @@
 
                 // Strict Outer Walls
                 for(let i=0; i<size; i++) {
-                    layout[0][i] = 0; layout[6][i] = 0; 
+                    layout[0][i] = 0; layout[6][i] = 0;
                     layout[i][0] = 0; layout[i][6] = 0;
                 }
 
@@ -479,7 +479,7 @@
                         }
                     }
                 }
-                
+
                 validTiles.sort(() => Math.random() - 0.5); // Shuffle
                 return { layout, validTiles };
             };
@@ -494,9 +494,9 @@
                 setDungeonLayout(layout);
                 setPlayerPos({ x: 3, y: 3 });
                 setExploredCells(new Set(['3,3']));
-                
+
                 const getLoc = () => validTiles.length > 0 ? validTiles.pop() : {x:3, y:3};
-                
+
                 if (floor === 1) {
                     setInteractables([
                         { id: 't1', ...getLoc(), type: 'TRAP' },
@@ -525,7 +525,7 @@
                     if (e.key === 'ArrowDown' || e.key === 's') dy = 1;
                     if (e.key === 'ArrowLeft' || e.key === 'a') dx = -1;
                     if (e.key === 'ArrowRight' || e.key === 'd') dx = 1;
-                    
+
                     if (dx !== 0 || dy !== 0) {
                         movePlayer(dx, dy);
                     }
@@ -537,13 +537,13 @@
             const movePlayer = (dx, dy) => {
                 const newX = playerPos.x + dx;
                 const newY = playerPos.y + dy;
-                
+
                 // Bounds & Wall Collision Check
                 if (newX < 0 || newX >= GRID_SIZE || newY < 0 || newY >= GRID_SIZE) return;
                 if (DUNGEON_LAYOUT[newY][newX] === 0) return;
 
                 setPlayerPos({ x: newX, y: newY });
-                
+
                 // Update Fog of War
                 setExploredCells(prev => {
                     const next = new Set(prev);
@@ -573,7 +573,7 @@
                         return;
                     }
                 }
-                
+
                 moveEnemies(newX, newY);
             };
 
@@ -581,15 +581,15 @@
                 const updatedEnemies = enemies.map(e => {
                     const moveDir = Math.floor(Math.random() * 5); // 0=none, 1=up, 2=down, 3=left, 4=right
                     let nextX = e.x; let nextY = e.y;
-                    
+
                     if (moveDir === 1 && e.y > 0 && DUNGEON_LAYOUT[e.y-1][e.x] === 1) nextY--;
                     else if (moveDir === 2 && e.y < GRID_SIZE - 1 && DUNGEON_LAYOUT[e.y+1][e.x] === 1) nextY++;
                     else if (moveDir === 3 && e.x > 0 && DUNGEON_LAYOUT[e.y][e.x-1] === 1) nextX--;
                     else if (moveDir === 4 && e.x < GRID_SIZE - 1 && DUNGEON_LAYOUT[e.y][e.x+1] === 1) nextX++;
-                    
+
                     return { ...e, x: nextX, y: nextY };
                 });
-                
+
                 setEnemies(updatedEnemies);
 
                 // Collision Check!
@@ -605,16 +605,16 @@
                     const isPlayer = playerPos.x === x && playerPos.y === y;
                     const enemy = enemies.find(e => e.x === x && e.y === y);
                     const intObj = interactables.find(i => i.x === x && i.y === y);
-                    
+
                     const isWall = DUNGEON_LAYOUT[y][x] === 0;
                     const isExplored = exploredCells.has(`${x},${y}`);
-                    
+
                     // Scouting Logic: Hidden traversable tiles adjacent to explored ones
                     const neighbors = [
                         {ux: x, uy: y-1}, {ux: x, uy: y+1}, {ux: x-1, uy: y}, {ux: x+1, uy: y}
                     ];
-                    const isScouted = !isExplored && !isWall && neighbors.some(n => 
-                        n.ux >= 0 && n.ux < GRID_SIZE && n.uy >= 0 && n.uy < GRID_SIZE && 
+                    const isScouted = !isExplored && !isWall && neighbors.some(n =>
+                        n.ux >= 0 && n.ux < GRID_SIZE && n.uy >= 0 && n.uy < GRID_SIZE &&
                         exploredCells.has(`${n.ux},${n.uy}`)
                     );
 
@@ -627,22 +627,22 @@
                     const renderEdge = (direction, hasDoor) => {
                         const baseColor = isScouted ? "bg-zinc-800/40" : "bg-zinc-800";
                         if (direction === 'N') {
-                            return hasDoor 
+                            return hasDoor
                                 ? <React.Fragment><div className={`absolute top-0 left-0 w-[20%] h-[2px] ${baseColor}`} /><div className={`absolute top-0 right-0 w-[20%] h-[2px] ${baseColor}`} /></React.Fragment>
                                 : <div className={`absolute top-0 left-0 right-0 h-[2px] ${baseColor}`} />;
                         }
                         if (direction === 'S') {
-                            return hasDoor 
+                            return hasDoor
                                 ? <React.Fragment><div className={`absolute bottom-0 left-0 w-[20%] h-[2px] ${baseColor}`} /><div className={`absolute bottom-0 right-0 w-[20%] h-[2px] ${baseColor}`} /></React.Fragment>
                                 : <div className={`absolute bottom-0 left-0 right-0 h-[2px] ${baseColor}`} />;
                         }
                         if (direction === 'W') {
-                            return hasDoor 
+                            return hasDoor
                                 ? <React.Fragment><div className={`absolute top-0 left-0 h-[20%] w-[2px] ${baseColor}`} /><div className={`absolute bottom-0 left-0 h-[20%] w-[2px] ${baseColor}`} /></React.Fragment>
                                 : <div className={`absolute top-0 bottom-0 left-0 w-[2px] ${baseColor}`} />;
                         }
                         if (direction === 'E') {
-                            return hasDoor 
+                            return hasDoor
                                 ? <React.Fragment><div className={`absolute top-0 right-0 h-[20%] w-[2px] ${baseColor}`} /><div className={`absolute bottom-0 right-0 h-[20%] w-[2px] ${baseColor}`} /></React.Fragment>
                                 : <div className={`absolute top-0 bottom-0 right-0 w-[2px] ${baseColor}`} />;
                         }
@@ -666,7 +666,7 @@
                             {/* Path Decoration */}
                             {showTile && <span className="absolute top-1 left-1 text-[8px] text-zinc-700 pointer-events-none">{x},{y}</span>}
                             {showTile && (x+y)%2===0 && <div className="absolute inset-0 bg-white opacity-[0.02]" />}
-                            
+
                             {/* Scout Indicator */}
                             {isScouted && <span className="text-zinc-700 font-black text-xl select-none opacity-40">?</span>}
 
@@ -707,39 +707,45 @@
             }
 
             return (
-                <div className="h-screen w-screen bg-neutral-950 flex flex-col items-center justify-center relative animate-in fade-in duration-500 text-white tracking-widest font-sans">
-                    <div className="absolute top-6 left-6 font-black italic tracking-widest border border-zinc-800 bg-black/60 px-4 py-2 drop-shadow-xl text-zinc-300">
-                        FLOOR {floor}
-                    </div>
+                <div className="h-screen w-screen bg-neutral-950 flex flex-col lg:flex-row items-stretch lg:justify-between relative animate-in fade-in duration-500 text-white tracking-widest font-sans overflow-hidden">
+                    <section className="w-full lg:flex-1 h-[58vh] sm:h-[62vh] lg:h-screen px-3 py-3 sm:px-4 sm:py-4 lg:p-5 flex items-center justify-start">
+                        <div className="bg-zinc-950 p-[1vh] border-4 border-zinc-800 rounded-xl shadow-2xl backdrop-blur-md relative overflow-hidden flex-shrink-0">
+                            {/* Fog Vignette Overlay */}
+                            <div className="absolute inset-0 bg-radial-vignette opacity-80 pointer-events-none z-10" />
 
-                    <button onClick={openInventory} className="absolute bottom-6 left-6 bg-amber-600 hover:bg-amber-500 text-white font-black px-6 py-3 border-[3px] border-amber-800 shadow-[0_0_15px_rgba(217,119,6,0.6)] flex items-center gap-2 transition-all">
-                        <span className="text-xl">🎒</span> PARTY STASH
-                    </button>
-
-                    <div className="text-center mb-6">
-                        <h2 className="text-3xl font-black italic text-zinc-300">SECTOR 09 <span className="text-xl text-zinc-600">DUNGEON GRID</span></h2>
-                        <p className="text-xs text-zinc-500 uppercase mt-2">Explore the fog. Locate the <span className="text-blue-400 font-bold px-1">↑ STAIRS ↑</span> to proceed.</p>
-                        <p className="text-xs text-zinc-500 uppercase mt-1">Intercept red signatures to engage hostiles.</p>
-                    </div>
-
-                    <div className="bg-zinc-950 p-[1vh] border-4 border-zinc-800 rounded-xl shadow-2xl backdrop-blur-md relative overflow-hidden flex-shrink-0">
-                        {/* Fog Vignette Overlay */}
-                        <div className="absolute inset-0 bg-radial-vignette opacity-80 pointer-events-none z-10" />
-                        
-                        <div className="grid grid-cols-7 grid-rows-7 gap-1 relative z-0">
-                            {cells}
+                            <div className="grid grid-cols-7 grid-rows-7 gap-1 relative z-0">
+                                {cells}
+                            </div>
                         </div>
-                    </div>
+                    </section>
 
-                    {/* Hidden interactive layout logic requires arrows isolated off the map */}
-                    <div className="fixed bottom-[4vh] right-[4vw] flex flex-col items-center gap-[1vh] z-50 opacity-50 hover:opacity-100 transition-opacity">
-                        <button onClick={() => movePlayer(0, -1)} className="w-[6vh] h-[6vh] bg-zinc-800 border-2 border-zinc-600 active:bg-zinc-700 text-white font-black text-xl rounded">↑</button>
-                        <div className="flex gap-[1vh]">
-                            <button onClick={() => movePlayer(-1, 0)} className="w-[6vh] h-[6vh] bg-zinc-800 border-2 border-zinc-600 active:bg-zinc-700 text-white font-black text-xl rounded">←</button>
-                            <button onClick={() => movePlayer(0, 1)} className="w-[6vh] h-[6vh] bg-zinc-800 border-2 border-zinc-600 active:bg-zinc-700 text-white font-black text-xl rounded">↓</button>
-                            <button onClick={() => movePlayer(1, 0)} className="w-[6vh] h-[6vh] bg-zinc-800 border-2 border-zinc-600 active:bg-zinc-700 text-white font-black text-xl rounded">→</button>
+                    <aside className="w-full lg:w-[380px] xl:w-[420px] bg-black/35 border-t-2 lg:border-t-0 lg:border-l-2 border-zinc-800 px-4 py-4 sm:px-6 lg:px-5 xl:px-6 flex flex-col gap-4 sm:gap-5 lg:gap-6 overflow-y-auto">
+                        <div className="font-black italic tracking-widest border border-zinc-800 bg-black/60 px-4 py-2 drop-shadow-xl text-zinc-300 inline-block">
+                            FLOOR {floor}
                         </div>
-                    </div>
+
+                        <div>
+                            <h2 className="text-2xl sm:text-3xl font-black italic text-zinc-300">SECTOR 09 <span className="text-lg sm:text-xl text-zinc-600">DUNGEON GRID</span></h2>
+                            <p className="text-xs text-zinc-500 uppercase mt-2">Explore the fog. Locate the <span className="text-blue-400 font-bold px-1">↑ STAIRS ↑</span> to proceed.</p>
+                            <p className="text-xs text-zinc-500 uppercase mt-1">Intercept red signatures to engage hostiles.</p>
+                        </div>
+
+                        <button onClick={openInventory} className="bg-amber-600 hover:bg-amber-500 text-white font-black px-6 py-3 border-[3px] border-amber-800 shadow-[0_0_15px_rgba(217,119,6,0.6)] flex items-center justify-center gap-2 transition-all">
+                            <span className="text-xl">🎒</span> PARTY STASH
+                        </button>
+
+                        <div className="bg-zinc-900/75 border-2 border-zinc-700 px-4 py-4 rounded-lg">
+                            <p className="text-[11px] font-bold tracking-[0.2em] text-zinc-400 mb-3">MOVEMENT CONTROLS</p>
+                            <div className="flex flex-col items-center gap-[1vh]">
+                                <button onClick={() => movePlayer(0, -1)} className="w-[6vh] h-[6vh] min-w-12 min-h-12 bg-zinc-800 border-2 border-zinc-600 active:bg-zinc-700 text-white font-black text-xl rounded">↑</button>
+                                <div className="flex gap-[1vh]">
+                                    <button onClick={() => movePlayer(-1, 0)} className="w-[6vh] h-[6vh] min-w-12 min-h-12 bg-zinc-800 border-2 border-zinc-600 active:bg-zinc-700 text-white font-black text-xl rounded">←</button>
+                                    <button onClick={() => movePlayer(0, 1)} className="w-[6vh] h-[6vh] min-w-12 min-h-12 bg-zinc-800 border-2 border-zinc-600 active:bg-zinc-700 text-white font-black text-xl rounded">↓</button>
+                                    <button onClick={() => movePlayer(1, 0)} className="w-[6vh] h-[6vh] min-w-12 min-h-12 bg-zinc-800 border-2 border-zinc-600 active:bg-zinc-700 text-white font-black text-xl rounded">→</button>
+                                </div>
+                            </div>
+                        </div>
+                    </aside>
                 </div>
             );
         };
@@ -770,11 +776,11 @@
                 setHeroes(prev => {
                     const next = [...prev];
                     const oldHero = next[heroIndex];
-                    
+
                     const newHero = Object.assign(Object.create(Object.getPrototypeOf(oldHero)), oldHero);
                     newHero.equipment = { ...oldHero.equipment };
                     newHero.hp = Math.min(newHero.maxHp, newHero.hp + healAmount);
-                    
+
                     next[heroIndex] = newHero;
                     return next;
                 });
@@ -788,10 +794,10 @@
 
             const handleEquip = (heroIndex, slot) => {
                 if (!selectedItem) return;
-                
+
                 // Block consumables from being equipped
                 if (selectedItem.type === 'CONSUMABLE') return;
-                
+
                 // Block mismatched item types
                 if (selectedItem.type === 'WEAPON' && slot !== 'weapon1' && slot !== 'weapon2') {
                     alert("Must equip weapon in a weapon slot!");
@@ -805,7 +811,7 @@
                 const targetHero = heroes[heroIndex];
                 const existingItem = targetHero.equipment[slot];
 
-                // 1. Process Inventory Array 
+                // 1. Process Inventory Array
                 let nextInv = inventory.filter(i => i.id !== selectedItem.id);
                 if (existingItem) nextInv.push(existingItem);
                 setInventory(nextInv);
@@ -814,16 +820,16 @@
                 setHeroes(prev => {
                     const next = [...prev];
                     const oldHero = next[heroIndex];
-                    
+
                     // Create new reference for Class Object
                     const newHero = Object.assign(Object.create(Object.getPrototypeOf(oldHero)), oldHero);
                     newHero.equipment = { ...oldHero.equipment };
                     newHero.equipment[slot] = selectedItem;
-                    
+
                     next[heroIndex] = newHero;
                     return next;
                 });
-                
+
                 setSelectedItem(null);
             };
 
@@ -835,15 +841,15 @@
                 // 1. Process Inventory Array
                 setInventory(inv => [...inv, item]);
 
-                // 2. Process Hero State IMMUTABLY 
+                // 2. Process Hero State IMMUTABLY
                 setHeroes(prev => {
                     const next = [...prev];
                     const oldHero = next[heroIndex];
-                    
+
                     const newHero = Object.assign(Object.create(Object.getPrototypeOf(oldHero)), oldHero);
                     newHero.equipment = { ...oldHero.equipment };
                     newHero.equipment[slot] = null;
-                    
+
                     next[heroIndex] = newHero;
                     return next;
                 });
@@ -854,19 +860,19 @@
                     <button onClick={closeInventory} className="absolute top-6 right-6 font-black text-zinc-400 hover:text-white border-2 border-zinc-700 px-4 py-2">
                         RETURN TO SECTOR
                     </button>
-                    
+
                     <h2 className="text-4xl font-black italic tracking-widest text-amber-500 mb-8">GLOBAL STASH</h2>
-                    
+
                     <div className="flex flex-1 gap-8 overflow-hidden">
-                        
+
                         {/* LEFT: Inventory Cache */}
                         <div className="w-1/3 bg-zinc-900 border-2 border-zinc-800 p-4 overflow-y-auto rounded shadow-xl">
                             <h3 className="text-xl font-bold tracking-widest text-zinc-500 border-b border-zinc-800 pb-2 mb-4">UNASSIGNED LOOT</h3>
                             <div className="flex flex-wrap gap-2">
                                 {inventory.length === 0 && <p className="text-zinc-600 text-sm italic">Stash is empty. Defeat monsters or find chests to scavenge gear.</p>}
                                 {inventory.map(item => (
-                                    <div 
-                                        key={item.id} 
+                                    <div
+                                        key={item.id}
                                         onClick={() => setSelectedItem(selectedItem?.id === item.id ? null : item)}
                                         className={`w-full p-3 flex justify-between items-center cursor-pointer border-l-4 transition-all
                                             ${selectedItem?.id === item.id ? 'bg-amber-900 border-amber-500' : (TYPE_COLORS[item.type] || TYPE_COLORS['DEFAULT']) + ' hover:bg-zinc-800'}`}
@@ -895,8 +901,8 @@
                         {/* RIGHT: Heroes */}
                         <div className="flex-1 flex gap-4">
                             {heroes.map((hero, index) => (
-                                <div 
-                                    key={hero.id} 
+                                <div
+                                    key={hero.id}
                                     onClick={() => selectedItem?.type === 'CONSUMABLE' && handleUseItem(index)}
                                     className={`flex-1 border-2 p-4 rounded shadow-xl flex flex-col transition-all relative
                                         ${healedHeroIndex === index ? 'animate-heal-pulse' : ''}
@@ -918,11 +924,11 @@
                                                 <h4 className="font-black italic text-lg leading-none">{hero.name}</h4>
                                                 <span className="text-[10px] bg-zinc-800 text-zinc-400 px-1 rounded uppercase">{hero.role}</span>
                                             </div>
-                                            
+
                                             {/* HP BAR VISIBILITY */}
                                             <div className="w-full bg-zinc-800 h-2 rounded-full overflow-hidden border border-zinc-700 mb-1">
-                                                <div 
-                                                    className="h-full bg-emerald-500 transition-all duration-500" 
+                                                <div
+                                                    className="h-full bg-emerald-500 transition-all duration-500"
                                                     style={{ width: `${(hero.hp / hero.maxHp) * 100}%` }}
                                                 />
                                             </div>
@@ -933,7 +939,7 @@
                                             </div>
                                         </div>
                                     </div>
-                                    
+
                                     {/* Equipment Slots */}
                                     <div className="flex-1 flex flex-col gap-2">
                                         {['weapon1', 'weapon2', 'hat', 'chest', 'shoes'].map(slot => {
@@ -945,13 +951,13 @@
                                             }
 
                                             return (
-                                                <div 
+                                                <div
                                                     key={slot}
                                                     onClick={() => selectedItem ? handleEquip(index, slot) : unequip(index, slot)}
                                                     className={`w-full p-2 border-2 flex items-center justify-between cursor-pointer transition-all
-                                                        ${selectedItem 
-                                                            ? (isValidSlot ? 'border-dashed border-yellow-500 bg-yellow-900/40 hover:bg-yellow-800' : 'border-zinc-800 bg-zinc-950 opacity-30 cursor-not-allowed') 
-                                                            : 'border-zinc-800 bg-zinc-950 hover:border-red-500 hover:bg-red-950/20'} 
+                                                        ${selectedItem
+                                                            ? (isValidSlot ? 'border-dashed border-yellow-500 bg-yellow-900/40 hover:bg-yellow-800' : 'border-zinc-800 bg-zinc-950 opacity-30 cursor-not-allowed')
+                                                            : 'border-zinc-800 bg-zinc-950 hover:border-red-500 hover:bg-red-950/20'}
                                                         ${!item && !selectedItem ? 'opacity-50' : ''}`}
                                                 >
                                                     <span className="text-[10px] text-zinc-500 uppercase font-black w-16">{slot}</span>
@@ -1010,7 +1016,7 @@
                 new Combatant("Elara", "HEALER", 70, 14, 15, 6, "hero_elara", [{name: 'Cure', val: 25, type: 'heal'}, {name: 'Holy Light', val: 40, type: 'heal'}], 'REARGUARD'),
                 new Combatant("Kael", "DPS", 85, 18, 22, 10, "hero_kael", [{name: 'Piercing Shot', val: 30, type: 'damage'}, {name: 'Quick Volley', val: 20, type: 'damage'}], 'REARGUARD')
             ]);
-            
+
 
 
             const generateLoot = () => {
@@ -1025,15 +1031,15 @@
                     new Item("Voidwalker Treads", "SHOES", { def: 8, spd: 15 }, "👞", "Legendary"),
                     new Item("Healing Potion", "CONSUMABLE", { heal: 40 }, "🧪", "Uncommon")
                 ];
-                
+
                 let item = tables[Math.floor(Math.random() * tables.length)];
-                
+
                 // Roll for Passives on high-tier loot
                 if (item.rarity === 'Epic' || item.rarity === 'Legendary') {
                     const passivePool = [PASSIVES.LIFESTEAL, PASSIVES.THORNS, PASSIVES.QUICKENING];
                     item.passives = [passivePool[Math.floor(Math.random() * passivePool.length)]];
                 }
-                
+
                 return item;
             };
 
@@ -1086,7 +1092,7 @@
                     setActiveMapEnemies(getEnemiesForFloor(prevFloor));
                 }
             };
-            
+
             // Party HP State modification - damage scales with floor depth
             const handleTrap = () => {
                 const damagePercent = 0.15 + (floor * 0.05); // F1=20%, F2=25%, F3=30%
@@ -1112,22 +1118,22 @@
                     return next;
                 });
             };
-            const handleHeal = () => { 
+            const handleHeal = () => {
                 const drop = generateLoot();
                 setInventory(prev => [...prev, drop]);
-                alert(`Found a Supply Chest! Loot Acquired: ${drop.icon} ${drop.name}`); 
+                alert(`Found a Supply Chest! Loot Acquired: ${drop.icon} ${drop.name}`);
             };
 
             const handleBattleEnd = (result) => {
                 if (result === 'VICTORY') {
                     // Delete defeated enemy from map!
                     setActiveMapEnemies(prev => prev.filter(e => e.id !== activeEncounter.id));
-                    
+
                     // Phase 10: Drop Loot!
                     const drop = generateLoot();
                     setInventory(prev => [...prev, drop]);
                     alert(`VICTORY! Loot Acquired: ${drop.icon} ${drop.name}`);
-                    
+
                     setGamePhase('EXPLORATION');
                     setActiveEncounter(null);
                 } else {
@@ -1140,14 +1146,14 @@
                     {/* Persistent Backgrounds */}
                     <div className="fixed inset-0 bg-[url('https://images.unsplash.com/photo-1544200175-ca6e80a7b323?q=80&w=2670&auto=format&fit=crop')] bg-cover opacity-10 grayscale brightness-50 pointer-events-none z-0" />
                     <div className="fixed inset-0 bg-radial-vignette opacity-70 pointer-events-none z-0" />
-                    
+
                     <div className="relative z-10">
                         {/* Persistent state via CSS display trick! Exploration never actually unmounts. */}
                         <div style={{ display: gamePhase === 'EXPLORATION' ? 'block' : 'none' }}>
-                            <ExplorationPhase 
+                            <ExplorationPhase
                                 floor={floor}
-                                enemies={activeMapEnemies} 
-                                setEnemies={setActiveMapEnemies} 
+                                enemies={activeMapEnemies}
+                                setEnemies={setActiveMapEnemies}
                                 onEncounter={handleEncounter}
                                 onNextFloor={handleNextFloor}
                                 onPrevFloor={handlePrevFloor}
@@ -1158,7 +1164,7 @@
                         </div>
 
                         {gamePhase === 'INVENTORY' && (
-                            <InventoryPhase 
+                            <InventoryPhase
                                 heroes={heroes}
                                 setHeroes={setHeroes}
                                 inventory={inventory}
@@ -1166,13 +1172,13 @@
                                 closeInventory={() => setGamePhase('EXPLORATION')}
                             />
                         )}
-                        
+
                         {gamePhase === 'BATTLE' && activeEncounter && (
-                            <BattlePhase 
+                            <BattlePhase
                                 heroes={heroes}
                                 setHeroes={setHeroes}
-                                packSetup={activeEncounter.instances} 
-                                onBattleEnd={handleBattleEnd} 
+                                packSetup={activeEncounter.instances}
+                                onBattleEnd={handleBattleEnd}
                             />
                         )}
                     </div>

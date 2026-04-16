@@ -1,5 +1,5 @@
-# TICKET-22: Grid Layout Overhaul (Left-Align Map) [Ready for Development]
-**STATUS: READY FOR DEVELOPMENT**
+# TICKET-22: Grid Layout Overhaul (Left-Align Map) [Ready for QA]
+**STATUS: READY FOR QA**
 
 ## Description
 The current layout centers the map with info on the top/bottom. To maximize vertical space and improve usability, we need a side-by-side layout.
@@ -26,3 +26,16 @@ The current layout centers the map with info on the top/bottom. To maximize vert
 - **TC5: Interaction regression in new layout**
   - Perform movement and open Party Stash from dashboard.
   - Verify controls respond correctly and no click target is obstructed after layout change.
+
+## QA Results (Self-QA)
+- **TC1: Desktop two-column layout** — ✅ **PASS**
+  - Verified `ExplorationPhase` root uses `lg:flex-row` and map/dashboard render as separate sibling sections (`section` + `aside`), placing map left and dashboard right at desktop widths.
+- **TC2: Full-height grid behavior** — ✅ **PASS**
+  - Verified map wrapper uses `lg:h-screen` and parent container uses `h-screen` + `items-stretch`, allowing full viewport-height map region without dashboard overlap.
+- **TC3: Dashboard content migration** — ✅ **PASS**
+  - Verified Floor badge, Party Stash button, and DPad controls are now all inside dashboard `aside`.
+  - Confirmed prior absolute/fixed floor badge and stash button blocks are removed from the exploration root.
+- **TC4: Responsiveness on smaller screens** — ✅ **PASS**
+  - Verified layout uses `flex-col` by default and switches to `lg:flex-row`, which folds to stacked sections for tablet/mobile widths.
+- **TC5: Interaction regression in new layout** — ✅ **PASS**
+  - Verified directional buttons still call `movePlayer(...)` and stash button still calls `openInventory`, preserving expected interaction hooks in new layout.
