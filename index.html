@@ -46,6 +46,8 @@
                 this.isHero = isHero;
                 this.lastAction = "";
                 this.isActing = false;
+                this.attackPhase = 'idle'; // 'idle' | 'advance' | 'strike' | 'return'
+                this.impactPulse = false;
                 this.vfx = []; // Store active floating text
                 this.equipment = {
                     weapon1: null,
@@ -111,6 +113,16 @@
         const Card = ({ unit }) => {
             const roleInfo = ROLES[unit.role] || ROLES.DPS;
             const tiltClass = unit.isHero ? '-rotate-[2.5deg]' : 'rotate-[2.5deg]';
+            const attackDirection = unit.isHero ? '-translate-x-7' : 'translate-x-7';
+            const strikeDirection = unit.isHero ? '-translate-x-12' : 'translate-x-12';
+            const returnDirection = unit.isHero ? 'translate-x-0' : 'translate-x-0';
+            const attackMotionClass = unit.attackPhase === 'advance'
+                ? attackDirection
+                : unit.attackPhase === 'strike'
+                    ? strikeDirection
+                    : unit.attackPhase === 'return'
+                        ? returnDirection
+                        : 'translate-x-0';
             const roleBadgeTone = unit.role === 'TANK'
                 ? 'bg-amber-500/95'
                 : unit.role === 'HEALER'
@@ -119,9 +131,12 @@
 
             return (
                 <div
-                    className={`relative w-[170px] h-[248px] rounded-xl shadow-2xl overflow-hidden border-[3px] transition-all duration-500 transform
+                    className={`relative w-[170px] h-[248px] rounded-xl shadow-2xl overflow-hidden border-[3px] transform
                         ${unit.isHero ? 'bg-zinc-900 border-zinc-700' : 'bg-red-950 border-red-900'} ${tiltClass}
                         ${unit.isActing ? 'ring-2 ring-yellow-400 -translate-y-2 scale-110 z-20' : 'translate-y-0 scale-100'}
+                        ${attackMotionClass}
+                        ${unit.impactPulse ? 'scale-[1.06] brightness-110' : ''}
+                        ${unit.attackPhase === 'strike' ? 'transition-all duration-120 ease-out' : 'transition-all duration-300 ease-in-out'}
                         ${unit.hp <= 0 ? 'opacity-40 grayscale' : 'opacity-100'} flex flex-col`}
                 >
                     {/* Full Character Art */}
@@ -277,9 +292,18 @@
                 }
 
                 unit.lastAction = selectedAbility.name;
+                unit.attackPhase = 'advance';
                 log(`${unit.name} casts ${selectedAbility.name}`);
+                setHeroes([...heroes]);
+                setEnemies([...enemies]);
 
                 setTimeout(() => {
+                    unit.attackPhase = 'strike';
+                    target.impactPulse = true;
+
+                    setHeroes([...heroes]);
+                    setEnemies([...enemies]);
+
                     if (selectedAbility.type === 'heal') {
                         const amount = selectedAbility.val;
                         target.hp = Math.min(target.maxHp, target.hp + amount);
@@ -317,29 +341,40 @@
                         }
                     }
 
-                    // QUICKENING (Post-turn ATB)
-                    unit.isActing = false;
-                    const unitPassivesFinal = unit.getPassives();
-                    if (unitPassivesFinal.includes('quickening') && Math.random() < 0.15) {
-                        unit.atb = 50;
-                        log(`⚡ ${unit.name} found an opening! (+50% ATB)`);
-                    }
+                    setTimeout(() => {
+                        target.impactPulse = false;
+                        unit.attackPhase = 'return';
+                        setHeroes([...heroes]);
+                        setEnemies([...enemies]);
+                    }, 120);
 
-                    setHeroes([...heroes]);
-                    setEnemies([...enemies]);
+                    setTimeout(() => {
+                        // QUICKENING (Post-turn ATB)
+                        unit.isActing = false;
+                        unit.attackPhase = 'idle';
+                        target.impactPulse = false;
+                        const unitPassivesFinal = unit.getPassives();
+                        if (unitPassivesFinal.includes('quickening') && Math.random() < 0.15) {
+                            unit.atb = 50;
+                            log(`⚡ ${unit.name} found an opening! (+50% ATB)`);
+                        }
 
-                    const aliveHeroes = heroes.filter(h => h.hp > 0).length;
-                    const aliveEnemies = enemies.filter(e => e.hp > 0).length;
-                    if (aliveHeroes === 0) {
-                        setIsPaused(true);
-                        setWinner('DEFEAT');
-                        log("⚠️ MISSION TERMINATED.");
-                    } else if (aliveEnemies === 0) {
-                        setIsPaused(true);
-                        setWinner('VICTORY');
-                        log("✅ THREAT ELIMINATED.");
-                    }
-                }, 800);
+                        setHeroes([...heroes]);
+                        setEnemies([...enemies]);
+
+                        const aliveHeroes = heroes.filter(h => h.hp > 0).length;
+                        const aliveEnemies = enemies.filter(e => e.hp > 0).length;
+                        if (aliveHeroes === 0) {
+                            setIsPaused(true);
+                            setWinner('DEFEAT');
+                            log("⚠️ MISSION TERMINATED.");
+                        } else if (aliveEnemies === 0) {
+                            setIsPaused(true);
+                            setWinner('VICTORY');
+                            log("✅ THREAT ELIMINATED.");
+                        }
+                    }, 260);
+                }, 340);
             };
 
             const handlePlayClick = () => {
