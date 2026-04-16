@@ -709,7 +709,7 @@
                     cells.push(
                         <div key={`${x}-${y}`} style={{ width: `${tileSize}px`, height: `${tileSize}px` }} className={`flex items-center justify-center relative transition-all duration-500
                             ${!showTile ? 'bg-transparent border-transparent opacity-0 scale-75' : 'bg-zinc-900 shadow-[inset_0_2px_15px_rgba(0,0,0,0.5)]'}
-                            ${isScouted ? 'bg-cyan-950/45 ring-1 ring-cyan-500/45 shadow-[inset_0_0_18px_rgba(34,211,238,0.25)]' : ''}
+                            ${isScouted ? 'bg-zinc-900/75 ring-1 ring-zinc-500/35 shadow-[inset_0_0_22px_rgba(148,163,184,0.18)] backdrop-blur-[1px]' : ''}
                         `}>
                             {/* Render Physical Walls & Doorways */}
                             {showTile && renderEdge('N', hasDoorN)}
@@ -721,7 +721,7 @@
                             {showTile && (x+y)%2===0 && <div className="absolute inset-0 bg-white opacity-[0.02]" />}
 
                             {/* Scout Indicator */}
-                            {isScouted && <span className="text-cyan-100 font-black text-2xl select-none opacity-90 drop-shadow-[0_2px_3px_rgba(0,0,0,0.8)]">?</span>}
+                            {isScouted && <span className="text-zinc-400 font-black text-2xl select-none opacity-70 drop-shadow-[0_2px_3px_rgba(0,0,0,0.85)]">?</span>}
 
                             {/* Interactables (Only shown if explored) */}
                             {showEntity && showTile && intObj && (
