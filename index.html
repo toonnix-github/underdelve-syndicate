@@ -801,7 +801,8 @@
                     const showEntity = isExplored;
 
                     const bgTypes = ['stone', 'moss', 'ruins', 'bone', 'shadow'];
-                    const tileBg = bgTypes[tileBgs[cellKey] || 0];
+                    // Mystery rooms logic: uses 'unknown' asset if scouted but not explored
+                    const tileBg = isExplored ? bgTypes[tileBgs[cellKey] || 0] : 'unknown';
 
                     cells.push(
                         <div
@@ -860,18 +861,23 @@
 
                             {/* Player Avatar (Digital Tabletop Style) */}
                             {isPlayer && !isWall && isExplored && (
-                                <div className="w-[7vh] h-[7vh] rounded-full border-2 border-blue-400 bg-zinc-900 overflow-hidden shadow-[0_0_20px_rgba(96,165,250,0.8)] z-20 transform transition-all duration-200 flex flex-col items-center justify-center gap-[2px]">
-                                    {intObj && (intObj.type === 'PREV_FLOOR' || intObj.type === 'STAIRS') && (
-                                        <div className={`absolute -top-2 -right-2 w-[2.2vh] h-[2.2vh] min-w-5 min-h-5 rounded-full border border-white text-[1.2vh] font-black flex items-center justify-center z-40 ${intObj.type === 'PREV_FLOOR' ? 'bg-purple-700 text-white' : 'bg-cyan-500 text-black'}`}>
-                                            {intObj.type === 'PREV_FLOOR' ? '↓' : '↑'}
+                                <div className="relative z-20 transition-all duration-200">
+                                    {/* Torch Glow Effect */}
+                                    <div className="absolute inset-0 rounded-full animate-torch pointer-events-none" />
+                                    
+                                    <div className="w-[7vh] h-[7vh] rounded-full border-2 border-blue-400 bg-zinc-900 overflow-hidden shadow-[0_0_20px_rgba(96,165,250,0.8)] transform flex flex-col items-center justify-center gap-[2px]">
+                                        {intObj && (intObj.type === 'PREV_FLOOR' || intObj.type === 'STAIRS') && (
+                                            <div className={`absolute -top-2 -right-2 w-[2.2vh] h-[2.2vh] min-w-5 min-h-5 rounded-full border border-white text-[1.2vh] font-black flex items-center justify-center z-40 ${intObj.type === 'PREV_FLOOR' ? 'bg-purple-700 text-white' : 'bg-cyan-500 text-black'}`}>
+                                                {intObj.type === 'PREV_FLOOR' ? '↓' : '↑'}
+                                            </div>
+                                        )}
+                                        <div className="flex justify-center w-full">
+                                            <div className="w-[1.5vh] h-[1.5vh] rounded-full bg-amber-500 border border-black shadow-inner shrink-0" />
                                         </div>
-                                    )}
-                                    <div className="flex justify-center w-full">
-                                        <div className="w-[1.5vh] h-[1.5vh] rounded-full bg-amber-500 border border-black shadow-inner shrink-0" />
-                                    </div>
-                                    <div className="flex justify-center gap-[0.5vh] w-full relative">
-                                        <div className="w-[1.5vh] h-[1.5vh] rounded-full bg-emerald-500 border border-black shadow-inner shrink-0" />
-                                        <div className="w-[1.5vh] h-[1.5vh] rounded-full bg-purple-500 border border-black shadow-inner shrink-0" />
+                                        <div className="flex justify-center gap-[0.5vh] w-full relative">
+                                            <div className="w-[1.5vh] h-[1.5vh] rounded-full bg-emerald-500 border border-black shadow-inner shrink-0" />
+                                            <div className="w-[1.5vh] h-[1.5vh] rounded-full bg-purple-500 border border-black shadow-inner shrink-0" />
+                                        </div>
                                     </div>
                                 </div>
                             )}
@@ -1443,6 +1449,16 @@
                             animation: tile-reveal 360ms cubic-bezier(0.2, 0.8, 0.2, 1);
                             transform-origin: center;
                             will-change: transform, opacity, filter;
+                        }
+
+                        @keyframes torch-flicker {
+                            0%, 100% { opacity: 0.6; box-shadow: 0 0 22px 10px rgba(251, 191, 36, 0.4); }
+                            40% { opacity: 0.9; box-shadow: 0 0 35px 18px rgba(245, 158, 11, 0.6); }
+                            80% { opacity: 0.7; box-shadow: 0 0 28px 14px rgba(251, 191, 36, 0.5); }
+                        }
+                        .animate-torch {
+                            animation: torch-flicker 1.8s infinite ease-in-out;
+                            background: radial-gradient(circle, rgba(251, 191, 36, 0.25) 0%, transparent 70%);
                         }
                     `}</style>
                 </div>
