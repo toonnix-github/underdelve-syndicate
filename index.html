@@ -341,6 +341,7 @@
             const [isLogExpanded, setIsLogExpanded] = useState(false);
             const [boardShake, setBoardShake] = useState(false);
             const [projectiles, setProjectiles] = useState([]);
+            const [slashBursts, setSlashBursts] = useState([]);
 
             // Multipack enemies from the map encounter
             const [enemies, setEnemies] = useState(packSetup);
@@ -361,6 +362,7 @@
                 const name = (ability?.name || '').toLowerCase();
                 const isHeal = ability?.type === 'heal';
                 const isMelee = /slash|smash|crash|slam|bite|stab|strike|tremor|fang|backstab|siphon/.test(name);
+                const isSwordStrike = /sword|slash|strike|backstab|stab/.test(name);
                 const isFireSpell = /fire|flame|burn|heat|dragon breath|forge/.test(name);
                 const isArrowShot = /arrow|shot/.test(name);
 
@@ -370,7 +372,8 @@
                         lineColor: 'rgba(34, 197, 94, 0.9)',
                         glowColor: 'rgba(74, 222, 128, 0.75)',
                         coreColor: '#dcfce7',
-                        width: 4
+                        width: 4,
+                        effect: 'default'
                     };
                 }
 
@@ -380,7 +383,8 @@
                         lineColor: 'rgba(220, 38, 38, 0.95)',
                         glowColor: 'rgba(248, 113, 113, 0.75)',
                         coreColor: '#fee2e2',
-                        width: 7
+                        width: 7,
+                        effect: isSwordStrike ? 'slash' : 'default'
                     };
                 }
 
@@ -390,7 +394,8 @@
                         lineColor: 'rgba(239, 68, 68, 0.95)',
                         glowColor: 'rgba(252, 165, 165, 0.75)',
                         coreColor: '#fee2e2',
-                        width: 5
+                        width: 5,
+                        effect: 'fireball'
                     };
                 }
 
@@ -400,7 +405,8 @@
                         lineColor: 'rgba(59, 130, 246, 0.92)',
                         glowColor: 'rgba(125, 211, 252, 0.75)',
                         coreColor: '#e0f2fe',
-                        width: 4
+                        width: 4,
+                        effect: 'default'
                     };
                 }
 
@@ -409,7 +415,8 @@
                     lineColor: 'rgba(59, 130, 246, 0.9)',
                     glowColor: 'rgba(96, 165, 250, 0.72)',
                     coreColor: '#dbeafe',
-                    width: 4
+                    width: 4,
+                    effect: 'default'
                 };
             };
 
@@ -440,6 +447,18 @@
                     };
 
                     setProjectiles(prev => [...prev, projectile]);
+
+                    if (projectileStyle.effect === 'slash') {
+                        const slashId = Date.now() + Math.random();
+                        const impactDelay = projectileStyle.motion === 'straight' ? 260 : 410;
+                        setTimeout(() => {
+                            setSlashBursts(prev => [...prev, { id: slashId, x: end.x, y: end.y, angle: Math.atan2(dy, dx) * (180 / Math.PI) }]);
+                            setTimeout(() => {
+                                setSlashBursts(prev => prev.filter(s => s.id !== slashId));
+                            }, 240);
+                        }, impactDelay);
+                    }
+
                     setTimeout(() => {
                         setProjectiles(prev => prev.filter(p => p.id !== projectile.id));
                     }, projectileStyle.motion === 'straight' ? 360 : 520);
@@ -781,6 +800,13 @@
             return (
                 <div className={`h-screen w-screen bg-neutral-950 text-white flex flex-col items-center relative animate-in fade-in duration-500 overflow-hidden ${boardShake ? 'animate-board-shake' : ''}`}>
                     <svg className="absolute inset-0 z-40 pointer-events-none overflow-visible">
+                        <defs>
+                            <radialGradient id="fireballGradient" cx="50%" cy="50%" r="50%">
+                                <stop offset="0%" stopColor="#fef9c3" />
+                                <stop offset="45%" stopColor="#fb923c" />
+                                <stop offset="100%" stopColor="#dc2626" />
+                            </radialGradient>
+                        </defs>
                         {projectiles.map((p) => (
                             <g key={p.id}>
                                 {p.type === 'curve' && (
@@ -807,17 +833,42 @@
                                 <circle
                                     r={p.type === 'straight' ? 5 : 8}
                                     className={p.type === 'straight' ? 'arrow-projectile-core' : 'spell-projectile-core'}
-                                    style={{ fill: p.style.coreColor, filter: `drop-shadow(0 0 9px ${p.style.glowColor})` }}
+                                    style={{
+                                        fill: p.style.effect === 'fireball' ? 'url(#fireballGradient)' : p.style.coreColor,
+                                        filter: `drop-shadow(0 0 9px ${p.style.glowColor})`
+                                    }}
                                 >
                                     <animateMotion dur={p.type === 'straight' ? '340ms' : '500ms'} path={p.path} fill="freeze" />
                                 </circle>
+                                {p.style.effect === 'fireball' && (
+                                    <>
+                                        <circle r="13" className="fireball-aura">
+                                            <animateMotion dur="500ms" path={p.path} fill="freeze" />
+                                        </circle>
+                                        <circle r="3" className="fireball-ember ember-1">
+                                            <animateMotion dur="500ms" path={p.path} fill="freeze" />
+                                        </circle>
+                                        <circle r="2.5" className="fireball-ember ember-2">
+                                            <animateMotion dur="500ms" path={p.path} fill="freeze" />
+                                        </circle>
+                                        <circle r="2" className="fireball-ember ember-3">
+                                            <animateMotion dur="500ms" path={p.path} fill="freeze" />
+                                        </circle>
+                                    </>
+                                )}
                                 <polygon
-                                    points="-12,-3 8,0 -12,3"
+                                    points="-20,-6 14,0 -20,6"
                                     className="arrow-head"
                                     style={{ fill: p.style.lineColor, filter: `drop-shadow(0 0 6px ${p.style.glowColor})` }}
                                 >
                                     <animateMotion dur={p.type === 'straight' ? '340ms' : '500ms'} path={p.path} rotate="auto" fill="freeze" />
                                 </polygon>
+                            </g>
+                        ))}
+                        {slashBursts.map((s) => (
+                            <g key={s.id} transform={`translate(${s.x} ${s.y}) rotate(${s.angle})`} className="sword-slash-burst">
+                                <path d="M -44 -9 Q 0 -22 46 -8" className="sword-slash-main" />
+                                <path d="M -35 4 Q 2 -6 34 6" className="sword-slash-echo" />
                             </g>
                         ))}
                     </svg>
@@ -2204,10 +2255,61 @@
         .arrow-head {
             opacity: 0.98;
         }
+        .fireball-aura {
+            fill: rgba(249, 115, 22, 0.25);
+            filter: blur(1px) drop-shadow(0 0 10px rgba(248, 113, 113, 0.75));
+            animation: fireball-flicker 0.25s ease-in-out infinite alternate;
+        }
+        .fireball-ember {
+            fill: #fdba74;
+            filter: drop-shadow(0 0 6px rgba(251, 146, 60, 0.9));
+            opacity: 0.9;
+        }
+        .ember-1 { animation: ember-drift-1 0.45s linear infinite; }
+        .ember-2 { animation: ember-drift-2 0.42s linear infinite; }
+        .ember-3 { animation: ember-drift-3 0.48s linear infinite; }
+        .sword-slash-burst {
+            animation: sword-slash-pop 0.22s ease-out forwards;
+        }
+        .sword-slash-main {
+            fill: none;
+            stroke: rgba(255, 241, 242, 0.95);
+            stroke-width: 8;
+            stroke-linecap: round;
+            filter: drop-shadow(0 0 9px rgba(248, 113, 113, 0.95));
+        }
+        .sword-slash-echo {
+            fill: none;
+            stroke: rgba(252, 165, 165, 0.75);
+            stroke-width: 4;
+            stroke-linecap: round;
+            filter: drop-shadow(0 0 7px rgba(252, 165, 165, 0.75));
+        }
         @keyframes spell-arc-fade {
             0% { opacity: 0; }
             15% { opacity: 1; }
             100% { opacity: 0; }
+        }
+        @keyframes fireball-flicker {
+            0% { opacity: 0.45; transform: scale(0.95); }
+            100% { opacity: 0.9; transform: scale(1.06); }
+        }
+        @keyframes ember-drift-1 {
+            0% { transform: translate(-1px, 0); opacity: 0.9; }
+            100% { transform: translate(8px, -6px); opacity: 0; }
+        }
+        @keyframes ember-drift-2 {
+            0% { transform: translate(1px, 0); opacity: 0.8; }
+            100% { transform: translate(-7px, -8px); opacity: 0; }
+        }
+        @keyframes ember-drift-3 {
+            0% { transform: translate(0, 1px); opacity: 0.8; }
+            100% { transform: translate(4px, -10px); opacity: 0; }
+        }
+        @keyframes sword-slash-pop {
+            0% { opacity: 0; transform: scale(0.45); }
+            45% { opacity: 1; transform: scale(1.08); }
+            100% { opacity: 0; transform: scale(1.18); }
         }
     </style>
 </head>
