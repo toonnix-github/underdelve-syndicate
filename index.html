@@ -1377,6 +1377,19 @@
                 setStairsPrompt(null);
 
                 const getLoc = () => validTiles.length > 0 ? validTiles.pop() : {x:CENTER_TILE, y:CENTER_TILE};
+                const getStairsLoc = () => {
+                    const preferred = [
+                        { x: CENTER_TILE + 1, y: CENTER_TILE },
+                        { x: CENTER_TILE - 1, y: CENTER_TILE },
+                        { x: CENTER_TILE, y: CENTER_TILE + 1 },
+                        { x: CENTER_TILE, y: CENTER_TILE - 1 }
+                    ];
+                    const stairLoc = preferred.find((tile) => layout[tile.y]?.[tile.x] === 1);
+                    if (!stairLoc) return getLoc();
+                    const idx = validTiles.findIndex((tile) => tile.x === stairLoc.x && tile.y === stairLoc.y);
+                    if (idx >= 0) validTiles.splice(idx, 1);
+                    return stairLoc;
+                };
 
                 const TRAP_TYPES = ['SPIKES', 'ACID', 'BLADES'];
                 const getTrap = (id) => ({
@@ -1391,7 +1404,7 @@
                     setInteractables([
                         getTrap('t1'),
                         { id: 'c1', ...getLoc(), type: 'CHEST' },
-                        { id: 's1', ...getLoc(), type: 'STAIRS' }
+                        { id: 's1', ...getStairsLoc(), type: 'STAIRS' }
                     ]);
                 } else if (floor >= 2) {
                     setInteractables([
