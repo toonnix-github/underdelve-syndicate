@@ -811,15 +811,13 @@
                                 >
                                     <animateMotion dur={p.type === 'straight' ? '340ms' : '500ms'} path={p.path} fill="freeze" />
                                 </circle>
-                                {p.type === 'straight' && (
-                                    <polygon
-                                        points="-12,-3 8,0 -12,3"
-                                        className="arrow-head"
-                                        style={{ fill: p.style.lineColor, filter: `drop-shadow(0 0 6px ${p.style.glowColor})` }}
-                                    >
-                                        <animateMotion dur="340ms" path={p.path} rotate="auto" fill="freeze" />
-                                    </polygon>
-                                )}
+                                <polygon
+                                    points="-12,-3 8,0 -12,3"
+                                    className="arrow-head"
+                                    style={{ fill: p.style.lineColor, filter: `drop-shadow(0 0 6px ${p.style.glowColor})` }}
+                                >
+                                    <animateMotion dur={p.type === 'straight' ? '340ms' : '500ms'} path={p.path} rotate="auto" fill="freeze" />
+                                </polygon>
                             </g>
                         ))}
                     </svg>
