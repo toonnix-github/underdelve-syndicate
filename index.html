@@ -29,7 +29,7 @@
         }
 
         class Combatant {
-            constructor(name, role, maxHp, speed, power, def, imageId, abilities, positionLine, isHero = true) {
+            constructor(name, role, maxHp, speed, power, def, imageId, abilities, positionLine, isHero = true, trait = null) {
                 this.id = Math.random().toString(36).substr(2, 9);
                 this.name = name;
                 this.role = role;
@@ -44,6 +44,8 @@
                 this.atb = 0;
                 this.isDead = false;
                 this.isHero = isHero;
+                this.trait = trait;
+                this.hasRevived = false; // Persistent state for 'Undying'
                 this.lastAction = "";
                 this.isActing = false;
                 this.attackPhase = 'idle'; // 'idle' | 'advance' | 'strike' | 'return'
@@ -51,6 +53,7 @@
                 this.hitShake = false;
                 this.showImpact = false;
                 this.healSparkle = false;
+                this.traitGlow = false;
                 this.vfx = []; // Store active floating text
                 this.equipment = {
                     weapon1: null,
@@ -59,6 +62,11 @@
                     chest: null,
                     shoes: null
                 };
+                // VFX States
+                this.isCharging = false;
+                this.chargeColor = 'amber'; // 'amber' | 'blue' | 'rose'
+                this.activeSigil = null; // '⚔️' | '✨' | '🛡️' | '⚡'
+                this.isPopping = false;
             }
 
             clone() {
@@ -66,6 +74,11 @@
                 copy.equipment = { ...this.equipment };
                 copy.abilities = [...this.abilities];
                 copy.vfx = [...this.vfx];
+                // Clone VFX states
+                copy.isCharging = this.isCharging;
+                copy.chargeColor = this.chargeColor;
+                copy.activeSigil = this.activeSigil;
+                copy.isPopping = this.isPopping;
                 return copy;
             }
 
@@ -88,6 +101,9 @@
             getDEF() {
                 let total = this.def;
                 Object.values(this.equipment).forEach(item => { if (item?.statBoost?.def) total += item.statBoost.def; });
+                if (this.trait?.id === 'vanguard_stance' && this.positionLine === 'VANGUARD') {
+                    total = Math.floor(total * 1.1);
+                }
                 return total;
             }
 
@@ -97,9 +113,9 @@
                 return total;
             }
 
-            updateAtb(dt) {
+            updateAtb(dt, partySpeedMult = 1.0) {
                 if (this.hp <= 0) return;
-                const increment = (this.getSPD() * dt) * 5;
+                const increment = (this.getSPD() * dt * partySpeedMult) * 5;
                 this.atb = Math.min(100, this.atb + increment);
             }
 
@@ -122,6 +138,7 @@
         // --- REACT COMPONENTS ---
 
         const Card = ({ unit }) => {
+            if (!unit) return null;
             const roleInfo = ROLES[unit.role] || ROLES.DPS;
             const tiltClass = unit.isHero ? '-rotate-[2.5deg]' : 'rotate-[2.5deg]';
             const attackDirection = unit.isHero ? '-translate-x-7' : 'translate-x-7';
@@ -140,65 +157,141 @@
                     ? 'bg-emerald-500/95'
                     : 'bg-rose-500/95';
 
+            // Safe Stat Access (resilience for raw hero objects)
+            const getUnitATK = () => unit.getATK ? unit.getATK() : (unit.atk || 0);
+            const getUnitDEF = () => unit.getDEF ? unit.getDEF() : (unit.def || 0);
+            const getUnitSPD = () => unit.getSPD ? unit.getSPD() : (unit.spd || 0);
+            const imageId = unit.imageId || `hero_${unit.name?.toLowerCase() || 'unknown'}`;
+
             return (
                 <div
-                    className={`relative w-[170px] h-[248px] rounded-xl shadow-2xl overflow-hidden border-[3px] transform
+                    className={`relative w-[170px] h-[248px] rounded-xl shadow-2xl border-[3px] transform
                         ${unit.isHero ? 'bg-zinc-900 border-zinc-700' : 'bg-red-950 border-red-900'} ${tiltClass}
                         ${unit.isActing ? 'ring-2 ring-yellow-400 -translate-y-2 scale-110 z-20' : 'translate-y-0 scale-100'}
+                        ${unit.traitGlow ? 'animate-trait-pulse border-amber-400 z-30 shadow-[0_0_25px_rgba(251,191,36,0.6)]' : ''}
                         ${attackMotionClass}
                         ${unit.impactPulse ? 'scale-[1.06] brightness-110' : ''}
                         ${unit.attackPhase === 'strike' ? 'transition-all duration-120 ease-out' : 'transition-all duration-300 ease-in-out'}
-                        ${unit.hp <= 0 ? 'opacity-40 grayscale' : 'opacity-100'} flex flex-col`}
+                        ${unit.hp <= 0 ? 'opacity-40 grayscale overflow-hidden' : 'opacity-100'} flex flex-col`}
                 >
-                    {/* Full Character Art */}
-                    <div className={`absolute inset-0 bg-zinc-900 ${unit.hitShake ? 'animate-hit-shake' : ''}`}>
-                        <img src={`assets/${unit.imageId}.png`} alt={unit.name} className="w-full h-full object-cover opacity-95" />
-                        <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/75" />
-                        {unit.hp <= 0 && <div className="absolute inset-0 bg-black/80 flex items-center justify-center font-black text-red-600 text-sm tracking-widest uppercase shadow-black">Slain</div>}
+                    {/* Signal Flare Overlay (Anticipation) */}
+                    {unit.isCharging && (
+                        <div className={`absolute inset-0 z-40 border-4 border-${unit.chargeColor || 'amber'}-400 animate-flare-charge pointer-events-none shadow-[inset_0_0_20px_rgba(251,191,36,0.6)]`} />
+                    )}
+
+                    {/* Iconic Sigil (Information) */}
+                    {unit.activeSigil && (
+                        <div className="absolute inset-0 z-[100] flex items-center justify-center pointer-events-none">
+                            <span className="text-7xl drop-shadow-[0_0_20px_rgba(255,255,255,0.8)] animate-sigil-appear">
+                                {unit.activeSigil}
+                            </span>
+                        </div>
+                    )}
+
+                    {/* Character Art (Frame Break Layer) */}
+                    <div className={`absolute inset-0 bg-zinc-900 rounded-xl overflow-hidden ${unit.hitShake ? 'animate-hit-shake' : ''}`}>
+                         {/* This sub-container handles the overflow clip for normal state */}
+                        <img 
+                            src={`assets/${imageId}.png`} 
+                            alt={unit.name} 
+                            className={`w-full h-full object-cover opacity-95 transition-transform duration-500
+                                ${unit.isPopping ? 'scale-125 -translate-y-4 brightness-125 z-50 animate-frame-pop' : 'scale-100'}`} 
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/90" />
+                        {unit.hp <= 0 && <div className="absolute inset-0 bg-black/80 flex items-center justify-center font-black text-red-600 text-sm tracking-widest uppercase shadow-black z-40">Slain</div>}
                     </div>
 
-                    {/* Minimal Icon Layer */}
-                    <div className="relative z-10 w-full h-7 pointer-events-none">
-                        <div className={`absolute top-2 left-2 w-8 h-8 rounded-xl border border-black/60 flex items-center justify-center shadow-lg ${roleBadgeTone}`}>
-                            <span className="text-base drop-shadow-md">{roleInfo.icon}</span>
-                        </div>
-                        <div className={`absolute top-2 right-2 w-6 h-6 rounded-full border border-black/60 flex items-center justify-center shadow-lg ${unit.positionLine === 'VANGUARD' ? 'bg-amber-600/95' : 'bg-blue-600/95'}`}>
-                            <span className="text-[10px] font-black text-white">{unit.positionLine === 'VANGUARD' ? 'V' : 'R'}</span>
-                        </div>
-                    </div>
+                    {/* Information Layer (Above Art) */}
+                    <div className="relative z-10 flex flex-col h-full p-2 pointer-events-none overflow-hidden">
+                        {/* Header: Name and Indicators */}
+                        <div className="flex justify-between items-start mb-auto">
+                            <div className={`w-8 h-8 rounded-xl border border-black/60 flex items-center justify-center shadow-lg ${roleBadgeTone}`}>
+                                <span className="text-base drop-shadow-md">{roleInfo.icon}</span>
+                            </div>
+                            
+                            <div className="flex flex-col items-center flex-1 mx-2">
+                                <div className="bg-black/60 backdrop-blur-sm px-3 py-1 rounded-full border border-white/10 shadow-lg">
+                                    <h3 className="text-[12px] font-black text-white tracking-tight leading-none uppercase text-center truncate max-w-[90px]">
+                                        {unit.name || 'Hero'}
+                                    </h3>
+                                </div>
+                                <div className="h-[2px] w-8 bg-amber-500/80 rounded-full mt-1 shadow-amber-500/50" />
+                            </div>
 
-                    {/* Minimal Bottom Detail Strip */}
-                    <div className="relative z-10 mt-auto px-2 py-1.5 flex flex-col justify-end bg-black/35">
-                        {/* ATK / DEF / SPD */}
-                        <div className="flex justify-between items-center text-[11px] mb-1">
-                            <span className="text-rose-300 font-black flex items-center gap-1 drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)] bg-black/45 rounded-md px-1 py-0.5" title="Attack"><span className="text-base">⚔️</span>{unit.getATK()}</span>
-                            <span className="text-amber-200 font-black flex items-center gap-1 drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)] bg-black/45 rounded-md px-1 py-0.5" title="Defense"><span className="text-base">🛡️</span>{unit.getDEF()}</span>
-                            <span className="text-cyan-200 font-black flex items-center gap-1 drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)] bg-black/45 rounded-md px-1 py-0.5" title="Speed"><span className="text-base">⚡</span>{unit.getSPD()}</span>
-                        </div>
-
-                        {/* HP Bar */}
-                        <div className="w-full h-[6px] bg-zinc-900/90 rounded-full mb-1 border border-black/80 overflow-hidden relative">
-                            <div
-                                style={{ width: `${(unit.hp / unit.maxHp) * 100}%` }}
-                                className="absolute left-0 top-0 h-full bg-gradient-to-r from-red-600 to-rose-500 transition-all duration-300"
-                            />
-                        </div>
-                        <div className="flex justify-end text-[9px] text-zinc-300 mb-1 font-mono">
-                            <span className="text-white font-bold">{Math.ceil(unit.hp)}/{unit.maxHp}</span>
+                            <div className={`w-6 h-6 rounded-full border border-black/60 flex items-center justify-center shadow-lg ${unit.positionLine === 'VANGUARD' ? 'bg-amber-600/95' : 'bg-blue-600/95'}`}>
+                                <span className="text-[10px] font-black text-white">{unit.positionLine === 'VANGUARD' ? 'V' : 'R'}</span>
+                            </div>
                         </div>
 
-                        {/* ATB Bar */}
-                        <div className="w-full h-[2px] bg-zinc-950/90 rounded-sm relative overflow-hidden">
-                            <div
-                                style={{ width: `${unit.atb}%` }}
-                                className={`absolute left-0 top-0 h-full transition-all duration-100 ${unit.atb >= 100 ? 'bg-yellow-300 shadow-[0_0_8px_rgba(253,224,71,0.65)]' : 'bg-cyan-400/90'}`}
-                            />
+                        {/* Footer: Stats, Traits, and Skills */}
+                        <div className="mt-auto space-y-1 bg-black/40 backdrop-blur-sm p-1.5 rounded-lg border border-white/5">
+                            {/* Trait Capsule */}
+                            {unit.trait && (
+                                <div className="group relative">
+                                    <div className="flex items-center gap-1.5 bg-amber-500/20 rounded-full px-2 py-0.5 border border-amber-500/40">
+                                        <span className="text-[8px] font-black text-amber-400 uppercase tracking-tighter italic">Trait</span>
+                                        <span className="text-[9px] font-bold text-zinc-100 truncate max-w-[110px]">{unit.trait.name}</span>
+                                    </div>
+                                    <div className="absolute bottom-full left-0 mb-2 w-48 p-2 bg-black/95 text-[9px] text-zinc-300 rounded border border-zinc-700 hidden group-hover:block z-50 shadow-2xl backdrop-blur-md">
+                                        <div className="font-black text-amber-500 mb-1 uppercase tracking-widest">{unit.trait.name}</div>
+                                        {unit.trait.description}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Signature Skill */}
+                            {unit.abilities && unit.abilities[0] && (
+                                <div className="bg-zinc-800/40 rounded border border-white/5 px-2 py-1 flex items-center gap-2">
+                                    <span className="text-[10px]">{unit.abilities[0].type === 'heal' ? '✨' : '⚔️'}</span>
+                                    <span className="text-[9px] font-bold text-zinc-200 truncate uppercase tracking-widest">{unit.abilities[0].name}</span>
+                                </div>
+                            )}
+
+                            {/* ATK / DEF / SPD Box */}
+                            <div className="flex justify-between items-center bg-zinc-950/80 rounded-lg p-1 border border-white/5">
+                                <div className="flex flex-col items-center flex-1 border-r border-white/10" title="Attack">
+                                    <span className="text-[8px] text-rose-400/80 font-black uppercase tracking-tighter">Atk</span>
+                                    <span className="text-[10px] text-rose-300 font-extrabold">{getUnitATK()}</span>
+                                </div>
+                                <div className="flex flex-col items-center flex-1 border-r border-white/10" title="Defense">
+                                    <span className="text-[8px] text-amber-400/80 font-black uppercase tracking-tighter">Def</span>
+                                    <span className="text-[10px] text-amber-200 font-extrabold">{getUnitDEF()}</span>
+                                </div>
+                                <div className="flex flex-col items-center flex-1" title="Speed">
+                                    <span className="text-[8px] text-cyan-400/80 font-black uppercase tracking-tighter">Spd</span>
+                                    <span className="text-[10px] text-cyan-200 font-extrabold">{getUnitSPD()}</span>
+                                </div>
+                            </div>
+                                                  {/* Resource Bars */}
+                            <div className="space-y-0.5">
+                                <div className="w-full h-1 bg-zinc-900/90 rounded-full border border-black/80 overflow-hidden relative">
+                                    <div
+                                        style={{ width: `${((unit.hp || unit.maxHp || 1) / (unit.maxHp || 1)) * 100}%` }}
+                                        className="absolute left-0 top-0 h-full bg-gradient-to-r from-red-600 to-rose-500"
+                                    />
+                                </div>
+                                {unit.hp || unit.maxHp ? (
+                                    <div className="flex justify-between items-center text-[8px] font-mono leading-none">
+                                        <span className="text-zinc-500 uppercase">HP</span>
+                                        <span className="text-white font-bold">{Math.ceil(unit.hp || unit.maxHp || 0)}/{unit.maxHp || unit.hp || 0}</span>
+                                    </div>
+                                ) : null}
+                                {/* Slim ATB Bar - only show if ATB actually exists (combat) */}
+                                {(unit.atb !== undefined) && (
+                                    <div className="w-full h-[2px] bg-zinc-950/90 rounded-full relative overflow-hidden border border-black/50">
+                                        <div
+                                            style={{ width: `${unit.atb || 0}%` }}
+                                            className={`absolute left-0 top-0 h-full transition-all duration-100 ${(unit.atb || 0) >= 100 ? 'bg-yellow-300 shadow-[0_0_8px_rgba(253,224,71,0.65)]' : 'bg-cyan-500/80'}`}
+                                        />
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
 
                     {/* Action Overlay */}
                     {unit.isActing && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/40 animate-in fade-in zoom-in duration-300 pointer-events-none">
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/40 animate-in fade-in zoom-in duration-300 pointer-events-none z-30">
                             <div className="bg-yellow-400 text-black px-1 py-0.5 font-black text-[8px] transform -rotate-12 shadow-[0_5px_10px_rgba(0,0,0,0.8)] border border-white uppercase text-center leading-tight">
                                 {unit.lastAction}
                             </div>
@@ -206,7 +299,7 @@
                     )}
 
                     {/* Floating Combat Text (VFX) */}
-                    {unit.vfx.map((effect) => (
+                    {(unit.vfx || []).map((effect) => (
                         <div
                             key={effect.id}
                             className={`absolute left-1/2 top-1/3 -translate-x-1/2 -translate-y-1/2 font-black text-2xl drop-shadow-[0_4px_4px_rgba(0,0,0,0.8)] stroke-black pointer-events-none animate-float-up z-50
@@ -245,11 +338,50 @@
             const [winner, setWinner] = useState(null);
             const [battleLog, setBattleLog] = useState([`Encountered enemies! Waiting for authorization...`]);
             const [isLogExpanded, setIsLogExpanded] = useState(false);
+            const [boardShake, setBoardShake] = useState(false);
 
             // Multipack enemies from the map encounter
             const [enemies, setEnemies] = useState(packSetup);
 
             const log = (msg) => setBattleLog(prev => [msg, ...prev].slice(0, 5));
+
+            const handleAbilityProc = async (unit, ability) => {
+                // If the unit has a trait, it's a "High impact" event!
+                const isSpecial = unit.trait !== null;
+                
+                unit.isCharging = true;
+                unit.chargeColor = ability.type === 'heal' ? 'blue' : 'rose';
+                if (unit.trait) unit.chargeColor = 'amber';
+                
+                // Sigil mapping
+                unit.activeSigil = ability.type === 'heal' ? '✨' : '⚔️';
+                if (unit.trait) {
+                    const traitIcons = { 'overclock': '⚡', 'moonlight_rain': '🌙', 'soul_reaper': '🧛' };
+                    unit.activeSigil = traitIcons[unit.trait.id] || '🌟';
+                }
+
+                // Trigger React Re-render
+                setHeroes([...heroes]);
+                setEnemies([...enemies]);
+
+                // Anticipation Delay (Flare filling up)
+                await new Promise(r => setTimeout(r, 450));
+
+                unit.isCharging = false;
+                unit.activeSigil = null;
+                setHeroes([...heroes]);
+                setEnemies([...enemies]);
+            };
+
+            useEffect(() => {
+                if (!isPaused && heroes.length > 0 && enemies.length > 0) {
+                    // Battle Start Auras
+                    const heroIronAura = heroes.some(h => h.trait?.id === 'iron_aura' && h.hp > 0);
+                    const heroInspire = heroes.some(h => h.trait?.id === 'inspire' && h.hp > 0);
+                    if (heroIronAura) log("🛡️ Aura of Iron protects the heroes!");
+                    if (heroInspire) log("🎺 Inspire bolsters hero speed!");
+                }
+            }, []);
 
             useEffect(() => {
                 if (isPaused) return;
@@ -260,14 +392,20 @@
                     lastTime = now;
                     setHeroes(prev => {
                         const next = [...prev];
-                        next.forEach(h => { if (h.hp > 0 && !h.isActing) h.updateAtb(dt); });
-                        return next;
-                    });
-                    setEnemies(prev => {
-                        const next = [...prev];
-                        next.forEach(e => { if (e.hp > 0 && !e.isActing) e.updateAtb(dt); });
-                        return next;
-                    });
+                    const heroInspire = next.some(h => h.trait?.id === 'inspire' && h.hp > 0);
+                    const enemyInspire = enemies.some(e => e.trait?.id === 'inspire' && e.hp > 0);
+
+                    next.forEach(h => { if (h.hp > 0 && !h.isActing) h.updateAtb(dt, heroInspire ? 1.05 : 1.0); });
+                    return next;
+                });
+                setEnemies(prev => {
+                    const next = [...prev];
+                    const heroInspire = heroes.some(h => h.trait?.id === 'inspire' && h.hp > 0);
+                    const enemyInspire = next.some(e => e.trait?.id === 'inspire' && e.hp > 0);
+
+                    next.forEach(e => { if (e.hp > 0 && !e.isActing) e.updateAtb(dt, enemyInspire ? 1.05 : 1.0); });
+                    return next;
+                });
                 }, 16);
                 return () => clearInterval(timerId);
             }, [isPaused]);
@@ -292,7 +430,7 @@
                 return () => clearInterval(tick);
             }, [isPaused]);
 
-            const executeTurn = (unit, isHero) => {
+            const executeTurn = async (unit, isHero) => {
                 unit.isActing = true;
                 unit.atb = 0;
                 let target;
@@ -300,7 +438,7 @@
 
                 if (unit.role === 'HEALER') {
                     const lowAlly = [...(isHero ? heroes : enemies)].sort((a,b) => (a.hp/a.maxHp) - (b.hp/b.maxHp))[0];
-                    if ((lowAlly.hp / lowAlly.maxHp) < 0.7) {
+                    if (lowAlly && (lowAlly.hp / lowAlly.maxHp) < 0.7) {
                         target = lowAlly;
                         selectedAbility = unit.abilities.find(a => a.type === 'heal') || unit.abilities[0];
                     }
@@ -311,14 +449,17 @@
                     const livingFoes = foes.filter(u => u.hp > 0);
                     if (livingFoes.length === 0) return;
 
-                    // Vanguard mechanic: Prioritize front line if any exist
                     const vanguardFoes = livingFoes.filter(u => u.positionLine === 'VANGUARD');
-                    const targetPool = vanguardFoes.length > 0 ? vanguardFoes : livingFoes;
+                    const isInfiltrator = unit.trait?.id === 'infiltrator';
+                    const targetPool = (vanguardFoes.length > 0 && !isInfiltrator) ? vanguardFoes : livingFoes;
 
                     target = targetPool[Math.floor(Math.random() * targetPool.length)];
                     const damageAbilities = unit.abilities.filter(a => a.type === 'damage');
                     selectedAbility = damageAbilities.length > 0 ? damageAbilities[Math.floor(Math.random() * damageAbilities.length)] : unit.abilities[0];
                 }
+
+                // PHASE 1: Anticipation (Flare & Sigil)
+                await handleAbilityProc(unit, selectedAbility);
 
                 unit.lastAction = selectedAbility.name;
                 unit.attackPhase = 'advance';
@@ -328,31 +469,100 @@
 
                 setTimeout(() => {
                     unit.attackPhase = 'strike';
+                    unit.isPopping = true;
                     target.impactPulse = true;
+                    
+                    if (selectedAbility.type === 'damage') {
+                        setBoardShake(true);
+                        setTimeout(() => setBoardShake(false), 400);
+                    }
 
                     setHeroes([...heroes]);
                     setEnemies([...enemies]);
 
                     if (selectedAbility.type === 'heal') {
-                        const amount = selectedAbility.val;
-                        target.hp = Math.min(target.maxHp, target.hp + amount);
-                        target.addVfx(`+${amount}`, 'heal');
-                        target.healSparkle = true;
-                        setTimeout(() => {
-                            target.healSparkle = false;
-                            setHeroes([...heroes]);
-                            setEnemies([...enemies]);
-                        }, 450);
+                        // Elara: Moonlight Rain (25% chance to heal party)
+                        const isMoonlightRain = unit.trait?.id === 'moonlight_rain' && Math.random() < 0.25;
+                        const targetsToHeal = isMoonlightRain ? (isHero ? heroes : enemies).filter(p => p.hp > 0) : [target];
+
+                        if (isMoonlightRain) {
+                            unit.traitGlow = true;
+                            log(`🌙 Moonlight Rain triggers!`);
+                            unit.addVfx("Moonlight Rain!", "heal");
+                            setTimeout(() => {
+                                unit.traitGlow = false;
+                                setHeroes([...heroes]);
+                                setEnemies([...enemies]);
+                            }, 1200);
+                        }
+
+                        targetsToHeal.forEach(t => {
+                            let amount = selectedAbility.val;
+                            // Morgra: Blood Pact (+40% power)
+                            if (unit.trait?.id === 'blood_pact') {
+                                amount = Math.floor(amount * 1.4);
+                            }
+                            
+                            t.hp = Math.min(t.maxHp, t.hp + amount);
+                            t.addVfx(`+${amount}`, 'heal');
+                            t.healSparkle = true;
+                            setTimeout(() => {
+                                t.healSparkle = false;
+                                setHeroes([...heroes]);
+                                setEnemies([...enemies]);
+                            }, 450);
+                        });
+
+                        // Pay the blood price if Morgra
+                        if (unit.trait?.id === 'blood_pact') {
+                            unit.traitGlow = true;
+                            unit.hp = Math.max(1, unit.hp - 5);
+                            unit.addVfx(`BLOOD PACT -5`, 'damage');
+                            setTimeout(() => {
+                                unit.traitGlow = false;
+                                setHeroes([...heroes]);
+                                setEnemies([...enemies]);
+                            }, 800);
+                        }
                     } else {
                         let amount = selectedAbility.val;
 
+                        // --- OFFENSIVE TRAITS ---
+                        // Leora: Eagle Eye (50% DEF ignore)
+                        const ignoreDef = unit.trait?.id === 'eagle_eye' ? 0.5 : 0;
+                        const effectiveDef = Math.floor(target.getDEF() * (1 - ignoreDef));
+
                         // Defense logic integration
-                        amount = Math.max(1, amount - Math.floor(target.getDEF() / 2));
+                        amount = Math.max(1, amount - Math.floor(effectiveDef / 2));
+
+                        // Kael: Steady Aim (+25% damage to REARGUARD)
+                        if (unit.trait?.id === 'steady_aim' && target.positionLine === 'REARGUARD') {
+                            amount = Math.floor(amount * 1.25);
+                        }
 
                         // Rearguard Protection: 25% damage mitigation
                         if (target.positionLine === 'REARGUARD') amount = Math.floor(amount * 0.75);
 
+                        // --- DEFENSIVE TRAITS ---
+                        // Valerius: Aura of Iron (10% global reduction)
+                        const party = isHero ? heroes : enemies;
+                        const auraActive = party.some(p => p.trait?.id === 'iron_aura' && p.hp > 0);
+                        if (auraActive && target.isHero === isHero) { 
+                            amount = Math.floor(amount * 0.9);
+                        }
+
                         target.hp = Math.max(0, target.hp - amount);
+
+                        // Grimm: Undying (Revive once per combat)
+                        if (target.hp <= 0 && target.trait?.id === 'undying' && !target.hasRevived) {
+                            target.hp = 1;
+                            target.hasRevived = true;
+                            target.traitGlow = true;
+                            target.addVfx(`UNDYING!`, 'heal');
+                            log(`🛡️ ${target.name} refuses to fall!`);
+                            setTimeout(() => target.traitGlow = false, 1500);
+                        }
+
                         target.addVfx(`-${amount}`, 'damage');
                         target.hitShake = true;
                         target.showImpact = true;
@@ -362,6 +572,22 @@
                             setHeroes([...heroes]);
                             setEnemies([...enemies]);
                         }, 320);
+
+                        // --- ON-HIT TRAITS ---
+                        // Borum: Sunder (DEF Reduction)
+                        if (unit.trait?.id === 'sunder' && amount > 0) {
+                            target.def = Math.max(0, target.def - 5);
+                            target.addVfx(`DEF Down`, 'damage');
+                        }
+
+                        // Vex: Soul Reaper (HP for kill)
+                        if (target.hp <= 0 && unit.trait?.id === 'soul_reaper') {
+                            unit.hp = Math.min(unit.maxHp, unit.hp + 10);
+                            unit.traitGlow = true;
+                            unit.addVfx(`SOUL REAP +10`, 'heal');
+                            log(`🧛 ${unit.name} reaps a soul!`);
+                            setTimeout(() => unit.traitGlow = false, 1000);
+                        }
 
                         // --- PASSIVES INTEGRATION ---
                         const unitPassives = unit.getPassives();
@@ -382,6 +608,14 @@
                             unit.addVfx(`-${reflectDmg}`, 'damage');
                             log(`🌵 Thorns deals ${reflectDmg} damage to ${unit.name}!`);
                         }
+
+                        // Draka: Dragon Scales (Reflect 6)
+                        if (target.trait?.id === 'dragon_scales' && amount > 0) {
+                            const reflectDmg = 6;
+                            unit.hp = Math.max(0, unit.hp - reflectDmg);
+                            unit.addVfx(`-${reflectDmg}`, 'damage');
+                            log(`🐲 Scales reflect ${reflectDmg} to ${unit.name}!`);
+                        }
                     }
 
                     setTimeout(() => {
@@ -394,6 +628,7 @@
                     setTimeout(() => {
                         // QUICKENING (Post-turn ATB)
                         unit.isActing = false;
+                        unit.isPopping = false;
                         unit.attackPhase = 'idle';
                         target.impactPulse = false;
                         target.hitShake = false;
@@ -403,6 +638,19 @@
                         if (unitPassivesFinal.includes('quickening') && Math.random() < 0.15) {
                             unit.atb = 50;
                             log(`⚡ ${unit.name} found an opening! (+50% ATB)`);
+                        }
+
+                        // Krix: Overclock (Turn reset)
+                        if (unit.trait?.id === 'overclock' && Math.random() < 0.15) {
+                            unit.atb = 100;
+                            unit.traitGlow = true;
+                            log(`⚡ ${unit.name} is OVERCLOCKED!`);
+                            unit.addVfx("OVERCLOCK!", "damage");
+                            setTimeout(() => {
+                                unit.traitGlow = false;
+                                setHeroes([...heroes]);
+                                setEnemies([...enemies]);
+                            }, 1000);
                         }
 
                         setHeroes([...heroes]);
@@ -429,8 +677,9 @@
             };
 
             return (
-                <div className="h-screen w-screen bg-neutral-950 text-white flex flex-col items-center relative animate-in fade-in duration-500">
+                <div className={`h-screen w-screen bg-neutral-950 text-white flex flex-col items-center relative animate-in fade-in duration-500 overflow-hidden ${boardShake ? 'animate-board-shake' : ''}`}>
                     <main className="relative z-10 flex-1 flex flex-row items-center justify-between w-full max-w-[1400px] px-6 py-4 overflow-hidden mx-auto gap-8">
+
 
                         {/* LEFT SIDE: ENEMIES */}
                         <div className="flex-1 flex justify-end">
@@ -1208,19 +1457,19 @@
         const App = () => {
             // Phase 41: Master Roster Expansion
             const HERO_ROSTER = [
-                { name: 'Valerius', hp: 140, atk: 8, def: 18, spd: 10, role: 'TANK', skills: [{name: 'Shield Slam', val: 12, type: 'damage'}, {name: 'Fortify', val: 15, type: 'heal'}] },
-                { name: 'Slyn', hp: 75, atk: 22, def: 6, spd: 28, role: 'DPS', skills: [{name: 'Backstab', val: 35, type: 'damage'}, {name: 'Shadow Dash', val: 20, type: 'damage'}] },
-                { name: 'Morgra', hp: 95, atk: 12, def: 12, spd: 15, role: 'HEALER', skills: [{name: 'Blood Mend', val: 20, type: 'heal'}, {name: 'Spirit Link', val: 30, type: 'heal'}] },
-                { name: 'Krix', hp: 80, atk: 18, def: 10, spd: 22, role: 'DPS', skills: [{name: 'Gatling Blast', val: 25, type: 'damage'}, {name: 'Overheat', val: 35, type: 'damage'}] },
-                { name: 'Draka', hp: 160, atk: 12, def: 20, spd: 6, role: 'TANK', skills: [{name: 'Dragon Breath', val: 20, type: 'damage'}, {name: 'Roar', val: 10, type: 'damage'}] },
-                { name: 'Vex', hp: 85, atk: 24, def: 8, spd: 18, role: 'DPS', skills: [{name: 'Soul Siphon', val: 28, type: 'damage'}, {name: 'Death Nova', val: 40, type: 'damage'}] },
-                { name: 'Leora', hp: 70, atk: 26, def: 5, spd: 25, role: 'DPS', skills: [{name: 'Sniper Shot', val: 45, type: 'damage'}, {name: 'Wind Arrow', val: 25, type: 'damage'}] },
-                { name: 'Grimm', hp: 110, atk: 14, def: 15, spd: 12, role: 'TANK', skills: [{name: 'Tremor', val: 18, type: 'damage'}, {name: 'Stone Wall', val: 20, type: 'heal'}] },
-                { name: 'Lira', hp: 85, atk: 10, def: 10, spd: 20, role: 'HEALER', skills: [{name: 'Serenade', val: 25, type: 'heal'}, {name: 'Song of Hope', val: 35, type: 'heal'}] },
-                { name: 'Borum', hp: 100, atk: 20, def: 12, spd: 8, role: 'DPS', skills: [{name: 'Hammer Crash', val: 30, type: 'damage'}, {name: 'Forge Fire', val: 25, type: 'damage'}] },
-                { name: 'Valthea', hp: 120, atk: 10, def: 15, spd: 12, role: 'TANK', skills: [{name: 'Vanguard Strike', val: 15, type: 'damage'}, {name: 'Bulwark', val: 20, type: 'heal'}] },
-                { name: 'Elara', hp: 70, atk: 14, def: 15, spd: 6, role: 'HEALER', skills: [{name: 'Holy Rain', val: 25, type: 'heal'}, {name: 'Divine Shield', val: 15, type: 'heal'}] },
-                { name: 'Kael', hp: 85, atk: 18, def: 22, spd: 10, role: 'DPS', skills: [{name: 'Twin Arrow', val: 2*15, type: 'damage'}, {name: 'Steady Aim', val: 35, type: 'damage'}] }
+                { name: 'Valerius', hp: 140, atk: 8, def: 18, spd: 10, role: 'TANK', imageId: 'hero_valerius', trait: {id: 'iron_aura', name: 'Aura of Iron', description: 'Global 10% damage reduction for party'}, skills: [{name: 'Shield Slam', val: 12, type: 'damage'}, {name: 'Fortify', val: 15, type: 'heal'}] },
+                { name: 'Slyn', hp: 75, atk: 22, def: 6, spd: 28, role: 'DPS', imageId: 'hero_slyn', trait: {id: 'infiltrator', name: 'Infiltrator', description: 'Can target any enemy, ignoring Vanguard'}, skills: [{name: 'Backstab', val: 35, type: 'damage'}, {name: 'Shadow Dash', val: 20, type: 'damage'}] },
+                { name: 'Morgra', hp: 95, atk: 12, def: 12, spd: 15, role: 'HEALER', imageId: 'hero_morgra', trait: {id: 'blood_pact', name: 'Blood Pact', description: '+40% Heal power, but costs 5 HP per cast'}, skills: [{name: 'Blood Mend', val: 20, type: 'heal'}, {name: 'Spirit Link', val: 30, type: 'heal'}] },
+                { name: 'Krix', hp: 80, atk: 18, def: 10, spd: 22, role: 'DPS', imageId: 'hero_krix', trait: {id: 'overclock', name: 'Overclock', description: '15% chance for instant turn at end of turn'}, skills: [{name: 'Gatling Blast', val: 25, type: 'damage'}, {name: 'Overheat', val: 35, type: 'damage'}] },
+                { name: 'Draka', hp: 160, atk: 12, def: 20, spd: 6, role: 'TANK', imageId: 'hero_draka', trait: {id: 'dragon_scales', name: 'Dragon Scales', description: 'Reflect 6 damage when hit'}, skills: [{name: 'Dragon Breath', val: 20, type: 'damage'}, {name: 'Roar', val: 10, type: 'damage'}] },
+                { name: 'Vex', hp: 85, atk: 24, def: 8, spd: 18, role: 'DPS', imageId: 'hero_vex', trait: {id: 'soul_reaper', name: 'Soul Reaper', description: 'Heal 10 HP on enemy death'}, skills: [{name: 'Soul Siphon', val: 28, type: 'damage'}, {name: 'Death Nova', val: 40, type: 'damage'}] },
+                { name: 'Leora', hp: 70, atk: 26, def: 5, spd: 25, role: 'DPS', imageId: 'hero_leora', trait: {id: 'eagle_eye', name: 'Eagle Eye', description: 'Ignore 50% of target Defense'}, skills: [{name: 'Sniper Shot', val: 45, type: 'damage'}, {name: 'Wind Arrow', val: 25, type: 'damage'}] },
+                { name: 'Grimm', hp: 110, atk: 14, def: 15, spd: 12, role: 'TANK', imageId: 'hero_grimm', trait: {id: 'undying', name: 'Undying', description: 'Survive lethal damage once per battle'}, skills: [{name: 'Tremor', val: 18, type: 'damage'}, {name: 'Stone Wall', val: 20, type: 'heal'}] },
+                { name: 'Lira', hp: 85, atk: 10, def: 10, spd: 20, role: 'HEALER', imageId: 'hero_lira', trait: {id: 'inspire', name: 'Inspire', description: '+5% global ATB speed for party'}, skills: [{name: 'Serenade', val: 25, type: 'heal'}, {name: 'Song of Hope', val: 35, type: 'heal'}] },
+                { name: 'Borum', hp: 100, atk: 20, def: 12, spd: 8, role: 'DPS', imageId: 'hero_borum', trait: {id: 'sunder', name: 'Sunder', description: 'Reduces target Defense by 5 on hit'}, skills: [{name: 'Hammer Crash', val: 30, type: 'damage'}, {name: 'Forge Fire', val: 25, type: 'damage'}] },
+                { name: 'Valthea', hp: 120, atk: 10, def: 15, spd: 12, role: 'TANK', imageId: 'hero_valthea', trait: {id: 'vanguard_stance', name: 'Vanguard Stance', description: '+10% Defense in Vanguard position'}, skills: [{name: 'Vanguard Strike', val: 15, type: 'damage'}, {name: 'Bulwark', val: 20, type: 'heal'}] },
+                { name: 'Elara', hp: 70, atk: 14, def: 15, spd: 6, role: 'HEALER', imageId: 'hero_elara', trait: {id: 'moonlight_rain', name: 'Moonlight Rain', description: '25% chance for heals to target all allies'}, skills: [{name: 'Holy Rain', val: 25, type: 'heal'}, {name: 'Divine Shield', val: 15, type: 'heal'}] },
+                { name: 'Kael', hp: 85, atk: 18, def: 22, spd: 10, role: 'DPS', imageId: 'hero_kael', trait: {id: 'steady_aim', name: 'Steady Aim', description: '+25% damage to Rearguard targets'}, skills: [{name: 'Twin Arrow', val: 2*15, type: 'damage'}, {name: 'Steady Aim', val: 35, type: 'damage'}] }
             ];
 
             const [gamePhase, setGamePhase] = useState('MAIN_MENU'); // 'MAIN_MENU' | 'DRAFT' | 'DEPLOYMENT' | 'EXPLORATION' | 'BATTLE' | 'INVENTORY'
@@ -1252,7 +1501,7 @@
 
             const finalizeDraft = (selectedHeroes) => {
                 const combatants = selectedHeroes.map(h => 
-                    new Combatant(h.name, h.role, h.hp, h.spd, h.atk, h.def, `hero_${h.name.toLowerCase()}`, h.skills, 'VANGUARD')
+                    new Combatant(h.name, h.role, h.hp, h.spd, h.atk, h.def, `hero_${h.name.toLowerCase()}`, h.skills, 'VANGUARD', true, h.trait)
                 );
                 setHeroes(combatants);
                 setGamePhase('DEPLOYMENT');
@@ -1422,9 +1671,6 @@
                                     <div className="flex flex-wrap justify-center gap-6 py-8">
                                         {draftPool.map(hero => {
                                             const isSelected = heroes.find(h => h.name === hero.name);
-                                            const roleInfo = ROLES[hero.role] || ROLES.DPS;
-                                            const roleBadgeTone = hero.role === 'TANK' ? 'bg-amber-500/95' : hero.role === 'HEALER' ? 'bg-emerald-500/95' : 'bg-rose-500/95';
-                                            
                                             return (
                                                 <div 
                                                     key={hero.name}
@@ -1435,47 +1681,15 @@
                                                             setHeroes(prev => [...prev, hero]);
                                                         }
                                                     }}
-                                                    className={`relative w-[160px] h-[230px] rounded-xl shadow-2xl overflow-hidden border-[3px] transform cursor-pointer transition-all hover:scale-105 active:scale-95 flex flex-col shrink-0 -rotate-2
-                                                        ${isSelected ? 'border-amber-400 ring-4 ring-amber-500/50 z-20 scale-105' : 'bg-zinc-900 border-zinc-700 opacity-80 hover:opacity-100 hover:-translate-y-2'}`}
+                                                    className="relative cursor-pointer transition-all hover:scale-105 active:scale-95 group z-10"
                                                 >
-                                                    {/* Art Layer */}
-                                                    <div className="absolute inset-0 bg-zinc-900">
-                                                        <img 
-                                                            src={`assets/hero_${hero.name.toLowerCase()}.png`} 
-                                                            className="w-full h-full object-cover grayscale brightness-75 hover:grayscale-0 transition-all opacity-95" 
-                                                            onError={(e) => { e.target.style.display = 'none'; }}
-                                                        />
-                                                        <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/80" />
-                                                        <span className="absolute inset-0 flex items-center justify-center text-5xl font-black italic text-zinc-700 select-none">{hero.name[0]}</span>
-                                                    </div>
-
-                                                    {/* Role Badge */}
-                                                    <div className="relative z-10 w-full h-7">
-                                                        <div className={`absolute top-2 left-2 w-7 h-7 rounded-lg border border-black/60 flex items-center justify-center shadow-lg ${roleBadgeTone}`}>
-                                                            <span className="text-sm drop-shadow-md">{roleInfo.icon}</span>
-                                                        </div>
-                                                        {isSelected && (
-                                                            <div className="absolute top-2 right-2 bg-amber-500 text-black text-[8px] font-black px-1.5 py-0.5 rounded shadow-lg animate-in zoom-in">SELECTED</div>
-                                                        )}
-                                                    </div>
-
-                                                    {/* Bottom Info */}
-                                                    <div className="relative z-10 mt-auto px-2 py-1.5 flex flex-col justify-end bg-black/45">
-                                                        <h3 className="font-black italic text-sm text-white truncate mb-1">{hero.name}</h3>
-                                                        <div className="flex justify-between items-center text-[10px] mb-1">
-                                                            <span className="text-rose-300 font-black flex items-center gap-0.5 bg-black/45 rounded px-1 py-0.5"><span className="text-xs">⚔️</span>{hero.atk}</span>
-                                                            <span className="text-amber-200 font-black flex items-center gap-0.5 bg-black/45 rounded px-1 py-0.5"><span className="text-xs">🛡️</span>{hero.def}</span>
-                                                            <span className="text-cyan-200 font-black flex items-center gap-0.5 bg-black/45 rounded px-1 py-0.5"><span className="text-xs">⚡</span>{hero.spd}</span>
-                                                        </div>
-                                                        {/* Skill Preview */}
-                                                        <div className="flex gap-1 overflow-hidden">
-                                                            {hero.skills.slice(0, 1).map(s => (
-                                                                <div key={s.name} className="text-[7px] text-zinc-400 bg-zinc-950/80 px-1 py-0.5 rounded truncate border border-zinc-800">
-                                                                    {s.type === 'heal' ? '✨' : '⚔️'} {s.name}
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    </div>
+                                                    <Card unit={hero} />
+                                                    {isSelected && (
+                                                        <div className="absolute top-4 right-4 bg-amber-500 text-black text-[10px] font-black px-2 py-1 rounded shadow-2xl z-50 animate-in zoom-in">SELECTED</div>
+                                                    )}
+                                                    {!isSelected && (
+                                                        <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-all pointer-events-none rounded-xl" />
+                                                    )}
                                                 </div>
                                             );
                                         })}
@@ -1748,6 +1962,76 @@
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
+    <style>
+        @keyframes trait-pulse {
+            0% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.7); border-color: rgba(251, 191, 36, 0.8); }
+            70% { box-shadow: 0 0 30px 15px rgba(251, 191, 36, 0); border-color: rgba(251, 191, 36, 1); }
+            100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0); border-color: rgba(251, 191, 36, 0.8); }
+        }
+        .animate-trait-pulse {
+            animation: trait-pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        /* Signal Flare Border Charge */
+        @keyframes flare-charge {
+            0% { clip-path: inset(100% 0 0 0); opacity: 0.5; }
+            100% { clip-path: inset(0 0 0 0); opacity: 1; }
+        }
+        .animate-flare-charge {
+            animation: flare-charge 0.4s ease-out forwards;
+        }
+
+        /* Frame Break Art Pop */
+        @keyframes frame-pop {
+            0% { transform: scale(1) translateY(0); filter: brightness(1); }
+            30% { transform: scale(0.95) translateY(10px); filter: brightness(1.2); } /* Recoil */
+            60% { transform: scale(1.15) translateY(-20px); filter: brightness(1.5); } /* Pop */
+            100% { transform: scale(1) translateY(0); filter: brightness(1); }
+        }
+        .animate-frame-pop {
+            animation: frame-pop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+
+        /* Iconic Sigil Float */
+        @keyframes sigil-appear {
+            0% { transform: translateY(20px) scale(0); opacity: 0; filter: blur(10px); }
+            40% { transform: translateY(0) scale(1.4); opacity: 1; filter: blur(0); }
+            100% { transform: translateY(-30px) scale(1); opacity: 0; filter: blur(5px); }
+        }
+        .animate-sigil-appear {
+            animation: sigil-appear 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        /* Camera Juice: Board Shake */
+        @keyframes board-shake {
+            0% { transform: translate(0, 0) rotate(0); }
+            15% { transform: translate(-8px, -4px) rotate(-1deg); }
+            30% { transform: translate(8px, 4px) rotate(1deg); }
+            45% { transform: translate(-8px, 4px) rotate(-1deg); }
+            60% { transform: translate(8px, -4px) rotate(1deg); }
+            75% { transform: translate(-4px, -2px) rotate(-0.5deg); }
+            100% { transform: translate(0, 0) rotate(0); }
+        }
+        .animate-board-shake {
+            animation: board-shake 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+        }
+
+        /* Particle Vacuum */
+        @keyframes particle-suck {
+            0% { transform: scale(2); opacity: 0; }
+            50% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(0.2); opacity: 0; }
+        }
+        .vfx-particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: white;
+            border-radius: 50%;
+            pointer-events: none;
+            animation: particle-suck 0.5s ease-in forwards;
+        }
+    </style>
 </head>
 <body class="bg-black">
     <div id="root"></div>

@@ -1,5 +1,7 @@
-**STATUS: TODO**
+**STATUS: DONE**
+**COMPLETED: 2026-04-17**
 
+# [TICKET-42] Hero Traits & Skill Activation VFX
 ## Description
 This ticket completes the "Soul" of the 13 heroes by implementing their unique Traits (Perks, Passives, and Curses). These traits are non-functional labels in TICKET-41 and must now be integrated into the `BattlePhase` and `App` state logic.
 
