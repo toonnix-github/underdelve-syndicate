@@ -1260,12 +1260,12 @@
             const [revealingCells, setRevealingCells] = useState(new Set());
             const mapFrameRef = useRef(null);
             const [frameSize, setFrameSize] = useState({ w: 0, h: 0 });
-            const [showStairsConfirm, setShowStairsConfirm] = useState(false);
+            const [stairsPrompt, setStairsPrompt] = useState(null);
             const [viewportSize, setViewportSize] = useState({
                 w: typeof window !== 'undefined' ? window.innerWidth : 1440,
                 h: typeof window !== 'undefined' ? window.innerHeight : 900
             });
-            const actionLocked = isLocked || showStairsConfirm;
+            const actionLocked = isLocked || !!stairsPrompt;
 
             useEffect(() => {
                 const onResize = () => setViewportSize({ w: window.innerWidth, h: window.innerHeight });
@@ -1291,7 +1291,7 @@
                 setPlayerPos({ x: 3, y: 3 });
                 setExploredCells(new Set(['3,3']));
                 setRevealingCells(new Set());
-                setShowStairsConfirm(false);
+                setStairsPrompt(null);
 
                 const getLoc = () => validTiles.length > 0 ? validTiles.pop() : {x:3, y:3};
 
@@ -1387,10 +1387,10 @@
                         onTrap(interactable);
                         // Trap remains on map until disarmed!
                     } else if (interactable.type === 'STAIRS') {
-                        setShowStairsConfirm(true);
+                        setStairsPrompt({ direction: 'DOWN' });
                         return; // Halt enemy move while waiting for confirmation
                     } else if (interactable.type === 'PREV_FLOOR') {
-                        onPrevFloor();
+                        setStairsPrompt({ direction: 'UP' });
                         return;
                     }
                 }
@@ -1399,16 +1399,26 @@
             };
 
             const handleConfirmDescend = () => {
-                setShowStairsConfirm(false);
-                if (floor >= 2) {
-                    onWin();
+                if (!stairsPrompt) return;
+                const direction = stairsPrompt.direction;
+                setStairsPrompt(null);
+
+                if (direction === 'UP') {
+                    onPrevFloor();
                     return;
                 }
-                onNextFloor();
+
+                if (direction === 'DOWN') {
+                    if (floor >= 2) {
+                        onWin();
+                        return;
+                    }
+                    onNextFloor();
+                }
             };
 
             const handleCancelDescend = () => {
-                setShowStairsConfirm(false);
+                setStairsPrompt(null);
             };
 
             const moveEnemies = (newPlayerX, newPlayerY) => {
@@ -1716,24 +1726,31 @@
                         </div>
                     </aside>
 
-                    {showStairsConfirm && (
+                    {stairsPrompt && (
                         <div className="absolute inset-0 z-[120] bg-black/75 backdrop-blur-sm flex items-center justify-center px-4">
-                            <div className="w-full max-w-lg bg-zinc-950 border-2 border-cyan-500/40 shadow-[0_0_30px_rgba(34,211,238,0.25)] rounded-xl p-6 sm:p-8 text-center">
-                                <p className="text-cyan-400 text-xs font-black tracking-[0.35em] uppercase mb-3">Stairway Found</p>
-                                <h3 className="text-2xl sm:text-3xl font-black italic tracking-tight text-white mb-4">Descend deeper into the Underdelve?</h3>
-                                <p className="text-zinc-400 text-[11px] tracking-wider uppercase mb-6">You can stay on this floor and continue exploring instead.</p>
+                            <div className="w-full max-w-xl bg-zinc-950/95 border-2 border-cyan-500/50 shadow-[0_0_45px_rgba(34,211,238,0.22)] rounded-xl p-6 sm:p-8 text-center relative overflow-hidden">
+                                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(34,211,238,0.14),transparent_65%)] pointer-events-none" />
+                                <div className="relative z-10">
+                                    <p className="text-cyan-300 text-[10px] font-black tracking-[0.42em] uppercase mb-3">ANCIENT STAIRWELL</p>
+                                    <h3 className="text-2xl sm:text-3xl font-black italic tracking-tight text-white mb-3">
+                                        {stairsPrompt.direction === 'UP' ? 'A narrow stair rises toward safer stone.' : 'A cold stair descends into deeper shadow.'}
+                                    </h3>
+                                    <p className="text-zinc-400 text-[11px] tracking-[0.18em] uppercase mb-6">
+                                        {stairsPrompt.direction === 'UP' ? 'Choose your path: go up, or hold this floor.' : 'Choose your path: go down, or hold this floor.'}
+                                    </p>
+                                </div>
                                 <div className="flex items-center justify-center gap-3 sm:gap-4">
                                     <button
                                         onClick={handleCancelDescend}
-                                        className="px-5 py-2 border-2 border-zinc-700 bg-zinc-900 text-zinc-300 font-black text-xs tracking-[0.2em] uppercase hover:bg-zinc-800 transition-colors"
+                                        className="px-4 sm:px-5 py-2 border-2 border-zinc-700 bg-zinc-900 text-zinc-300 font-black text-[10px] sm:text-xs tracking-[0.16em] uppercase hover:bg-zinc-800 transition-colors"
                                     >
-                                        No
+                                        Stay on this floor
                                     </button>
                                     <button
                                         onClick={handleConfirmDescend}
-                                        className="px-5 py-2 border-2 border-cyan-500 bg-cyan-600/80 text-black font-black text-xs tracking-[0.2em] uppercase hover:bg-cyan-400 transition-colors"
+                                        className="px-4 sm:px-5 py-2 border-2 border-cyan-500 bg-cyan-600/80 text-black font-black text-[10px] sm:text-xs tracking-[0.16em] uppercase hover:bg-cyan-400 transition-colors"
                                     >
-                                        Yes
+                                        {stairsPrompt.direction === 'UP' ? 'Go Up' : 'Go Down'}
                                     </button>
                                 </div>
                             </div>
