@@ -1398,7 +1398,7 @@
 
                 // Route enemies onto randomized valid paths
                 setEnemies(prev => prev.map(e => ({ ...e, ...getLoc() })));
-            }, [floor, floorState]);
+            }, [floor]);
 
 
             // Handle Keyboard Movement
@@ -2132,6 +2132,7 @@
                 setHeroes([]);
                 setFloor(1);
                 setFloorStates({});
+                floorStateHashesRef.current = {};
                 setRunEndState(null);
                 setInventory([
                     new Item("Healing Potion", "CONSUMABLE", { heal: 40 }, "🧪", "Uncommon"),
@@ -2227,6 +2228,7 @@
             const [activeMapEnemies, setActiveMapEnemies] = useState(getEnemiesForFloor(1));
             const [activeMapInteractables, setActiveMapInteractables] = useState([]);
             const [floorStates, setFloorStates] = useState({});
+            const floorStateHashesRef = useRef({});
 
             const handleEncounter = (enemyData) => {
                 setActiveEncounter(enemyData);
@@ -2252,6 +2254,9 @@
             };
 
             const handleFloorStateChange = (snapshot) => {
+                const fingerprint = JSON.stringify(snapshot);
+                if (floorStateHashesRef.current[snapshot.floor] === fingerprint) return;
+                floorStateHashesRef.current[snapshot.floor] = fingerprint;
                 setFloorStates(prev => ({
                     ...prev,
                     [snapshot.floor]: snapshot
