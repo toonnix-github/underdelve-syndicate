@@ -1492,6 +1492,7 @@
             };
 
             const cells = [];
+            const minimapCells = [];
             const TILE_GAP = 4;
             const tileSize = Math.min(Math.max(Math.min(viewportSize.w, viewportSize.h) * 0.25, 120), viewportSize.w * 0.28);
             const mapPixelSize = (GRID_SIZE * tileSize) + ((GRID_SIZE - 1) * TILE_GAP);
@@ -1655,6 +1656,32 @@
                             )}
                         </div>
                     );
+
+                    const minimapIsWall = DUNGEON_LAYOUT[y][x] === 0;
+                    const minimapIsExplored = exploredCells.has(cellKey);
+                    const minimapNeighbors = [
+                        {ux: x, uy: y-1}, {ux: x, uy: y+1}, {ux: x-1, uy: y}, {ux: x+1, uy: y}
+                    ];
+                    const minimapIsScouted = !minimapIsExplored && !minimapIsWall && minimapNeighbors.some(n =>
+                        n.ux >= 0 && n.ux < GRID_SIZE && n.uy >= 0 && n.uy < GRID_SIZE &&
+                        exploredCells.has(`${n.ux},${n.uy}`)
+                    );
+                    const minimapEnemy = enemies.find(e => e.x === x && e.y === y);
+
+                    minimapCells.push(
+                        <div
+                            key={`mini-${x}-${y}`}
+                            className={`w-3 h-3 border relative flex items-center justify-center
+                                ${minimapIsWall ? 'bg-black border-zinc-900' : minimapIsExplored ? 'bg-zinc-600 border-zinc-500' : minimapIsScouted ? 'bg-zinc-800 border-zinc-700' : 'bg-zinc-950 border-zinc-900'}`}
+                        >
+                            {intObj?.type === 'STAIRS' && <span className="text-[8px] leading-none text-cyan-300">↓</span>}
+                            {intObj?.type === 'PREV_FLOOR' && <span className="text-[8px] leading-none text-purple-300">↑</span>}
+                            {intObj?.type === 'CHEST' && (minimapIsExplored || minimapIsScouted) && <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />}
+                            {intObj?.type === 'TRAP' && minimapIsExplored && <span className="w-1.5 h-1.5 rounded-full bg-red-400" />}
+                            {minimapEnemy && (minimapIsExplored || minimapIsScouted) && <span className="absolute inset-[2px] border border-red-400 rounded-sm" />}
+                            {isPlayer && <span className="absolute inset-[1px] rounded-sm border border-blue-300 bg-blue-500/60" />}
+                        </div>
+                    );
                 }
             }
 
@@ -1689,6 +1716,25 @@
                         </div>
 
                         <div className="space-y-4">
+                            <div className="bg-zinc-950/60 border border-zinc-800 p-3 rounded-lg">
+                                <div className="flex items-center justify-between mb-2">
+                                    <p className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em]">Minimap</p>
+                                    <p className="text-[9px] text-zinc-500 uppercase tracking-widest">Stairs always shown</p>
+                                </div>
+                                <div
+                                    className="grid gap-[2px] bg-black/60 p-2 border border-zinc-900 rounded-md w-max"
+                                    style={{ gridTemplateColumns: `repeat(${GRID_SIZE}, minmax(0, 1fr))` }}
+                                >
+                                    {minimapCells}
+                                </div>
+                                <div className="mt-2 flex flex-wrap gap-3 text-[9px] text-zinc-500 uppercase tracking-wider">
+                                    <span><span className="text-cyan-300">↓</span> Stairs Down</span>
+                                    <span><span className="text-purple-300">↑</span> Stairs Up</span>
+                                    <span><span className="inline-block w-2 h-2 rounded-full bg-amber-400 mr-1" />Chest</span>
+                                    <span><span className="inline-block w-2 h-2 rounded-full bg-red-400 mr-1" />Trap (explored)</span>
+                                </div>
+                            </div>
+
                             <p className="text-[11px] font-bold tracking-[0.3em] text-zinc-500 uppercase flex items-center gap-2">
                                 <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
                                 Syndicate Status
