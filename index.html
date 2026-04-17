@@ -1453,6 +1453,8 @@
 
             const handleCancelDescend = () => {
                 setStairsPrompt(null);
+                // Resolve the deferred enemy turn when player declines stair travel.
+                moveEnemies(playerPos.x, playerPos.y);
             };
 
             const moveEnemies = (newPlayerX, newPlayerY) => {
