@@ -10,15 +10,14 @@ The current hero cards are informative but text-heavy. To align with our premium
   - Position these tokens on the right edge of the card, floating over the art.
   - Numbers should be displayed cleanly next to or inside the icons.
 - **Full Bleed Art**: The hero illustration should fill the entire card area. 
-- **Thematic Footer**:
+- **Syndicate Industrial Aesthetic**: 
   - The hero **Name** and **Role** should be centered at the bottom.
-  - Use a stylized "Tabletop/Greek" border pattern (like a meander) to separate the footer from the art.
-- **Role Symbols**: If possible, add a unique symbol for each role (Shield for Vanguard, Bow for DPS, Spark for Healer) next to the role name.
-- **Reference Image**: See the "Argonauts" style card provided in the planning session.
+  - Use a heavy, industrial/dungeon-themed border pattern (e.g., rusted iron grating, Syndicate sigils, or rough-hewn stone textures) to separate the footer from the art.
+- **Reference Layout**: Use the vertical icon stack from the provided reference image, but adapt the *graphic style* to our dark-fantasy/industrial "Syndicate" branding.
 
 ## Acceptance Criteria
 - [ ] **Visual Layout**: Stats are represented by a vertical column of colored icons on the right side.
 - [ ] **Full Bleed**: The background art fills the entire card frame.
-- [ ] **Thematic Border**: A decorative meander/tabletop border is visible at the bottom of the art section.
+- [ ] **Syndicate Border**: A decorative heavy-metal or dungeon-etched border is visible at the bottom of the art section.
 - [ ] **Readability**: Hero names and roles are prominently centered in the bottom plate.
 - [ ] **Minimalist Polish**: Raw text labels (ATK:, DEF:) are completely removed in favor of purely symbolic representation where possible.
