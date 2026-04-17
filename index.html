@@ -1197,8 +1197,9 @@
         };
 
         // --- EXPLORATION PHASE COMPONENT ---
-        const ExplorationPhase = ({ floor, heroes, credits, enemies, setEnemies, interactables, setInteractables, trapDamagePulse, onEncounter, onNextFloor, onPrevFloor, onTrap, onWin, onHeal, openInventory, isLocked }) => {
-            const GRID_SIZE = 7;
+        const ExplorationPhase = ({ floor, maxFloor, floorState, onFloorStateChange, heroes, credits, enemies, setEnemies, interactables, setInteractables, trapDamagePulse, onEncounter, onNextFloor, onPrevFloor, onTrap, onWin, onHeal, openInventory, isLocked }) => {
+            const GRID_SIZE = 9;
+            const CENTER_TILE = Math.floor(GRID_SIZE / 2);
 
             // 1 = Walkable Path, 0 = Void/Wall
             const proceduralGenerateLayout = (size) => {
@@ -1206,12 +1207,12 @@
                 let validTiles = [];
 
                 // Spawn point
-                layout[3][3] = 1;
+                layout[CENTER_TILE][CENTER_TILE] = 1;
 
                 // Randomly generate 2 distinct rooms
                 for (let r=0; r<2; r++) {
-                    const rx = Math.floor(Math.random() * 4) + 1; // 1 to 4
-                    const ry = Math.floor(Math.random() * 4) + 1; // 1 to 4
+                    const rx = Math.floor(Math.random() * (size - 4)) + 1;
+                    const ry = Math.floor(Math.random() * (size - 3)) + 1;
                     for(let y = ry; y < ry + 2; y++) {
                         for(let x = rx; x < rx + 3; x++) {
                             layout[y][x] = 1; // 3x2 rooms
@@ -1220,15 +1221,15 @@
                 }
 
                 // Primary structural cross (guarantees everything connects to center Spawn)
-                for(let i=1; i<=5; i++) {
-                    layout[3][i] = 1;
-                    layout[i][3] = 1;
+                for(let i=1; i<=size-2; i++) {
+                    layout[CENTER_TILE][i] = 1;
+                    layout[i][CENTER_TILE] = 1;
                 }
 
                 // Extra chaos paths
-                for(let i=0; i<6; i++) {
-                    const cx = Math.floor(Math.random() * 5) + 1;
-                    const cy = Math.floor(Math.random() * 5) + 1;
+                for(let i=0; i<size; i++) {
+                    const cx = Math.floor(Math.random() * (size - 3)) + 1;
+                    const cy = Math.floor(Math.random() * (size - 3)) + 1;
                     layout[cy][cx] = 1;
                     if(Math.random() > 0.5) layout[cy][cx+1] = 1;
                     else layout[cy+1][cx] = 1;
@@ -1236,14 +1237,14 @@
 
                 // Strict Outer Walls
                 for(let i=0; i<size; i++) {
-                    layout[0][i] = 0; layout[6][i] = 0;
-                    layout[i][0] = 0; layout[i][6] = 0;
+                    layout[0][i] = 0; layout[size-1][i] = 0;
+                    layout[i][0] = 0; layout[i][size-1] = 0;
                 }
 
                 // Catalog walkable non-spawn tiles
                 for(let y = 1; y < size-1; y++) {
                     for(let x = 1; x < size-1; x++) {
-                        if (layout[y][x] === 1 && !(x===3 && y===3)) {
+                        if (layout[y][x] === 1 && !(x===CENTER_TILE && y===CENTER_TILE)) {
                             validTiles.push({x, y});
                         }
                     }
@@ -1255,8 +1256,8 @@
 
             const [DUNGEON_LAYOUT, setDungeonLayout] = useState(Array(GRID_SIZE).fill().map(() => Array(GRID_SIZE).fill(0)));
             const [tileBgs, setTileBgs] = useState({}); // Mapping of 'x,y' to background ID
-            const [playerPos, setPlayerPos] = useState({ x: 3, y: 3 });
-            const [exploredCells, setExploredCells] = useState(new Set(['3,3']));
+            const [playerPos, setPlayerPos] = useState({ x: CENTER_TILE, y: CENTER_TILE });
+            const [exploredCells, setExploredCells] = useState(new Set([`${CENTER_TILE},${CENTER_TILE}`]));
             const [revealingCells, setRevealingCells] = useState(new Set());
             const mapFrameRef = useRef(null);
             const [frameSize, setFrameSize] = useState({ w: 0, h: 0 });
@@ -1276,7 +1277,7 @@
             ];
             const buildStairsPrompt = (direction) => {
                 const currentFloor = floor;
-                const targetFloor = direction === 'UP' ? Math.max(1, floor - 1) : floor + 1;
+                const targetFloor = direction === 'UP' ? Math.max(1, floor - 1) : Math.min(maxFloor, floor + 1);
                 const selectedBackground = STAIR_MODAL_BACKGROUNDS[Math.floor(Math.random() * STAIR_MODAL_BACKGROUNDS.length)];
 
                 const downNarrations = [
@@ -1319,15 +1320,48 @@
                 return () => observer.disconnect();
             }, []);
 
+            const lastSnapshotRef = useRef('');
+
             useEffect(() => {
+                if (!onFloorStateChange) return;
+                const snapshot = {
+                    floor,
+                    dungeonLayout: DUNGEON_LAYOUT.map(row => [...row]),
+                    tileBgs: { ...tileBgs },
+                    playerPos: { ...playerPos },
+                    exploredCells: Array.from(exploredCells),
+                    revealingCells: Array.from(revealingCells),
+                    enemies: enemies.map(e => ({ ...e })),
+                    interactables: interactables.map(i => ({ ...i }))
+                };
+                const fingerprint = JSON.stringify(snapshot);
+                if (fingerprint !== lastSnapshotRef.current) {
+                    lastSnapshotRef.current = fingerprint;
+                    onFloorStateChange(snapshot);
+                }
+            }, [floor, DUNGEON_LAYOUT, tileBgs, playerPos, exploredCells, revealingCells, enemies, interactables, onFloorStateChange]);
+
+            useEffect(() => {
+                if (floorState) {
+                    setDungeonLayout(floorState.dungeonLayout.map(row => [...row]));
+                    setTileBgs({ ...floorState.tileBgs });
+                    setPlayerPos({ ...floorState.playerPos });
+                    setExploredCells(new Set(floorState.exploredCells));
+                    setRevealingCells(new Set(floorState.revealingCells || []));
+                    setStairsPrompt(null);
+                    setEnemies(floorState.enemies.map(e => ({ ...e })));
+                    setInteractables(floorState.interactables.map(i => ({ ...i })));
+                    return;
+                }
+
                 const { layout, validTiles } = proceduralGenerateLayout(GRID_SIZE);
                 setDungeonLayout(layout);
-                setPlayerPos({ x: 3, y: 3 });
-                setExploredCells(new Set(['3,3']));
+                setPlayerPos({ x: CENTER_TILE, y: CENTER_TILE });
+                setExploredCells(new Set([`${CENTER_TILE},${CENTER_TILE}`]));
                 setRevealingCells(new Set());
                 setStairsPrompt(null);
 
-                const getLoc = () => validTiles.length > 0 ? validTiles.pop() : {x:3, y:3};
+                const getLoc = () => validTiles.length > 0 ? validTiles.pop() : {x:CENTER_TILE, y:CENTER_TILE};
 
                 const TRAP_TYPES = ['SPIKES', 'ACID', 'BLADES'];
                 const getTrap = (id) => ({
@@ -1349,7 +1383,7 @@
                         getTrap('t2'),
                         { id: 'c2', ...getLoc(), type: 'CHEST' },
                         { id: 's2', ...getLoc(), type: 'STAIRS' },
-                        { id: 'p2', x: 3, y: 3, type: 'PREV_FLOOR' }
+                        { id: 'p2', x: CENTER_TILE, y: CENTER_TILE, type: 'PREV_FLOOR' }
                     ]);
                 }
 
@@ -1364,7 +1398,7 @@
 
                 // Route enemies onto randomized valid paths
                 setEnemies(prev => prev.map(e => ({ ...e, ...getLoc() })));
-            }, [floor]);
+            }, [floor, floorState]);
 
 
             // Handle Keyboard Movement
@@ -1443,7 +1477,7 @@
                 }
 
                 if (direction === 'DOWN') {
-                    if (floor >= 2) {
+                    if (floor >= maxFloor) {
                         onWin();
                         return;
                     }
@@ -1542,7 +1576,7 @@
                         return null;
                     };
 
-                    const isStart = x === 3 && y === 3 && floor === 1;
+                    const isStart = x === CENTER_TILE && y === CENTER_TILE && floor === 1;
                     const showTile = isExplored || isScouted;
                     const showEntity = isExplored;
                     const isScoutedOnly = isScouted && !isExplored;
@@ -2058,6 +2092,7 @@
 
         // --- MASTER APP CONTROLLER ---
         const App = () => {
+            const MAX_FLOOR = 5;
             // Phase 41: Master Roster Expansion
             const HERO_ROSTER = [
                 { name: 'Valerius', hp: 140, atk: 8, def: 18, spd: 10, role: 'TANK', imageId: 'hero_valerius', trait: {id: 'iron_aura', name: 'Aura of Iron', description: 'Global 10% damage reduction for party'}, skills: [{name: 'Shield Slam', val: 12, type: 'damage'}, {name: 'Fortify', val: 15, type: 'heal'}] },
@@ -2096,12 +2131,14 @@
                 setDraftPool(pool);
                 setHeroes([]);
                 setFloor(1);
+                setFloorStates({});
                 setRunEndState(null);
                 setInventory([
                     new Item("Healing Potion", "CONSUMABLE", { heal: 40 }, "🧪", "Uncommon"),
                     new Item("Healing Potion", "CONSUMABLE", { heal: 40 }, "🧪", "Uncommon")
                 ]);
                 setActiveMapEnemies(getEnemiesForFloor(1));
+                setActiveMapInteractables([]);
                 setGamePhase('DRAFT');
             };
 
@@ -2156,6 +2193,20 @@
                         ]}
                     ];
                 }
+                if (f >= 3) {
+                    const hpScale = 1 + ((f - 2) * 0.25);
+                    const atkScale = 1 + ((f - 2) * 0.2);
+                    return [
+                        { id: `e${f}_1`, x: 2, y: 1, instances: [
+                            new Combatant("Shadow Bat", "DPS", Math.floor(60 * hpScale), 24, Math.floor(15 * atkScale), 6, "enemy_bat", [{name: 'Fang Bite', val: Math.floor(20 * atkScale), type: 'damage'}], 'VANGUARD', false),
+                            new Combatant("Shadow Bat", "DPS", Math.floor(60 * hpScale), 24, Math.floor(15 * atkScale), 6, "enemy_bat", [{name: 'Fang Bite', val: Math.floor(20 * atkScale), type: 'damage'}], 'REARGUARD', false)
+                        ]},
+                        { id: `e${f}_2`, x: 5, y: 6, instances: [
+                            new Combatant("Deep Lurker", "DPS", Math.floor(120 * hpScale), 16, Math.floor(18 * atkScale), 8, "enemy_lurker", [{name: 'Acid Spit', val: Math.floor(24 * atkScale), type: 'damage'}], 'VANGUARD', false),
+                            new Combatant("Ogre King", "TANK", Math.floor(340 * hpScale), 10, Math.floor(36 * atkScale), 24, "enemy_ogre", [{name: 'Ground Smash', val: Math.floor(50 * atkScale), type: 'damage'}], 'VANGUARD', false)
+                        ]}
+                    ];
+                }
                 return [ // Floor 1
                     { id: 'e1', x: 1, y: 1, instances: [
                         new Combatant("Shadow Bat", "DPS", 40, 22, 10, 2, "enemy_bat", [{name: 'Fang Bite', val: 15, type: 'damage'}], 'VANGUARD', false),
@@ -2175,6 +2226,7 @@
 
             const [activeMapEnemies, setActiveMapEnemies] = useState(getEnemiesForFloor(1));
             const [activeMapInteractables, setActiveMapInteractables] = useState([]);
+            const [floorStates, setFloorStates] = useState({});
 
             const handleEncounter = (enemyData) => {
                 setActiveEncounter(enemyData);
@@ -2182,17 +2234,28 @@
             };
 
             const handleNextFloor = () => {
-                const nextFloor = floor + 1;
+                const nextFloor = Math.min(MAX_FLOOR, floor + 1);
                 setFloor(nextFloor);
-                setActiveMapEnemies(getEnemiesForFloor(nextFloor));
+                const cached = floorStates[nextFloor];
+                setActiveMapEnemies(cached?.enemies ? cached.enemies.map(e => ({ ...e })) : getEnemiesForFloor(nextFloor));
+                setActiveMapInteractables(cached?.interactables ? cached.interactables.map(i => ({ ...i })) : []);
             };
 
             const handlePrevFloor = () => {
                 if (floor > 1) {
                     const prevFloor = floor - 1;
                     setFloor(prevFloor);
-                    setActiveMapEnemies(getEnemiesForFloor(prevFloor));
+                    const cached = floorStates[prevFloor];
+                    setActiveMapEnemies(cached?.enemies ? cached.enemies.map(e => ({ ...e })) : getEnemiesForFloor(prevFloor));
+                    setActiveMapInteractables(cached?.interactables ? cached.interactables.map(i => ({ ...i })) : []);
                 }
+            };
+
+            const handleFloorStateChange = (snapshot) => {
+                setFloorStates(prev => ({
+                    ...prev,
+                    [snapshot.floor]: snapshot
+                }));
             };
 
             const calculatePartyBonus = (statType) => {
@@ -2455,6 +2518,9 @@
                         <div style={{ display: gamePhase === 'EXPLORATION' ? 'block' : 'none' }}>
                             <ExplorationPhase
                                 floor={floor}
+                                maxFloor={MAX_FLOOR}
+                                floorState={floorStates[floor] || null}
+                                onFloorStateChange={handleFloorStateChange}
                                 heroes={heroes}
                                 credits={credits}
                                 enemies={activeMapEnemies}
