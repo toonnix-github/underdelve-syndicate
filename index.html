@@ -1241,13 +1241,28 @@
                     layout[i][0] = 0; layout[i][size-1] = 0;
                 }
 
-                // Catalog walkable non-spawn tiles
-                for(let y = 1; y < size-1; y++) {
-                    for(let x = 1; x < size-1; x++) {
-                        if (layout[y][x] === 1 && !(x===CENTER_TILE && y===CENTER_TILE)) {
-                            validTiles.push({x, y});
-                        }
-                    }
+                // Catalog only reachable non-spawn tiles (prevents unreachable stairs/chests/traps)
+                const seen = new Set([`${CENTER_TILE},${CENTER_TILE}`]);
+                const queue = [{ x: CENTER_TILE, y: CENTER_TILE }];
+                const directions = [
+                    { x: 0, y: -1 },
+                    { x: 0, y: 1 },
+                    { x: -1, y: 0 },
+                    { x: 1, y: 0 }
+                ];
+
+                while (queue.length > 0) {
+                    const current = queue.shift();
+                    directions.forEach((dir) => {
+                        const nx = current.x + dir.x;
+                        const ny = current.y + dir.y;
+                        const key = `${nx},${ny}`;
+                        const inBounds = nx >= 1 && nx < size - 1 && ny >= 1 && ny < size - 1;
+                        if (!inBounds || seen.has(key) || layout[ny][nx] !== 1) return;
+                        seen.add(key);
+                        validTiles.push({ x: nx, y: ny });
+                        queue.push({ x: nx, y: ny });
+                    });
                 }
 
                 validTiles.sort(() => Math.random() - 0.5); // Shuffle
