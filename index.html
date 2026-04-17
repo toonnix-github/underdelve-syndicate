@@ -1206,33 +1206,11 @@
                 let layout = Array(size).fill().map(() => Array(size).fill(0));
                 let validTiles = [];
 
-                // Spawn point
-                layout[CENTER_TILE][CENTER_TILE] = 1;
-
-                // Randomly generate 2 distinct rooms
-                for (let r=0; r<2; r++) {
-                    const rx = Math.floor(Math.random() * (size - 4)) + 1;
-                    const ry = Math.floor(Math.random() * (size - 3)) + 1;
-                    for(let y = ry; y < ry + 2; y++) {
-                        for(let x = rx; x < rx + 3; x++) {
-                            layout[y][x] = 1; // 3x2 rooms
-                        }
+                // Guaranteed connected dungeon interior (7x7 playable area on a 9x9 board)
+                for (let y = 1; y < size - 1; y++) {
+                    for (let x = 1; x < size - 1; x++) {
+                        layout[y][x] = 1;
                     }
-                }
-
-                // Primary structural cross (guarantees everything connects to center Spawn)
-                for(let i=1; i<=size-2; i++) {
-                    layout[CENTER_TILE][i] = 1;
-                    layout[i][CENTER_TILE] = 1;
-                }
-
-                // Extra chaos paths
-                for(let i=0; i<size; i++) {
-                    const cx = Math.floor(Math.random() * (size - 3)) + 1;
-                    const cy = Math.floor(Math.random() * (size - 3)) + 1;
-                    layout[cy][cx] = 1;
-                    if(Math.random() > 0.5) layout[cy][cx+1] = 1;
-                    else layout[cy+1][cx] = 1;
                 }
 
                 // Strict Outer Walls
