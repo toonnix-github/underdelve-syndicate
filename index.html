@@ -11,6 +11,7 @@
     <!-- React UMD for maximum stability -->
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="scripts/dungeon-generator.js"></script>
 
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
@@ -1347,51 +1348,22 @@
                     return;
                 }
 
-                const { layout, validTiles } = proceduralGenerateLayout(GRID_SIZE);
+                const generatedFloor = window.DungeonGenerator?.generateFloor
+                    ? window.DungeonGenerator.generateFloor({ size: GRID_SIZE, centerTile: CENTER_TILE, floor })
+                    : (() => {
+                        const fallback = proceduralGenerateLayout(GRID_SIZE);
+                        return { layout: fallback.layout, interactables: [], availableTiles: fallback.validTiles };
+                    })();
+                const { layout } = generatedFloor;
+                const availableTiles = [...(generatedFloor.availableTiles || [])];
                 setDungeonLayout(layout);
                 setPlayerPos({ x: CENTER_TILE, y: CENTER_TILE });
                 setExploredCells(new Set([`${CENTER_TILE},${CENTER_TILE}`]));
                 setRevealingCells(new Set());
                 setStairsPrompt(null);
 
-                const getLoc = () => validTiles.length > 0 ? validTiles.pop() : {x:CENTER_TILE, y:CENTER_TILE};
-                const getStairsLoc = () => {
-                    const preferred = [
-                        { x: CENTER_TILE + 1, y: CENTER_TILE },
-                        { x: CENTER_TILE - 1, y: CENTER_TILE },
-                        { x: CENTER_TILE, y: CENTER_TILE + 1 },
-                        { x: CENTER_TILE, y: CENTER_TILE - 1 }
-                    ];
-                    const stairLoc = preferred.find((tile) => layout[tile.y]?.[tile.x] === 1);
-                    if (!stairLoc) return getLoc();
-                    const idx = validTiles.findIndex((tile) => tile.x === stairLoc.x && tile.y === stairLoc.y);
-                    if (idx >= 0) validTiles.splice(idx, 1);
-                    return stairLoc;
-                };
-
-                const TRAP_TYPES = ['SPIKES', 'ACID', 'BLADES'];
-                const getTrap = (id) => ({
-                    id, 
-                    ...getLoc(), 
-                    type: 'TRAP', 
-                    trapType: TRAP_TYPES[Math.floor(Math.random() * TRAP_TYPES.length)],
-                    status: 'ACTIVE'
-                });
-
-                if (floor === 1) {
-                    setInteractables([
-                        getTrap('t1'),
-                        { id: 'c1', ...getLoc(), type: 'CHEST' },
-                        { id: 's1', ...getStairsLoc(), type: 'STAIRS' }
-                    ]);
-                } else if (floor >= 2) {
-                    setInteractables([
-                        getTrap('t2'),
-                        { id: 'c2', ...getLoc(), type: 'CHEST' },
-                        { id: 's2', ...getLoc(), type: 'STAIRS' },
-                        { id: 'p2', x: CENTER_TILE, y: CENTER_TILE, type: 'PREV_FLOOR' }
-                    ]);
-                }
+                const getLoc = () => availableTiles.length > 0 ? availableTiles.pop() : {x:CENTER_TILE, y:CENTER_TILE};
+                setInteractables(generatedFloor.interactables || []);
 
                 // Generate random backgrounds for each tile positions
                 const backgrounds = {};
