@@ -165,6 +165,7 @@
 
             return (
                 <div
+                    data-unit-id={unit.id}
                     className={`relative w-[170px] h-[248px] rounded-xl shadow-2xl border-[3px] transform
                         ${unit.isHero ? 'bg-zinc-900 border-zinc-700' : 'bg-red-950 border-red-900'} ${tiltClass}
                         ${unit.isActing ? 'ring-2 ring-yellow-400 -translate-y-2 scale-110 z-20' : 'translate-y-0 scale-100'}
@@ -339,11 +340,130 @@
             const [battleLog, setBattleLog] = useState([`Encountered enemies! Waiting for authorization...`]);
             const [isLogExpanded, setIsLogExpanded] = useState(false);
             const [boardShake, setBoardShake] = useState(false);
+            const [projectiles, setProjectiles] = useState([]);
+            const [slashBursts, setSlashBursts] = useState([]);
 
             // Multipack enemies from the map encounter
             const [enemies, setEnemies] = useState(packSetup);
 
             const log = (msg) => setBattleLog(prev => [msg, ...prev].slice(0, 5));
+
+            const getCardCenter = (unitId) => {
+                const cardEl = document.querySelector(`[data-unit-id="${unitId}"]`);
+                if (!cardEl) return null;
+                const rect = cardEl.getBoundingClientRect();
+                return {
+                    x: rect.left + rect.width / 2,
+                    y: rect.top + rect.height / 2
+                };
+            };
+
+            const getProjectileProfile = (ability = {}) => {
+                const name = (ability?.name || '').toLowerCase();
+                const isHeal = ability?.type === 'heal';
+                const isMelee = /slash|smash|crash|slam|bite|stab|strike|tremor|fang|backstab|siphon/.test(name);
+                const isSwordStrike = /sword|slash|strike|backstab|stab/.test(name);
+                const isFireSpell = /fire|flame|burn|heat|dragon breath|forge/.test(name);
+                const isArrowShot = /arrow|shot/.test(name);
+
+                if (isHeal) {
+                    return {
+                        motion: 'curve',
+                        lineColor: 'rgba(34, 197, 94, 0.9)',
+                        glowColor: 'rgba(74, 222, 128, 0.75)',
+                        coreColor: '#dcfce7',
+                        width: 4,
+                        effect: 'default'
+                    };
+                }
+
+                if (isMelee) {
+                    return {
+                        motion: 'straight',
+                        lineColor: 'rgba(220, 38, 38, 0.95)',
+                        glowColor: 'rgba(248, 113, 113, 0.75)',
+                        coreColor: '#fee2e2',
+                        width: 7,
+                        effect: isSwordStrike ? 'slash' : 'default'
+                    };
+                }
+
+                if (isFireSpell) {
+                    return {
+                        motion: 'curve',
+                        lineColor: 'rgba(239, 68, 68, 0.95)',
+                        glowColor: 'rgba(252, 165, 165, 0.75)',
+                        coreColor: '#fee2e2',
+                        width: 5,
+                        effect: 'fireball'
+                    };
+                }
+
+                if (isArrowShot) {
+                    return {
+                        motion: 'straight',
+                        lineColor: 'rgba(59, 130, 246, 0.92)',
+                        glowColor: 'rgba(125, 211, 252, 0.75)',
+                        coreColor: '#e0f2fe',
+                        width: 4,
+                        effect: 'default'
+                    };
+                }
+
+                return {
+                    motion: 'curve',
+                    lineColor: 'rgba(59, 130, 246, 0.9)',
+                    glowColor: 'rgba(96, 165, 250, 0.72)',
+                    coreColor: '#dbeafe',
+                    width: 4,
+                    effect: 'default'
+                };
+            };
+
+            const spawnProjectile = (caster, target, ability) => {
+                const projectileStyle = getProjectileProfile(ability);
+                requestAnimationFrame(() => {
+                    const start = getCardCenter(caster.id);
+                    const end = getCardCenter(target.id);
+                    if (!start || !end) return;
+
+                    const dx = end.x - start.x;
+                    const dy = end.y - start.y;
+                    const distance = Math.hypot(dx, dy);
+                    const perpX = distance > 0 ? -dy / distance : 0;
+                    const perpY = distance > 0 ? dx / distance : 0;
+                    const arcStrength = projectileStyle.motion === 'curve' ? Math.min(150, Math.max(85, distance * 0.32)) : 0;
+                    const midX = (start.x + end.x) / 2 + perpX * arcStrength;
+                    const midY = (start.y + end.y) / 2 + perpY * arcStrength;
+                    const path = projectileStyle.motion === 'straight'
+                        ? `M ${start.x} ${start.y} L ${end.x} ${end.y}`
+                        : `M ${start.x} ${start.y} Q ${midX} ${midY} ${end.x} ${end.y}`;
+
+                    const projectile = {
+                        id: Date.now() + Math.random(),
+                        type: projectileStyle.motion,
+                        style: projectileStyle,
+                        path
+                    };
+
+                    setProjectiles(prev => [...prev, projectile]);
+
+                    if (projectileStyle.effect === 'slash') {
+                        const slashId = Date.now() + Math.random();
+                        const impactDelay = projectileStyle.motion === 'straight' ? 260 : 410;
+                        setTimeout(() => {
+                            setSlashBursts(prev => [...prev, { id: slashId, x: end.x, y: end.y, angle: Math.atan2(dy, dx) * (180 / Math.PI) }]);
+                            setTimeout(() => {
+                                setSlashBursts(prev => prev.filter(s => s.id !== slashId));
+                            }, 240);
+                        }, impactDelay);
+                    }
+
+                    setTimeout(() => {
+                        setProjectiles(prev => prev.filter(p => p.id !== projectile.id));
+                    }, projectileStyle.motion === 'straight' ? 360 : 520);
+                });
+            };
 
             const handleAbilityProc = async (unit, ability) => {
                 // If the unit has a trait, it's a "High impact" event!
@@ -466,6 +586,7 @@
                 log(`${unit.name} casts ${selectedAbility.name}`);
                 setHeroes([...heroes]);
                 setEnemies([...enemies]);
+                spawnProjectile(unit, target, selectedAbility);
 
                 setTimeout(() => {
                     unit.attackPhase = 'strike';
@@ -678,6 +799,79 @@
 
             return (
                 <div className={`h-screen w-screen bg-neutral-950 text-white flex flex-col items-center relative animate-in fade-in duration-500 overflow-hidden ${boardShake ? 'animate-board-shake' : ''}`}>
+                    <svg className="absolute inset-0 z-40 pointer-events-none overflow-visible">
+                        <defs>
+                            <radialGradient id="fireballGradient" cx="50%" cy="50%" r="50%">
+                                <stop offset="0%" stopColor="#fef9c3" />
+                                <stop offset="45%" stopColor="#fb923c" />
+                                <stop offset="100%" stopColor="#dc2626" />
+                            </radialGradient>
+                        </defs>
+                        {projectiles.map((p) => (
+                            <g key={p.id}>
+                                {p.type === 'curve' && (
+                                    <>
+                                        <path
+                                            d={p.path}
+                                            className="spell-arc-trail"
+                                            style={{ stroke: p.style.lineColor, strokeWidth: p.style.width }}
+                                        />
+                                        <path
+                                            d={p.path}
+                                            className="spell-arc-trail-soft"
+                                            style={{ stroke: p.style.glowColor, strokeWidth: p.style.width + 3 }}
+                                        />
+                                    </>
+                                )}
+                                {p.type === 'straight' && (
+                                    <path
+                                        d={p.path}
+                                        className="straight-arc-trail"
+                                        style={{ stroke: p.style.lineColor, strokeWidth: p.style.width }}
+                                    />
+                                )}
+                                <circle
+                                    r={p.type === 'straight' ? 5 : 8}
+                                    className={p.type === 'straight' ? 'arrow-projectile-core' : 'spell-projectile-core'}
+                                    style={{
+                                        fill: p.style.effect === 'fireball' ? 'url(#fireballGradient)' : p.style.coreColor,
+                                        filter: `drop-shadow(0 0 9px ${p.style.glowColor})`
+                                    }}
+                                >
+                                    <animateMotion dur={p.type === 'straight' ? '340ms' : '500ms'} path={p.path} fill="freeze" />
+                                </circle>
+                                {p.style.effect === 'fireball' && (
+                                    <>
+                                        <circle r="13" className="fireball-aura">
+                                            <animateMotion dur="500ms" path={p.path} fill="freeze" />
+                                        </circle>
+                                        <circle r="3" className="fireball-ember ember-1">
+                                            <animateMotion dur="500ms" path={p.path} fill="freeze" />
+                                        </circle>
+                                        <circle r="2.5" className="fireball-ember ember-2">
+                                            <animateMotion dur="500ms" path={p.path} fill="freeze" />
+                                        </circle>
+                                        <circle r="2" className="fireball-ember ember-3">
+                                            <animateMotion dur="500ms" path={p.path} fill="freeze" />
+                                        </circle>
+                                    </>
+                                )}
+                                <polygon
+                                    points="-20,-6 14,0 -20,6"
+                                    className="arrow-head"
+                                    style={{ fill: p.style.lineColor, filter: `drop-shadow(0 0 6px ${p.style.glowColor})` }}
+                                >
+                                    <animateMotion dur={p.type === 'straight' ? '340ms' : '500ms'} path={p.path} rotate="auto" fill="freeze" />
+                                </polygon>
+                            </g>
+                        ))}
+                        {slashBursts.map((s) => (
+                            <g key={s.id} transform={`translate(${s.x} ${s.y}) rotate(${s.angle})`} className="sword-slash-burst">
+                                <path d="M -44 -9 Q 0 -22 46 -8" className="sword-slash-main" />
+                                <path d="M -35 4 Q 2 -6 34 6" className="sword-slash-echo" />
+                            </g>
+                        ))}
+                    </svg>
                     <main className="relative z-10 flex-1 flex flex-row items-center justify-between w-full max-w-[1400px] px-6 py-4 overflow-hidden mx-auto gap-8">
 
 
@@ -2030,6 +2224,92 @@
             border-radius: 50%;
             pointer-events: none;
             animation: particle-suck 0.5s ease-in forwards;
+        }
+
+        /* Ranged Projectiles */
+        .spell-arc-trail {
+            fill: none;
+            stroke-linecap: round;
+            filter: drop-shadow(0 0 8px rgba(96, 165, 250, 0.8));
+            stroke-dasharray: 6 14;
+            animation: spell-arc-fade 0.5s ease-out forwards;
+        }
+        .spell-arc-trail-soft {
+            fill: none;
+            stroke-linecap: round;
+            filter: blur(1.5px);
+            animation: spell-arc-fade 0.52s ease-out forwards;
+        }
+        .straight-arc-trail {
+            fill: none;
+            stroke-linecap: round;
+            opacity: 0.9;
+            animation: spell-arc-fade 0.36s ease-out forwards;
+        }
+        .spell-projectile-core {
+            opacity: 0.95;
+        }
+        .arrow-projectile-core {
+            opacity: 0.98;
+        }
+        .arrow-head {
+            opacity: 0.98;
+        }
+        .fireball-aura {
+            fill: rgba(249, 115, 22, 0.25);
+            filter: blur(1px) drop-shadow(0 0 10px rgba(248, 113, 113, 0.75));
+            animation: fireball-flicker 0.25s ease-in-out infinite alternate;
+        }
+        .fireball-ember {
+            fill: #fdba74;
+            filter: drop-shadow(0 0 6px rgba(251, 146, 60, 0.9));
+            opacity: 0.9;
+        }
+        .ember-1 { animation: ember-drift-1 0.45s linear infinite; }
+        .ember-2 { animation: ember-drift-2 0.42s linear infinite; }
+        .ember-3 { animation: ember-drift-3 0.48s linear infinite; }
+        .sword-slash-burst {
+            animation: sword-slash-pop 0.22s ease-out forwards;
+        }
+        .sword-slash-main {
+            fill: none;
+            stroke: rgba(255, 241, 242, 0.95);
+            stroke-width: 8;
+            stroke-linecap: round;
+            filter: drop-shadow(0 0 9px rgba(248, 113, 113, 0.95));
+        }
+        .sword-slash-echo {
+            fill: none;
+            stroke: rgba(252, 165, 165, 0.75);
+            stroke-width: 4;
+            stroke-linecap: round;
+            filter: drop-shadow(0 0 7px rgba(252, 165, 165, 0.75));
+        }
+        @keyframes spell-arc-fade {
+            0% { opacity: 0; }
+            15% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+        @keyframes fireball-flicker {
+            0% { opacity: 0.45; transform: scale(0.95); }
+            100% { opacity: 0.9; transform: scale(1.06); }
+        }
+        @keyframes ember-drift-1 {
+            0% { transform: translate(-1px, 0); opacity: 0.9; }
+            100% { transform: translate(8px, -6px); opacity: 0; }
+        }
+        @keyframes ember-drift-2 {
+            0% { transform: translate(1px, 0); opacity: 0.8; }
+            100% { transform: translate(-7px, -8px); opacity: 0; }
+        }
+        @keyframes ember-drift-3 {
+            0% { transform: translate(0, 1px); opacity: 0.8; }
+            100% { transform: translate(4px, -10px); opacity: 0; }
+        }
+        @keyframes sword-slash-pop {
+            0% { opacity: 0; transform: scale(0.45); }
+            45% { opacity: 1; transform: scale(1.08); }
+            100% { opacity: 0; transform: scale(1.18); }
         }
     </style>
 </head>
