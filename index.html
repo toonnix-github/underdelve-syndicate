@@ -156,6 +156,12 @@
                 : unit.role === 'HEALER'
                     ? 'bg-emerald-500/95'
                     : 'bg-rose-500/95';
+            const positionFrameTone = unit.positionLine === 'VANGUARD'
+                ? 'border-amber-700/90 shadow-[0_0_22px_rgba(217,119,6,0.25)]'
+                : 'border-sky-700/90 shadow-[0_0_22px_rgba(2,132,199,0.25)]';
+            const positionArtTone = unit.positionLine === 'VANGUARD'
+                ? 'from-amber-500/18 via-transparent to-transparent'
+                : 'from-sky-500/18 via-transparent to-transparent';
 
             // Safe Stat Access (resilience for raw hero objects)
             const getUnitATK = () => unit.getATK ? unit.getATK() : (unit.atk || 0);
@@ -167,7 +173,7 @@
                 <div
                     data-unit-id={unit.id}
                     className={`relative w-[170px] h-[248px] rounded-xl shadow-2xl border-[3px] transform
-                        ${unit.isHero ? 'bg-zinc-900 border-zinc-700' : 'bg-red-950 border-red-900'} ${tiltClass}
+                        ${unit.isHero ? 'bg-zinc-900' : 'bg-red-950'} ${positionFrameTone} ${tiltClass}
                         ${unit.isActing ? 'ring-2 ring-yellow-400 -translate-y-2 scale-110 z-20' : 'translate-y-0 scale-100'}
                         ${unit.traitGlow ? 'animate-trait-pulse border-amber-400 z-30 shadow-[0_0_25px_rgba(251,191,36,0.6)]' : ''}
                         ${attackMotionClass}
@@ -198,6 +204,7 @@
                             className={`w-full h-full object-cover opacity-95 transition-transform duration-500
                                 ${unit.isPopping ? 'scale-125 -translate-y-4 brightness-125 z-50 animate-frame-pop' : 'scale-100'}`} 
                         />
+                        <div className={`absolute inset-0 bg-gradient-to-br ${positionArtTone}`} />
                         <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/90" />
                         {unit.hp <= 0 && <div className="absolute inset-0 bg-black/80 flex items-center justify-center font-black text-red-600 text-sm tracking-widest uppercase shadow-black z-40">Slain</div>}
                     </div>
@@ -219,9 +226,7 @@
                                 <div className="h-[2px] w-8 bg-amber-500/80 rounded-full mt-1 shadow-amber-500/50" />
                             </div>
 
-                            <div className={`w-6 h-6 rounded-full border border-black/60 flex items-center justify-center shadow-lg ${unit.positionLine === 'VANGUARD' ? 'bg-amber-600/95' : 'bg-blue-600/95'}`}>
-                                <span className="text-[10px] font-black text-white">{unit.positionLine === 'VANGUARD' ? 'V' : 'R'}</span>
-                            </div>
+                            <div className={`w-6 h-6 rounded-full border border-black/60 shadow-lg ${unit.positionLine === 'VANGUARD' ? 'bg-amber-500/70' : 'bg-sky-500/70'}`} />
                         </div>
 
                         {/* Footer: Stats, Traits, and Skills */}
