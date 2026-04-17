@@ -1197,7 +1197,7 @@
         };
 
         // --- EXPLORATION PHASE COMPONENT ---
-        const ExplorationPhase = ({ floor, heroes, credits, enemies, setEnemies, interactables, setInteractables, trapDamagePulse, onEncounter, onNextFloor, onPrevFloor, onTrap, onHeal, openInventory, isLocked }) => {
+        const ExplorationPhase = ({ floor, heroes, credits, enemies, setEnemies, interactables, setInteractables, trapDamagePulse, onEncounter, onNextFloor, onPrevFloor, onTrap, onWin, onHeal, openInventory, isLocked }) => {
             const GRID_SIZE = 7;
 
             // 1 = Walkable Path, 0 = Void/Wall
@@ -1260,10 +1260,46 @@
             const [revealingCells, setRevealingCells] = useState(new Set());
             const mapFrameRef = useRef(null);
             const [frameSize, setFrameSize] = useState({ w: 0, h: 0 });
+            const [stairsPrompt, setStairsPrompt] = useState(null);
             const [viewportSize, setViewportSize] = useState({
                 w: typeof window !== 'undefined' ? window.innerWidth : 1440,
                 h: typeof window !== 'undefined' ? window.innerHeight : 900
             });
+            const actionLocked = isLocked || !!stairsPrompt;
+            const STAIR_MODAL_BACKGROUNDS = [
+                'assets/background-stairs-1.png',
+                'assets/background-stairs-2.png',
+                'assets/background-stairs-3.png',
+                'assets/background-stairs-1.jpg',
+                'assets/background-stairs-2.jpg',
+                'assets/background-stairs-3.jpg'
+            ];
+            const buildStairsPrompt = (direction) => {
+                const currentFloor = floor;
+                const targetFloor = direction === 'UP' ? Math.max(1, floor - 1) : floor + 1;
+                const selectedBackground = STAIR_MODAL_BACKGROUNDS[Math.floor(Math.random() * STAIR_MODAL_BACKGROUNDS.length)];
+
+                const downNarrations = [
+                    `Your boots pause at the lip of the abyss while the stairwell whispers promises of greater peril. You may stay at floor ${currentFloor}, or go down to floor ${targetFloor} to seek harsher trials and richer spoils.`,
+                    `The stone below drinks your torchlight and invites the Syndicate deeper into danger. Stay at floor ${currentFloor}, or go down to floor ${targetFloor} and test your fate against stronger horrors.`,
+                    `A cold draft rises from beneath, carrying the scent of iron and old blood. Hold position at floor ${currentFloor}, or go down to floor ${targetFloor} in pursuit of deadlier glory.`
+                ];
+                const upNarrations = [
+                    `A safer draft rolls down from above, offering a path to regroup and breathe. You may stay at floor ${currentFloor}, or go up to floor ${targetFloor} to reposition your syndicate.`,
+                    `The upper passage glows faintly, a rare promise of steadier footing. Remain at floor ${currentFloor}, or go up to floor ${targetFloor} and reset your approach.`,
+                    `The stair behind you creaks like an old sentinel urging caution. Keep to floor ${currentFloor}, or go up to floor ${targetFloor} before diving deeper again.`
+                ];
+                const narrationPool = direction === 'UP' ? upNarrations : downNarrations;
+                const narration = narrationPool[Math.floor(Math.random() * narrationPool.length)];
+
+                return {
+                    direction,
+                    currentFloor,
+                    targetFloor,
+                    narration,
+                    selectedBackground
+                };
+            };
 
             useEffect(() => {
                 const onResize = () => setViewportSize({ w: window.innerWidth, h: window.innerHeight });
@@ -1289,6 +1325,7 @@
                 setPlayerPos({ x: 3, y: 3 });
                 setExploredCells(new Set(['3,3']));
                 setRevealingCells(new Set());
+                setStairsPrompt(null);
 
                 const getLoc = () => validTiles.length > 0 ? validTiles.pop() : {x:3, y:3};
 
@@ -1333,7 +1370,7 @@
             // Handle Keyboard Movement
             useEffect(() => {
                 const handleKeyDown = (e) => {
-                    if (isLocked) return;
+                    if (actionLocked) return;
                     let dx = 0; let dy = 0;
                     if (e.key === 'ArrowUp' || e.key === 'w') dy = -1;
                     if (e.key === 'ArrowDown' || e.key === 's') dy = 1;
@@ -1346,10 +1383,10 @@
                 };
                 window.addEventListener('keydown', handleKeyDown);
                 return () => window.removeEventListener('keydown', handleKeyDown);
-            }, [playerPos, enemies]);
+            }, [actionLocked, playerPos, enemies]);
 
             const movePlayer = (dx, dy) => {
-                if (isLocked) return;
+                if (actionLocked) return;
                 const newX = playerPos.x + dx;
                 const newY = playerPos.y + dy;
 
@@ -1384,19 +1421,40 @@
                         onTrap(interactable);
                         // Trap remains on map until disarmed!
                     } else if (interactable.type === 'STAIRS') {
-                        if (floor >= 2) {
-                            onWin();
-                        } else {
-                            onNextFloor();
-                        }
-                        return; // Halt enemy move on floor transition
+                        setStairsPrompt(buildStairsPrompt('DOWN'));
+                        return; // Halt enemy move while waiting for confirmation
                     } else if (interactable.type === 'PREV_FLOOR') {
-                        onPrevFloor();
+                        setStairsPrompt(buildStairsPrompt('UP'));
                         return;
                     }
                 }
 
                 moveEnemies(newX, newY);
+            };
+
+            const handleConfirmDescend = () => {
+                if (!stairsPrompt) return;
+                const direction = stairsPrompt.direction;
+                setStairsPrompt(null);
+
+                if (direction === 'UP') {
+                    onPrevFloor();
+                    return;
+                }
+
+                if (direction === 'DOWN') {
+                    if (floor >= 2) {
+                        onWin();
+                        return;
+                    }
+                    onNextFloor();
+                }
+            };
+
+            const handleCancelDescend = () => {
+                setStairsPrompt(null);
+                // Resolve the deferred enemy turn when player declines stair travel.
+                moveEnemies(playerPos.x, playerPos.y);
             };
 
             const moveEnemies = (newPlayerX, newPlayerY) => {
@@ -1659,39 +1717,39 @@
                             <div className="flex items-center justify-between">
                                 <button 
                                     onClick={openInventory} 
-                                    disabled={isLocked}
+                                    disabled={actionLocked}
                                     className={`bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 font-bold px-4 py-2 border border-zinc-700 text-[10px] tracking-widest uppercase transition-all
-                                        ${isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                        ${actionLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 >
                                     Inventory
                                 </button>
-                                {isLocked && (
+                                {actionLocked && (
                                     <div className="text-[9px] text-amber-500 font-black uppercase tracking-widest animate-pulse">Action Required</div>
                                 )}
                             </div>
                             
-                            <div className={`bg-zinc-950/80 border-2 border-zinc-900 px-4 py-4 rounded-xl flex items-center justify-center gap-6 transition-all ${isLocked ? 'opacity-40 grayscale' : ''}`}>
+                            <div className={`bg-zinc-950/80 border-2 border-zinc-900 px-4 py-4 rounded-xl flex items-center justify-center gap-6 transition-all ${actionLocked ? 'opacity-40 grayscale' : ''}`}>
                                 <div className="grid grid-cols-3 gap-2">
                                     <div />
                                     <button 
                                         onClick={() => movePlayer(0, -1)} 
-                                        disabled={isLocked}
+                                        disabled={actionLocked}
                                         className="w-[7vh] h-[7vh] min-w-14 min-h-14 bg-zinc-900 border-2 border-zinc-800 active:bg-zinc-800 active:border-zinc-500 text-zinc-400 font-black text-xl rounded-lg transition-all flex items-center justify-center disabled:cursor-not-allowed"
                                     >↑</button>
                                     <div />
                                     <button 
                                         onClick={() => movePlayer(-1, 0)} 
-                                        disabled={isLocked}
+                                        disabled={actionLocked}
                                         className="w-[7vh] h-[7vh] min-w-14 min-h-14 bg-zinc-900 border-2 border-zinc-800 active:bg-zinc-800 active:border-zinc-500 text-zinc-400 font-black text-xl rounded-lg transition-all flex items-center justify-center disabled:cursor-not-allowed"
                                     >←</button>
                                     <button 
                                         onClick={() => movePlayer(0, 1)} 
-                                        disabled={isLocked}
+                                        disabled={actionLocked}
                                         className="w-[7vh] h-[7vh] min-w-14 min-h-14 bg-zinc-900 border-2 border-zinc-800 active:bg-zinc-800 active:border-zinc-500 text-zinc-400 font-black text-xl rounded-lg transition-all flex items-center justify-center disabled:cursor-not-allowed"
                                     >↓</button>
                                     <button 
                                         onClick={() => movePlayer(1, 0)} 
-                                        disabled={isLocked}
+                                        disabled={actionLocked}
                                         className="w-[7vh] h-[7vh] min-w-14 min-h-14 bg-zinc-900 border-2 border-zinc-800 active:bg-zinc-800 active:border-zinc-500 text-zinc-400 font-black text-xl rounded-lg transition-all flex items-center justify-center disabled:cursor-not-allowed"
                                     >→</button>
                                 </div>
@@ -1703,6 +1761,46 @@
                             </div>
                         </div>
                     </aside>
+
+                    {stairsPrompt && (
+                        <div className="absolute inset-0 z-[120] bg-black/80 backdrop-blur-sm flex items-center justify-center px-4">
+                            <div
+                                className="w-full max-w-xl border-2 border-cyan-500/55 shadow-[0_0_45px_rgba(34,211,238,0.22)] rounded-xl p-6 sm:p-8 text-center relative overflow-hidden bg-zinc-950/95"
+                                style={{
+                                    backgroundImage: `linear-gradient(180deg, rgba(4,12,20,0.92), rgba(8,10,14,0.92)), url('${stairsPrompt.selectedBackground}'), url('assets/tile_ruins.png')`,
+                                    backgroundSize: 'cover, cover, 220px 220px',
+                                    backgroundPosition: 'center, center, center'
+                                }}
+                            >
+                                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(34,211,238,0.2),transparent_64%)] pointer-events-none" />
+                                <div className="relative z-10">
+                                    <p className="text-cyan-300 text-[10px] font-black tracking-[0.42em] uppercase mb-3">ANCIENT STAIRWELL</p>
+                                    <h3 className="text-2xl sm:text-3xl font-black italic tracking-tight text-white mb-3">
+                                        {stairsPrompt.direction === 'UP' ? 'A narrow stair rises toward safer stone.' : 'A cold stair descends into deeper shadow.'}
+                                    </h3>
+                                    <p className="text-zinc-300 text-[11px] sm:text-xs tracking-wide leading-relaxed mb-6">
+                                        {stairsPrompt.narration}
+                                    </p>
+                                </div>
+                                <div className="flex items-center justify-center gap-3 sm:gap-4">
+                                    <button
+                                        onClick={handleCancelDescend}
+                                        className="px-4 sm:px-5 py-2 border-2 border-zinc-700 bg-zinc-900 text-zinc-300 font-black text-[10px] sm:text-xs tracking-[0.16em] uppercase hover:bg-zinc-800 transition-colors"
+                                    >
+                                        {`Stay at Floor ${stairsPrompt.currentFloor}`}
+                                    </button>
+                                    <button
+                                        onClick={handleConfirmDescend}
+                                        className="px-4 sm:px-5 py-2 border-2 border-cyan-500 bg-cyan-600/80 text-black font-black text-[10px] sm:text-xs tracking-[0.16em] uppercase hover:bg-cyan-400 transition-colors"
+                                    >
+                                        {stairsPrompt.direction === 'UP'
+                                            ? `Go Up to Floor ${stairsPrompt.targetFloor}`
+                                            : `Go Down to Floor ${stairsPrompt.targetFloor}`}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             );
         };
@@ -2370,6 +2468,7 @@
                                 onWin={() => setRunEndState('VICTORY')}
                                 onHeal={handleHeal}
                                 openInventory={() => setGamePhase('INVENTORY')}
+                                isLocked={!!activeTrapEvent}
                             />
                         </div>
 
