@@ -1,5 +1,6 @@
 # TICKET-49: Syndicate Leadership System
-**STATUS: BACKLOG**
+**STATUS: TODO**
+**PRIORITY: P0 (CRITICAL - DO THIS FIRST)**
 
 ## Description
 Every successful heist needs a mastermind. We are introducing a "Group Leader" mechanic where one of the three chosen heroes is designated as the party leader, granting a unique persistent "Leader Perk" for the duration of the run.

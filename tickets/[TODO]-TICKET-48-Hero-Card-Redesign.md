@@ -1,5 +1,6 @@
 # TICKET-48: Hero Card Redesign (Minimalist Tabletop Style)
-**STATUS: BACKLOG**
+**STATUS: TODO**
+**PRIORITY: P1 (IMMEDIATELY AFTER P0)**
 
 ## Description
 The current hero cards are informative but text-heavy. To align with our premium digital tabletop goal, we are redesigning the card layout to favor symbols over text, inspired by high-end physical board games.
