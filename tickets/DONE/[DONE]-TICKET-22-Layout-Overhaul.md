@@ -1,5 +1,6 @@
-# TICKET-22: Grid Layout Overhaul (Left-Align Map) [Ready for QA]
-**STATUS: READY FOR QA**
+# TICKET-22: Grid Layout Overhaul (Left-Align Map) [DONE]
+**STATUS: DONE**
+**COMPLETED: 2026-04-17**
 
 ## Description
 The current layout centers the map with info on the top/bottom. To maximize vertical space and improve usability, we need a side-by-side layout.
