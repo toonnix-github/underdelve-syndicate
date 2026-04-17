@@ -165,6 +165,7 @@
 
             return (
                 <div
+                    data-unit-id={unit.id}
                     className={`relative w-[170px] h-[248px] rounded-xl shadow-2xl border-[3px] transform
                         ${unit.isHero ? 'bg-zinc-900 border-zinc-700' : 'bg-red-950 border-red-900'} ${tiltClass}
                         ${unit.isActing ? 'ring-2 ring-yellow-400 -translate-y-2 scale-110 z-20' : 'translate-y-0 scale-100'}
@@ -339,11 +340,58 @@
             const [battleLog, setBattleLog] = useState([`Encountered enemies! Waiting for authorization...`]);
             const [isLogExpanded, setIsLogExpanded] = useState(false);
             const [boardShake, setBoardShake] = useState(false);
+            const [projectiles, setProjectiles] = useState([]);
 
             // Multipack enemies from the map encounter
             const [enemies, setEnemies] = useState(packSetup);
 
             const log = (msg) => setBattleLog(prev => [msg, ...prev].slice(0, 5));
+
+            const getCardCenter = (unitId) => {
+                const cardEl = document.querySelector(`[data-unit-id="${unitId}"]`);
+                if (!cardEl) return null;
+                const rect = cardEl.getBoundingClientRect();
+                return {
+                    x: rect.left + rect.width / 2,
+                    y: rect.top + rect.height / 2
+                };
+            };
+
+            const getProjectileType = (abilityName = '') => {
+                return /arrow|shot/i.test(abilityName) ? 'arrow' : 'spell';
+            };
+
+            const spawnProjectile = (caster, target, ability) => {
+                const projectileType = getProjectileType(ability?.name || '');
+                requestAnimationFrame(() => {
+                    const start = getCardCenter(caster.id);
+                    const end = getCardCenter(target.id);
+                    if (!start || !end) return;
+
+                    const dx = end.x - start.x;
+                    const dy = end.y - start.y;
+                    const distance = Math.hypot(dx, dy);
+                    const perpX = distance > 0 ? -dy / distance : 0;
+                    const perpY = distance > 0 ? dx / distance : 0;
+                    const arcStrength = projectileType === 'spell' ? Math.min(150, Math.max(85, distance * 0.32)) : 0;
+                    const midX = (start.x + end.x) / 2 + perpX * arcStrength;
+                    const midY = (start.y + end.y) / 2 + perpY * arcStrength;
+                    const path = projectileType === 'arrow'
+                        ? `M ${start.x} ${start.y} L ${end.x} ${end.y}`
+                        : `M ${start.x} ${start.y} Q ${midX} ${midY} ${end.x} ${end.y}`;
+
+                    const projectile = {
+                        id: Date.now() + Math.random(),
+                        type: projectileType,
+                        path
+                    };
+
+                    setProjectiles(prev => [...prev, projectile]);
+                    setTimeout(() => {
+                        setProjectiles(prev => prev.filter(p => p.id !== projectile.id));
+                    }, projectileType === 'arrow' ? 360 : 520);
+                });
+            };
 
             const handleAbilityProc = async (unit, ability) => {
                 // If the unit has a trait, it's a "High impact" event!
@@ -466,6 +514,7 @@
                 log(`${unit.name} casts ${selectedAbility.name}`);
                 setHeroes([...heroes]);
                 setEnemies([...enemies]);
+                spawnProjectile(unit, target, selectedAbility);
 
                 setTimeout(() => {
                     unit.attackPhase = 'strike';
@@ -678,6 +727,26 @@
 
             return (
                 <div className={`h-screen w-screen bg-neutral-950 text-white flex flex-col items-center relative animate-in fade-in duration-500 overflow-hidden ${boardShake ? 'animate-board-shake' : ''}`}>
+                    <svg className="absolute inset-0 z-40 pointer-events-none overflow-visible">
+                        {projectiles.map((p) => (
+                            <g key={p.id}>
+                                {p.type === 'spell' && (
+                                    <>
+                                        <path d={p.path} className="spell-arc-trail" />
+                                        <path d={p.path} className="spell-arc-trail-soft" />
+                                    </>
+                                )}
+                                <circle r={p.type === 'arrow' ? 5 : 8} className={p.type === 'arrow' ? 'arrow-projectile-core' : 'spell-projectile-core'}>
+                                    <animateMotion dur={p.type === 'arrow' ? '340ms' : '500ms'} path={p.path} fill="freeze" />
+                                </circle>
+                                {p.type === 'arrow' && (
+                                    <polygon points="-12,-3 8,0 -12,3" className="arrow-head">
+                                        <animateMotion dur="340ms" path={p.path} rotate="auto" fill="freeze" />
+                                    </polygon>
+                                )}
+                            </g>
+                        ))}
+                    </svg>
                     <main className="relative z-10 flex-1 flex flex-row items-center justify-between w-full max-w-[1400px] px-6 py-4 overflow-hidden mx-auto gap-8">
 
 
@@ -2030,6 +2099,42 @@
             border-radius: 50%;
             pointer-events: none;
             animation: particle-suck 0.5s ease-in forwards;
+        }
+
+        /* Ranged Projectiles */
+        .spell-arc-trail {
+            fill: none;
+            stroke: rgba(147, 51, 234, 0.85);
+            stroke-width: 4;
+            stroke-linecap: round;
+            filter: drop-shadow(0 0 8px rgba(192, 132, 252, 0.8));
+            stroke-dasharray: 6 14;
+            animation: spell-arc-fade 0.5s ease-out forwards;
+        }
+        .spell-arc-trail-soft {
+            fill: none;
+            stroke: rgba(236, 72, 153, 0.35);
+            stroke-width: 8;
+            stroke-linecap: round;
+            filter: blur(1.5px);
+            animation: spell-arc-fade 0.52s ease-out forwards;
+        }
+        .spell-projectile-core {
+            fill: #f5d0fe;
+            filter: drop-shadow(0 0 10px rgba(217, 70, 239, 0.95));
+        }
+        .arrow-projectile-core {
+            fill: #fef3c7;
+            filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.95));
+        }
+        .arrow-head {
+            fill: #f59e0b;
+            filter: drop-shadow(0 0 5px rgba(251, 191, 36, 0.9));
+        }
+        @keyframes spell-arc-fade {
+            0% { opacity: 0; }
+            15% { opacity: 1; }
+            100% { opacity: 0; }
         }
     </style>
 </head>
