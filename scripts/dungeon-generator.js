@@ -1,4 +1,4 @@
-(function () {
+(function (root) {
   const TRAP_TYPES = ['SPIKES', 'ACID', 'BLADES'];
 
   const weightedDoorCount = () => {
@@ -95,17 +95,23 @@
 
     const openTiles = shuffle(reachable);
     const pullTile = () => openTiles.length > 0 ? openTiles.pop() : { x: centerTile, y: centerTile };
+    const pullClosestTile = (maxDistance = 2) => {
+      const idx = openTiles.findIndex(tile => (Math.abs(tile.x - centerTile) + Math.abs(tile.y - centerTile)) <= maxDistance);
+      if (idx < 0) return pullTile();
+      const [picked] = openTiles.splice(idx, 1);
+      return picked;
+    };
 
     const trapQuota = Math.min(1 + floor, 4);
     const treasureQuota = floor >= 3 ? 2 : 1;
     const interactables = [];
 
-    interactables.push({ id: 'stairs_down', ...pullTile(), type: 'STAIRS' });
+    interactables.push({ id: 'stairs_down', ...(floor === 1 ? pullClosestTile(1) : pullTile()), type: 'STAIRS' });
 
     for (let i = 0; i < trapQuota; i++) {
       interactables.push({
         id: makeId('trap', i + 1),
-        ...pullTile(),
+        ...(floor === 1 ? pullClosestTile(2) : pullTile()),
         type: 'TRAP',
         trapType: TRAP_TYPES[Math.floor(Math.random() * TRAP_TYPES.length)],
         status: 'ACTIVE'
@@ -113,7 +119,7 @@
     }
 
     for (let i = 0; i < treasureQuota; i++) {
-      interactables.push({ id: makeId('chest', i + 1), ...pullTile(), type: 'CHEST' });
+      interactables.push({ id: makeId('chest', i + 1), ...(floor === 1 ? pullClosestTile(3) : pullTile()), type: 'CHEST' });
     }
 
     if (floor > 1) {
@@ -127,7 +133,11 @@
     };
   }
 
-  window.DungeonGenerator = {
-    generateFloor
-  };
-})();
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { generateFloor };
+  }
+
+  if (root && typeof root === 'object') {
+    root.DungeonGenerator = { generateFloor };
+  }
+})(typeof window !== 'undefined' ? window : globalThis);

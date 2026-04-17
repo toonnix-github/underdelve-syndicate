@@ -1556,7 +1556,7 @@
 
                     const isStart = x === CENTER_TILE && y === CENTER_TILE && floor === 1;
                     const showTile = isExplored || isScouted;
-                    const showEntity = isExplored;
+                    const showEntity = isExplored || isScouted;
                     const isScoutedOnly = isScouted && !isExplored;
 
                     // Proximity check for torchlight spill (Refined: Cardinal only, connected doors only)
