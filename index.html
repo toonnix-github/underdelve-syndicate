@@ -2218,19 +2218,6 @@
                 setActivePlayerPos(data.playerPos);
             };
 
-            const syncCurrentFloor = () => {
-                const currentData = {
-                    layout: activeLayout,
-                    bgs: activeBgs,
-                    interactables: activeMapInteractables,
-                    enemies: activeMapEnemies,
-                    explored: activeExplored,
-                    playerPos: activePlayerPos
-                };
-                setFloorHistory(prev => ({ ...prev, [floor]: currentData }));
-                return currentData;
-            };
-
             const startDraft = () => {
                 const pool = [...HERO_ROSTER].sort(() => Math.random() - 0.5).slice(0, 5);
                 setDraftPool(pool);
