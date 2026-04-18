@@ -1,5 +1,5 @@
 # TICKET-43: Battlefield Visual Overhaul
-**STATUS: BACKLOG**
+**STATUS: DONE**
 
 ## Description
 The current `BattlePhase` arena is a dark void with floating cards. To maintain the high-end "Digital Tabletop" immersion, we need a dedicated tactical background and a clearer visual representation of the battle-line positions (Vanguard vs. Rearguard).
