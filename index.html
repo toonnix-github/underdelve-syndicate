@@ -421,6 +421,12 @@
                 if (skill.type === 'damage') return '⚔';
                 return '✦';
             };
+            const getSkillTooltipText = (skill = {}) => {
+                const val = skill.val ?? 0;
+                if (skill.type === 'heal') return `Restores about ${val} HP to an ally target.`;
+                if (skill.type === 'damage') return `Deals about ${val} base damage to the selected enemy.`;
+                return `Activates a utility effect with strength ${val}.`;
+            };
             
             // Seeded random tilt for 'tabletop' feel (-3 to +3 degrees)
             const tiltAngle = getCardTiltAngle(unit);
@@ -529,9 +535,10 @@
                                         <span className="peer truncate cursor-help">
                                             {getSkillIcon(skill)} {skill.name}
                                         </span>
-                                        <span className="absolute bottom-full mb-1 left-0 w-44 p-2 bg-black/95 text-[9px] text-zinc-300 rounded border border-zinc-700 hidden peer-hover:block z-50 shadow-2xl normal-case pointer-events-none">
+                                        <span className="absolute bottom-full mb-1 left-0 w-48 p-2 bg-black/95 text-[9px] text-zinc-300 rounded border border-zinc-700 hidden peer-hover:block z-50 shadow-2xl normal-case pointer-events-none">
                                             <span className="font-black text-cyan-400 mb-1 uppercase tracking-wide leading-none block">{skill.name}</span>
-                                            <span>{skill.type === 'heal' ? 'Healing' : 'Damage'} skill • Power {skill.val ?? 0}</span>
+                                            <span className="block mb-1">{getSkillTooltipText(skill)}</span>
+                                            <span className="text-zinc-400">Power Value: {skill.val ?? 0}</span>
                                         </span>
                                         <span className={`${skill.type === 'heal' ? 'text-emerald-300' : 'text-rose-300'}`}>{skill.val ?? 0}</span>
                                     </div>
@@ -541,7 +548,7 @@
                     )}
 
                     {/* INDUSTRIAL FOOTER PLATE (NAME/ROLE) */}
-                    <div className="absolute bottom-0 left-0 right-0 z-40 rounded-b-xl overflow-hidden">
+                    <div className="absolute bottom-0 left-0 right-0 z-40 rounded-b-xl">
                         {/* Industrial Border (The Grating) */}
                         <div className="h-1.5 w-full bg-[repeating-linear-gradient(90deg,transparent,transparent_2px,#3f3f46_2px,#3f3f46_4px)] opacity-60 border-y border-white/10" />
                         
@@ -568,7 +575,7 @@
                                     {heroSkillLabel}
                                 </span>
                                 {unit.trait && (
-                                    <span className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 w-44 p-2 bg-black/95 text-[9px] text-zinc-300 rounded border border-zinc-700 hidden peer-hover:block z-50 normal-case tracking-normal shadow-2xl pointer-events-none">
+                                    <span className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-52 p-2 bg-black/95 text-[9px] text-zinc-300 rounded border border-zinc-700 hidden peer-hover:block z-[70] normal-case tracking-normal shadow-2xl pointer-events-none">
                                         <span className="font-black text-amber-500 mb-1 uppercase tracking-widest leading-none block">{unit.trait.name}</span>
                                         <span>{unit.trait.description}</span>
                                     </span>
@@ -2506,7 +2513,7 @@
                                                     >
                                                         <Card unit={hero} isSelected={!!isSelected} />
                                                         {isSelected && (
-                                                            <div className="absolute top-4 right-4 w-7 h-7 rounded-full border-2 border-amber-500 text-amber-500 bg-black/70 text-sm font-black flex items-center justify-center shadow-2xl z-50 animate-in zoom-in">
+                                                            <div className="absolute -top-3 -right-3 w-14 h-14 rounded-full border-4 border-amber-500 text-amber-500 bg-black/80 text-2xl font-black flex items-center justify-center shadow-2xl z-50 animate-in zoom-in">
                                                                 ✓
                                                             </div>
                                                         )}
