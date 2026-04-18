@@ -520,21 +520,21 @@
                     <div className="absolute right-1.5 top-1 flex flex-col gap-1 z-40">
                         {/* ATK TOKEN */}
                         <div className="group relative flex items-center">
-                            <div className="w-8 h-8 rounded-full bg-black/60 backdrop-blur-md border border-rose-500/50 flex flex-col items-center justify-center shadow-lg transform transition-transform group-hover:scale-110">
+                            <div className="w-8 h-8 rounded-full bg-black/60 backdrop-blur-[0.5px] border border-rose-500/50 flex flex-col items-center justify-center shadow-lg transform transition-transform group-hover:scale-110">
                                 <span className="text-[8px] leading-none mb-0.5">{'\u2694'}</span>
                                 <span className="text-[10px] font-black text-rose-400 leading-none">{getUnitATK()}</span>
                             </div>
                         </div>
                         {/* DEF TOKEN */}
                         <div className="group relative flex items-center">
-                            <div className="w-8 h-8 rounded-full bg-black/60 backdrop-blur-md border border-amber-500/50 flex flex-col items-center justify-center shadow-lg transform transition-transform group-hover:scale-110">
+                            <div className="w-8 h-8 rounded-full bg-black/60 backdrop-blur-[0.5px] border border-amber-500/50 flex flex-col items-center justify-center shadow-lg transform transition-transform group-hover:scale-110">
                                 <span className="text-[8px] leading-none mb-0.5">{'\uD83D\uDEE1'}</span>
                                 <span className="text-[10px] font-black text-amber-400 leading-none">{getUnitDEF()}</span>
                             </div>
                         </div>
                         {/* SPD TOKEN */}
                         <div className="group relative flex items-center">
-                            <div className="w-8 h-8 rounded-full bg-black/60 backdrop-blur-md border border-cyan-500/50 flex flex-col items-center justify-center shadow-lg transform transition-transform group-hover:scale-110">
+                            <div className="w-8 h-8 rounded-full bg-black/60 backdrop-blur-[0.5px] border border-cyan-500/50 flex flex-col items-center justify-center shadow-lg transform transition-transform group-hover:scale-110">
                                 <span className="text-[8px] leading-none mb-0.5">{'\u26A1'}</span>
                                 <span className="text-[10px] font-black text-cyan-400 leading-none">{getUnitSPD()}</span>
                             </div>
@@ -543,7 +543,7 @@
 
                     {/* ATTRIBUTE CAPSULES (TOP LEFT) */}
                     <div className="absolute left-2 top-1 flex flex-col gap-1 z-40">
-                         <div className={`w-7 h-7 rounded-lg border border-white/20 flex items-center justify-center shadow-lg backdrop-blur-md ${roleBadgeTone}`}>
+                         <div className={`w-7 h-7 rounded-lg border border-white/20 flex items-center justify-center shadow-lg backdrop-blur-[0.5px] ${roleBadgeTone}`}>
                             <span className="text-xs drop-shadow-md">{roleInfo.icon}</span>
                         </div>
                     </div>
@@ -553,7 +553,7 @@
                         {/* Industrial Border (The Grating) */}
                         <div className="h-1.5 w-full bg-[repeating-linear-gradient(90deg,transparent,transparent_2px,#3f3f46_2px,#3f3f46_4px)] opacity-60 border-y border-white/10" />
                         
-                        <div className="bg-gradient-to-t from-zinc-950/95 via-zinc-900/80 to-zinc-900/40 backdrop-blur-[2px] px-2 py-1.5 flex flex-col">
+                        <div className="bg-gradient-to-t from-zinc-950/90 via-zinc-900/70 to-zinc-900/30 backdrop-blur-[0.5px] px-2 py-1.5 flex flex-col">
                              {/* HP BAR (INTEGRATED) */}
                             <div className="w-full h-1 bg-black/80 rounded-full border border-white/5 overflow-hidden relative mb-1">
                                 <div
@@ -1110,10 +1110,15 @@
             return (
                 <div className={`h-screen w-screen bg-neutral-950 text-white flex flex-col items-center relative animate-in fade-in duration-500 overflow-hidden ${boardShake ? 'animate-board-shake' : ''}`}>
                     {/* TACTICAL ARENA BACKGROUND (TICKET-43) */}
-                    <div className="absolute inset-0 z-0">
-                        <img src="assets/bg_battle.png" className="w-full h-full object-cover opacity-40 brightness-50" alt="" />
-                        <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/60 to-zinc-950/80" />
-                        <div className="absolute inset-0 bg-radial-vignette opacity-90" />
+                    <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+                        <img 
+                            src="assets/bg_battle.png" 
+                            className="w-full h-full object-cover opacity-90 brightness-110 saturate-[1.1] transition-opacity duration-1000" 
+                            alt="" 
+                        />
+                        {/* Ambient Shadow Overlay (Lighter) */}
+                        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/80" />
+                        <div className="absolute inset-0 bg-black/15" />
                     </div>
 
                     {/* AMBIENT LIGHTING / MIST */}
@@ -1195,28 +1200,31 @@
                             </g>
                         ))}
                     </svg>
-                    <main className="relative z-10 flex-1 flex flex-row items-center justify-between w-full max-w-[1600px] px-8 py-4 overflow-hidden mx-auto gap-4">
+                    <main 
+                        className="relative z-10 flex-1 flex flex-row items-center justify-between w-full max-w-[1600px] px-8 py-2 overflow-hidden mx-auto gap-4"
+                        style={{ '--card-width': 'clamp(150px, 24vh, 220px)' }}
+                    >
 
 
                         {/* LEFT SIDE: ENEMIES */}
                         <div className="flex-1 flex justify-end items-center gap-12 sm:gap-20">
                             {/* Enemy Rearguard (Far left) */}
-                            <div className="flex flex-col gap-6 opacity-80 scale-90 origin-right z-10 justify-center">
+                            <div className="flex flex-col gap-3 opacity-70 scale-90 origin-right z-10 justify-center">
                                 {enemies.filter(e => e.positionLine === 'REARGUARD').map(unit => (
                                     <div key={unit.id} className="relative group">
                                         {/* Tactical Slot Shadow */}
-                                        <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 w-48 h-12 bg-black/60 blur-xl rounded-full scale-125 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                        <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-32 h-6 border border-white/10 rounded-[100%] bg-zinc-900/30 backdrop-blur-sm shadow-[0_0_15px_rgba(0,0,0,0.5)]" />
+                                        <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-32 h-8 bg-black/60 blur-xl rounded-full scale-125 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-24 h-4 border border-white/10 rounded-[100%] bg-zinc-900/30 backdrop-blur-sm shadow-[0_0_15px_rgba(0,0,0,0.5)]" />
                                         <Card unit={unit} party={enemies} />
                                     </div>
                                 ))}
                             </div>
                             {/* Enemy Vanguard (Inner left) */}
-                            <div className="flex flex-col gap-6 z-20 justify-center min-w-[170px]">
+                            <div className="flex flex-col gap-3 z-20 justify-center min-w-[var(--card-width)]">
                                 {enemies.filter(e => e.positionLine === 'VANGUARD').map(unit => (
                                     <div key={unit.id} className="relative group">
-                                        <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 w-64 h-16 bg-black/80 blur-2xl rounded-full opacity-50" />
-                                        <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 w-40 h-8 border border-red-500/20 rounded-[100%] bg-zinc-900/40 backdrop-blur-md shadow-[0_0_20px_rgba(220,38,38,0.1)]" />
+                                        <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 w-48 h-12 bg-black/80 blur-2xl rounded-full opacity-50" />
+                                        <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-32 h-6 border border-red-500/20 rounded-[100%] bg-zinc-900/40 backdrop-blur-md shadow-[0_0_20px_rgba(220,38,38,0.1)]" />
                                         <Card unit={unit} party={enemies} />
                                     </div>
                                 ))}
@@ -1233,21 +1241,21 @@
                         {/* RIGHT SIDE: HEROES */}
                         <div className="flex-1 flex justify-start items-center gap-12 sm:gap-20">
                             {/* Hero Vanguard (Inner right) */}
-                            <div className="flex flex-col gap-6 z-20 justify-center min-w-[170px]">
+                            <div className="flex flex-col gap-3 z-20 justify-center min-w-[var(--card-width)]">
                                 {heroes.filter(h => h.positionLine === 'VANGUARD').map(unit => (
                                     <div key={unit.id} className="relative group">
-                                        <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 w-64 h-16 bg-black/80 blur-2xl rounded-full opacity-50" />
-                                        <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 w-40 h-8 border border-emerald-500/20 rounded-[100%] bg-zinc-900/40 backdrop-blur-md shadow-[0_0_20px_rgba(16,185,129,0.1)]" />
+                                        <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 w-48 h-12 bg-black/80 blur-2xl rounded-full opacity-50" />
+                                        <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-32 h-6 border border-emerald-500/20 rounded-[100%] bg-zinc-900/40 backdrop-blur-md shadow-[0_0_20px_rgba(16,185,129,0.1)]" />
                                         <Card unit={unit} party={heroes} />
                                     </div>
                                 ))}
                             </div>
                             {/* Hero Rearguard (Far right) */}
-                            <div className="flex flex-col gap-6 opacity-80 scale-90 origin-left z-10 justify-center">
+                            <div className="flex flex-col gap-3 opacity-70 scale-90 origin-left z-10 justify-center">
                                 {heroes.filter(h => h.positionLine === 'REARGUARD').map(unit => (
                                     <div key={unit.id} className="relative group">
-                                        <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 w-48 h-12 bg-black/60 blur-xl rounded-full scale-125 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                        <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-32 h-6 border border-white/10 rounded-[100%] bg-zinc-900/30 backdrop-blur-sm shadow-[0_0_15px_rgba(0,0,0,0.5)]" />
+                                        <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-32 h-8 bg-black/60 blur-xl rounded-full scale-125 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-24 h-4 border border-white/10 rounded-[100%] bg-zinc-900/30 backdrop-blur-sm shadow-[0_0_15px_rgba(0,0,0,0.5)]" />
                                         <Card unit={unit} party={heroes} />
                                     </div>
                                 ))}
@@ -2113,9 +2121,9 @@
                 <div className="h-screen w-full bg-zinc-950 flex flex-col items-center p-4 sm:p-4 text-white animate-in slide-in-from-bottom-8 duration-500 overflow-visible relative">
                     {/* THEMED BACKGROUND */}
                     {draftBg && (
-                        <div className="absolute inset-0 z-0 bg-cover bg-center opacity-50 brightness-[0.7] grayscale-[0.1]" style={{ backgroundImage: `url(${draftBg})` }} />
+                        <div className="absolute inset-0 z-0 bg-cover bg-center opacity-85 brightness-110 saturate-[1.1]" style={{ backgroundImage: `url(${draftBg})` }} />
                     )}
-                    <div className="absolute inset-0 bg-radial-vignette opacity-70 z-0" />
+                    <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/60 z-0" />
                     
                     <div className="relative z-10 text-center mb-2 sm:mb-3">
                         <h2 className="text-2xl sm:text-3xl font-black italic text-white mb-0.5 drop-shadow-[0_0_30px_rgba(255,255,255,0.2)]">APPOINT YOUR <span className="text-amber-500">LEADER</span></h2>
@@ -2557,7 +2565,7 @@
                                         BEGIN EXPEDITION
                                     </button>
                                 </div>
-                                <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=2560&auto=format&fit=crop')] bg-cover opacity-20 grayscale brightness-50" />
+                                <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=2560&auto=format&fit=crop')] bg-cover opacity-60 grayscale brightness-110 saturate-[1.2]" />
                             </div>
                         )}
 
@@ -2565,9 +2573,9 @@
                             <div className="h-screen w-full bg-zinc-950 flex flex-col items-center p-4 sm:p-4 text-white animate-in slide-in-from-bottom-8 duration-500 overflow-visible relative">
                                 {/* THEMED BACKGROUND */}
                                 {draftBg && (
-                                    <div className="absolute inset-0 z-0 bg-cover bg-center opacity-50 brightness-[0.7] grayscale-[0.1]" style={{ backgroundImage: `url(${draftBg})` }} />
+                                    <div className="absolute inset-0 z-0 bg-cover bg-center opacity-85 brightness-110 saturate-[1.1]" style={{ backgroundImage: `url(${draftBg})` }} />
                                 )}
-                                <div className="absolute inset-0 bg-radial-vignette opacity-70 z-0" />
+                                <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/60 z-0" />
 
                                 <div className="text-center mb-2 sm:mb-3 z-10">
                                     <h2 className="text-2xl sm:text-3xl font-black italic text-amber-500 mb-0.5">MUSTER YOUR SYNDICATE</h2>
