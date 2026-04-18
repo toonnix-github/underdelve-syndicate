@@ -11,6 +11,7 @@
     <!-- React UMD for maximum stability -->
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="dungeon_generator.js"></script>
 
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
@@ -54,6 +55,8 @@
                 this.showImpact = false;
                 this.healSparkle = false;
                 this.traitGlow = false;
+                this.isLeader = false; // TICKET-49: Leader designation
+                this.hasEliteBonus = false; // TICKET-49: Vex Leader Perk bonus
                 this.vfx = []; // Store active floating text
                 this.equipment = {
                     weapon1: null,
@@ -92,24 +95,48 @@
                 return passives;
             }
 
-            getATK() {
+            getATK(party = []) {
                 let total = this.power;
                 Object.values(this.equipment).forEach(item => { if (item?.statBoost?.atk) total += item.statBoost.atk; });
+                
+                // Valthea: +15% Party ATK in Vanguard
+                const leader = party.find(h => h.isLeader);
+                if (leader?.name === 'Valthea' && this.positionLine === 'VANGUARD') {
+                    total = Math.floor(total * 1.15);
+                }
+
+                // Vex: +10% Party ATK after Elite Floor
+                if (leader?.name === 'Vex' && this.hasEliteBonus) {
+                    total = Math.floor(total * 1.10);
+                }
+
                 return total;
             }
 
-            getDEF() {
+            getDEF(party = []) {
                 let total = this.def;
                 Object.values(this.equipment).forEach(item => { if (item?.statBoost?.def) total += item.statBoost.def; });
                 if (this.trait?.id === 'vanguard_stance' && this.positionLine === 'VANGUARD') {
                     total = Math.floor(total * 1.1);
                 }
+
+                // Global Leader Perks
+                const leader = party.find(h => h.isLeader);
+                if (leader?.name === 'Valerius') {
+                    total = Math.floor(total * 1.15); // +15% DEF
+                }
                 return total;
             }
 
-            getSPD() {
+            getSPD(party = []) {
                 let total = this.speed;
                 Object.values(this.equipment).forEach(item => { if (item?.statBoost?.spd) total += item.statBoost.spd; });
+                
+                // Lira: +10% Party Speed
+                const leader = party.find(h => h.isLeader);
+                if (leader?.name === 'Lira') {
+                    total = Math.floor(total * 1.10);
+                }
                 return total;
             }
 
@@ -143,15 +170,22 @@
                 const [isShaking, setIsShaking] = useState(false);
 
                 const trapInfo = {
-                    SPIKES: { name: 'Hidden Spike Wall', img: 'assets/trap_spikes.png', color: 'text-amber-500' },
-                    ACID: { name: 'Acidic Pressure Plate', img: 'assets/trap_acid.png', color: 'text-green-500' },
-                    BLADES: { name: 'Pendulum Blades', img: 'assets/trap_blades.png', color: 'text-rose-500' }
+                    SPIKES: { name: 'Hidden Spike Wall', img: 'assets/trap_spikes.png', color: 'text-amber-500', stat: 'SPD' },
+                    ACID: { name: 'Acidic Pressure Plate', img: 'assets/trap_acid.png', color: 'text-green-500', stat: 'DEF' },
+                    BLADES: { name: 'Pendulum Blades', img: 'assets/trap_blades.png', color: 'text-rose-500', stat: 'SPD' }
                 }[event.type];
 
                 const targetDodge = 10 + floor * 2;
                 const targetDisarm = 12 + floor * 2;
                 const potentialDamage = Math.floor(15 + floor * 5);
                 const potentialReward = 75 + floor * 25;
+
+                // Calculate display info for party bonus
+                const livingHeroes = heroes.filter(h => h.hp > 0);
+                const statType = trapInfo.stat;
+                const totalStat = livingHeroes.reduce((acc, h) => acc + (statType === 'DEF' ? h.getDEF(heroes) : h.getSPD(heroes)), 0);
+                const avgStat = livingHeroes.length > 0 ? (totalStat / livingHeroes.length) : 0;
+                const statBonus = Math.floor(avgStat / 5);
 
                 const startRoll = (targetPhase) => {
                     setIsShaking(true);
@@ -166,10 +200,10 @@
                             setRoll(finalRoll);
                             
                             if (targetPhase === 'DODGE') {
-                                if (finalRoll + event.bonus >= targetDodge) setPhase('CHOICE');
+                                if (finalRoll + statBonus >= targetDodge) setPhase('CHOICE');
                                 else setPhase('RESULT_FAIL_DODGE');
                             } else {
-                                if (finalRoll + event.bonus >= targetDisarm) setPhase('RESULT_SUCCESS');
+                                if (finalRoll + statBonus >= targetDisarm) setPhase('RESULT_SUCCESS');
                                 else setPhase('RESULT_FAIL_DISARM');
                             }
                         }
@@ -207,17 +241,20 @@
                                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-8 px-12 text-center">
                                     {phase === 'DODGE_INIT' && (
                                         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 flex flex-col items-center gap-6">
-                                            <div className="flex gap-8 mb-4">
-                                                <div className="text-center">
-                                                    <p className="text-[10px] text-zinc-500 uppercase tracking-widest mb-1">Dodge Difficulty</p>
-                                                    <p className="text-white font-black text-xl italic underline decoration-amber-500">DC {targetDodge}</p>
+                                            <div className="flex flex-col gap-2 mb-4 bg-black/40 p-4 rounded-lg border border-white/5">
+                                                <div className="flex gap-8 mb-2">
+                                                    <div className="text-center">
+                                                        <p className="text-[10px] text-zinc-500 uppercase tracking-widest mb-1">Dodge DC</p>
+                                                        <p className="text-white font-black text-xl italic outline-text">#{targetDodge}</p>
+                                                    </div>
+                                                    <div className="text-center">
+                                                        <p className="text-[10px] text-zinc-500 uppercase tracking-widest mb-1">Party Avg {statType}</p>
+                                                        <p className="text-amber-500 font-black text-xl italic">+{statBonus} <span className="text-[10px] text-zinc-500 opacity-50 font-normal tracking-normal">(Avg: {avgStat.toFixed(1)})</span></p>
+                                                    </div>
                                                 </div>
-                                                <div className="text-center">
-                                                    <p className="text-[10px] text-zinc-500 uppercase tracking-widest mb-1">Threat Level</p>
-                                                    <p className="text-rose-500 font-black text-xl italic">-{potentialDamage}% HP</p>
-                                                </div>
+                                                <p className="text-[9px] text-zinc-500 italic uppercase">Party Coordination: +1 Bonus per 5 Avg {statType}</p>
                                             </div>
-                                            <p className="text-zinc-300 text-lg font-medium leading-relaxed max-w-md">The shadows move! A trap has been triggered. You must react quickly to avoid a lethal blow.</p>
+                                            <p className="text-zinc-300 text-sm font-medium leading-relaxed max-w-md">The shadows move! A trap has been triggered. You must react quickly to avoid a lethal blow.</p>
                                             <button 
                                                 onClick={() => { setPhase('ROLLING_DODGE'); startRoll('DODGE'); }}
                                                 className="bg-zinc-100 hover:bg-white text-black font-black px-10 py-4 rounded-sm tracking-[0.2em] transition-all hover:scale-105 active:scale-95 text-lg"
@@ -361,10 +398,13 @@
                 );
             };
 
-        const Card = ({ unit }) => {
+        const Card = ({ unit, party = [], isSelected = false }) => {
             if (!unit) return null;
             const roleInfo = ROLES[unit.role] || ROLES.DPS;
-            const tiltClass = unit.isHero ? '-rotate-[2.5deg]' : 'rotate-[2.5deg]';
+            
+            // Seeded random tilt for 'tabletop' feel (-3 to +3 degrees)
+            const tiltAngle = ((parseInt(unit.id?.toString().slice(-2) || '0') % 10) / 1.5) - 3;
+            
             const attackDirection = unit.isHero ? '-translate-x-7' : 'translate-x-7';
             const strikeDirection = unit.isHero ? '-translate-x-12' : 'translate-x-12';
             const returnDirection = unit.isHero ? 'translate-x-0' : 'translate-x-0';
@@ -388,172 +428,139 @@
                 : 'from-sky-500/18 via-transparent to-transparent';
 
             // Safe Stat Access (resilience for raw hero objects)
-            const getUnitATK = () => unit.getATK ? unit.getATK() : (unit.atk || 0);
-            const getUnitDEF = () => unit.getDEF ? unit.getDEF() : (unit.def || 0);
-            const getUnitSPD = () => unit.getSPD ? unit.getSPD() : (unit.spd || 0);
+            const getUnitATK = () => unit.getATK ? unit.getATK(party) : (unit.atk || 0);
+            const getUnitDEF = () => unit.getDEF ? unit.getDEF(party) : (unit.def || 0);
+            const getUnitSPD = () => unit.getSPD ? unit.getSPD(party) : (unit.spd || 0);
             const imageId = unit.imageId || `hero_${unit.name?.toLowerCase() || 'unknown'}`;
 
             return (
                 <div
                     data-unit-id={unit.id}
-                    className={`relative w-[170px] h-[248px] rounded-xl shadow-2xl border-[3px] transform
-                        ${unit.isHero ? 'bg-zinc-900' : 'bg-red-950'} ${positionFrameTone} ${tiltClass}
-                        ${unit.isActing ? 'ring-2 ring-yellow-400 -translate-y-2 scale-110 z-20' : 'translate-y-0 scale-100'}
-                        ${unit.traitGlow ? 'animate-trait-pulse border-amber-400 z-30 shadow-[0_0_25px_rgba(251,191,36,0.6)]' : ''}
+                    style={{ transform: `rotate(${tiltAngle}deg)` }}
+                    className={`relative w-[170px] h-[245px] bg-[#0c0c0c] border-2 rounded-xl flex flex-col group transition-all duration-300 shadow-[0_20px_50px_rgba(0,0,0,0.85)]
+                        ${isSelected ? 'ring-4 ring-amber-500 shadow-[0_20px_60px_rgba(245,158,11,0.45)] border-amber-400 z-50 scale-105' : 'border-zinc-800 hover:border-zinc-600 hover:scale-[1.02]'}
+                        ${unit.hp <= 0 ? 'grayscale opacity-60' : ''}
+                        ${unit.hitShake ? 'animate-hit-shake' : ''}
+                        ${unit.isActing ? 'ring-2 ring-white/50 z-30' : ''}
                         ${attackMotionClass}
-                        ${unit.impactPulse ? 'scale-[1.06] brightness-110' : ''}
-                        ${unit.attackPhase === 'strike' ? 'transition-all duration-120 ease-out' : 'transition-all duration-300 ease-in-out'}
-                        ${unit.hp <= 0 ? 'opacity-40 grayscale overflow-hidden' : 'opacity-100'} flex flex-col`}
-                >
-                    {/* Signal Flare Overlay (Anticipation) */}
-                    {unit.isCharging && (
-                        <div className={`absolute inset-0 z-40 border-4 border-${unit.chargeColor || 'amber'}-400 animate-flare-charge pointer-events-none shadow-[inset_0_0_20px_rgba(251,191,36,0.6)]`} />
+                    `}>
+                    {/* LEADER CROWN (Popped outside overflow) */}
+                    {unit.isLeader && unit.hp > 0 && (
+                        <div className="absolute -top-7 -right-3 text-3xl z-40 drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)] animate-bounce-slow" style={{ animationDuration: '3s' }}>👑</div>
                     )}
 
-                    {/* Iconic Sigil (Information) */}
-                    {unit.activeSigil && (
-                        <div className="absolute inset-0 z-[100] flex items-center justify-center pointer-events-none">
-                            <span className="text-7xl drop-shadow-[0_0_20px_rgba(255,255,255,0.8)] animate-sigil-appear">
-                                {unit.activeSigil}
-                            </span>
+                    {/* MAIN IMAGE CONTAINER (Has Internal Overflow) */}
+                    <div className="h-[170px] w-full relative overflow-hidden bg-zinc-950 border-b border-zinc-800 rounded-t-xl">
+                        {/* FULL BLEED CHARACTER ART */}
+                        <div className={`absolute inset-0 bg-zinc-950 ${unit.hitShake ? 'animate-hit-shake' : ''}`}>
+                            <img 
+                                src={`assets/${unit.imageId || `hero_${unit.name?.toLowerCase() || 'unknown'}`}.png`} 
+                                alt={unit.name} 
+                                className={`w-full h-full object-cover object-top transition-transform duration-500
+                                    ${unit.isPopping ? 'scale-125 -translate-y-4 brightness-125 z-50 animate-frame-pop' : 'scale-100'}`} 
+                            />
+                            {/* THEMATIC OVERLAYS */}
+                            <div className={`absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/30`} />
+                            
+                            {unit.hp <= 0 && (
+                                <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                                    <span className="text-red-600 font-black text-xl tracking-tighter italic uppercase drop-shadow-[0_0_10px_rgba(0,0,0,1)]">SLAIN</span>
+                                </div>
+                            )}
                         </div>
-                    )}
-
-                    {/* Character Art (Frame Break Layer) */}
-                    <div className={`absolute inset-0 bg-zinc-900 rounded-xl overflow-hidden ${unit.hitShake ? 'animate-hit-shake' : ''}`}>
-                         {/* This sub-container handles the overflow clip for normal state */}
-                        <img 
-                            src={`assets/${imageId}.png`} 
-                            alt={unit.name} 
-                            className={`w-full h-full object-cover opacity-95 transition-transform duration-500
-                                ${unit.isPopping ? 'scale-125 -translate-y-4 brightness-125 z-50 animate-frame-pop' : 'scale-100'}`} 
-                        />
-                        <div className={`absolute inset-0 bg-gradient-to-br ${positionArtTone}`} />
-                        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/90" />
-                        {unit.hp <= 0 && <div className="absolute inset-0 bg-black/80 flex items-center justify-center font-black text-red-600 text-sm tracking-widest uppercase shadow-black z-40">Slain</div>}
                     </div>
 
-                    {/* Information Layer (Above Art) */}
-                    <div className="relative z-10 flex flex-col h-full p-2 pointer-events-none overflow-hidden">
-                        {/* Header: Name and Indicators */}
-                        <div className="flex justify-between items-start mb-auto">
-                            <div className={`w-8 h-8 rounded-xl border border-black/60 flex items-center justify-center shadow-lg ${roleBadgeTone}`}>
-                                <span className="text-base drop-shadow-md">{roleInfo.icon}</span>
+                    {/* VERTICAL STAT COLUMN (RIGHT SIDE) */}
+                    <div className="absolute right-1.5 top-[85px] -translate-y-1/2 flex flex-col gap-1.5 z-40">
+                        {/* ATK TOKEN */}
+                        <div className="group relative flex items-center">
+                            <div className="w-8 h-8 rounded-full bg-black/60 backdrop-blur-md border border-rose-500/50 flex flex-col items-center justify-center shadow-lg transform transition-transform group-hover:scale-110">
+                                <span className="text-[8px] leading-none mb-0.5">⚔️</span>
+                                <span className="text-[10px] font-black text-rose-400 leading-none">{getUnitATK()}</span>
                             </div>
-                            
-                            <div className="flex flex-col items-center flex-1 mx-2">
-                                <div className="bg-black/60 backdrop-blur-sm px-3 py-1 rounded-full border border-white/10 shadow-lg">
-                                    <h3 className="text-[12px] font-black text-white tracking-tight leading-none uppercase text-center truncate max-w-[90px]">
-                                        {unit.name || 'Hero'}
-                                    </h3>
-                                </div>
-                                <div className="h-[2px] w-8 bg-amber-500/80 rounded-full mt-1 shadow-amber-500/50" />
-                            </div>
-
                         </div>
+                        {/* DEF TOKEN */}
+                        <div className="group relative flex items-center">
+                            <div className="w-8 h-8 rounded-full bg-black/60 backdrop-blur-md border border-amber-500/50 flex flex-col items-center justify-center shadow-lg transform transition-transform group-hover:scale-110">
+                                <span className="text-[8px] leading-none mb-0.5">🛡️</span>
+                                <span className="text-[10px] font-black text-amber-400 leading-none">{getUnitDEF()}</span>
+                            </div>
+                        </div>
+                        {/* SPD TOKEN */}
+                        <div className="group relative flex items-center">
+                            <div className="w-8 h-8 rounded-full bg-black/60 backdrop-blur-md border border-cyan-500/50 flex flex-col items-center justify-center shadow-lg transform transition-transform group-hover:scale-110">
+                                <span className="text-[8px] leading-none mb-0.5">⚡</span>
+                                <span className="text-[10px] font-black text-cyan-400 leading-none">{getUnitSPD()}</span>
+                            </div>
+                        </div>
+                    </div>
 
-                        {/* Footer: Stats, Traits, and Skills */}
-                        <div className="mt-auto space-y-1 bg-black/40 backdrop-blur-sm p-1.5 rounded-lg border border-white/5">
-                            {/* Trait Capsule */}
-                            {unit.trait && (
-                                <div className="group relative">
-                                    <div className="flex items-center gap-1.5 bg-amber-500/20 rounded-full px-2 py-0.5 border border-amber-500/40">
-                                        <span className="text-[8px] font-black text-amber-400 uppercase tracking-tighter italic">Trait</span>
-                                        <span className="text-[9px] font-bold text-zinc-100 truncate max-w-[110px]">{unit.trait.name}</span>
-                                    </div>
-                                    <div className="absolute bottom-full left-0 mb-2 w-48 p-2 bg-black/95 text-[9px] text-zinc-300 rounded border border-zinc-700 hidden group-hover:block z-50 shadow-2xl backdrop-blur-md">
-                                        <div className="font-black text-amber-500 mb-1 uppercase tracking-widest">{unit.trait.name}</div>
-                                        {unit.trait.description}
-                                    </div>
+                    {/* ATTRIBUTE CAPSULES (TOP LEFT) */}
+                    <div className="absolute left-2 top-2 flex flex-col gap-1 z-40">
+                         {/* Role Icon */}
+                         <div className={`w-7 h-7 rounded-lg border border-white/20 flex items-center justify-center shadow-lg backdrop-blur-md ${roleBadgeTone}`}>
+                            <span className="text-xs drop-shadow-md">{roleInfo.icon}</span>
+                        </div>
+                        {/* Trait Capsule (Overlay) */}
+                        {unit.trait && (
+                            <div className="group relative">
+                                <div className="bg-amber-500/80 backdrop-blur-md text-black font-black text-[7px] px-1.5 py-0.5 rounded shadow-lg uppercase tracking-tight italic">
+                                    {unit.trait.name.charAt(0)}
                                 </div>
-                            )}
-
-                            {/* Signature Skill */}
-                            {unit.abilities && unit.abilities[0] && (
-                                <div className="bg-zinc-800/40 rounded border border-white/5 px-2 py-1 flex items-center gap-2">
-                                    <span className="text-[10px]">{unit.abilities[0].type === 'heal' ? '✨' : '⚔️'}</span>
-                                    <span className="text-[9px] font-bold text-zinc-200 truncate uppercase tracking-widest">{unit.abilities[0].name}</span>
-                                </div>
-                            )}
-
-                            {/* ATK / DEF / SPD Box */}
-                            <div className="flex justify-between items-center bg-zinc-950/80 rounded-lg p-1 border border-white/5">
-                                <div className="flex flex-col items-center flex-1 border-r border-white/10" title="Attack">
-                                    <span className="text-[8px] text-rose-400/80 font-black uppercase tracking-tighter">Atk</span>
-                                    <span className="text-[10px] text-rose-300 font-extrabold">{getUnitATK()}</span>
-                                </div>
-                                <div className="flex flex-col items-center flex-1 border-r border-white/10" title="Defense">
-                                    <span className="text-[8px] text-amber-400/80 font-black uppercase tracking-tighter">Def</span>
-                                    <span className="text-[10px] text-amber-200 font-extrabold">{getUnitDEF()}</span>
-                                </div>
-                                <div className="flex flex-col items-center flex-1" title="Speed">
-                                    <span className="text-[8px] text-cyan-400/80 font-black uppercase tracking-tighter">Spd</span>
-                                    <span className="text-[10px] text-cyan-200 font-extrabold">{getUnitSPD()}</span>
+                                <div className="absolute top-0 left-full ml-2 w-48 p-2 bg-black/95 text-[9px] text-zinc-300 rounded border border-zinc-700 hidden group-hover:block z-50 shadow-2xl backdrop-blur-md">
+                                    <div className="font-black text-amber-500 mb-1 uppercase tracking-widest leading-none">{unit.trait.name}</div>
+                                    {unit.trait.description}
                                 </div>
                             </div>
-                                                  {/* Resource Bars */}
-                            <div className="space-y-0.5">
-                                <div className="w-full h-1 bg-zinc-900/90 rounded-full border border-black/80 overflow-hidden relative">
-                                    <div
-                                        style={{ width: `${((unit.hp || unit.maxHp || 1) / (unit.maxHp || 1)) * 100}%` }}
-                                        className="absolute left-0 top-0 h-full bg-gradient-to-r from-red-600 to-rose-500"
-                                    />
-                                </div>
-                                {unit.hp || unit.maxHp ? (
-                                    <div className="flex justify-between items-center text-[8px] font-mono leading-none">
-                                        <span className="text-zinc-500 uppercase">HP</span>
-                                        <span className="text-white font-bold">{Math.ceil(unit.hp || unit.maxHp || 0)}/{unit.maxHp || unit.hp || 0}</span>
-                                    </div>
-                                ) : null}
-                                {/* Slim ATB Bar - only show if ATB actually exists (combat) */}
+                        )}
+                    </div>
+
+                    {/* INDUSTRIAL FOOTER PLATE (NAME/ROLE) */}
+                    <div className="absolute bottom-0 left-0 right-0 z-40 rounded-b-xl overflow-hidden">
+                        {/* Industrial Border (The Grating) */}
+                        <div className="h-1.5 w-full bg-[repeating-linear-gradient(90deg,transparent,transparent_2px,#3f3f46_2px,#3f3f46_4px)] opacity-60 border-y border-white/10" />
+                        
+                        <div className="bg-gradient-to-t from-zinc-950 via-zinc-900/90 to-zinc-900/60 backdrop-blur-sm p-2 pt-3 flex flex-col items-center">
+                             {/* HP BAR (INTEGRATED) */}
+                            <div className="w-full h-1 bg-black/80 rounded-full border border-white/5 overflow-hidden relative mb-1.5">
+                                <div
+                                    style={{ width: `${((unit.hp || unit.maxHp || 1) / (unit.maxHp || 1)) * 100}%` }}
+                                    className="absolute left-0 top-0 h-full bg-gradient-to-r from-red-600 to-rose-500 shadow-[0_0_8px_rgba(225,29,72,0.4)]"
+                                />
                                 {(unit.atb !== undefined) && (
-                                    <div className="w-full h-[2px] bg-zinc-950/90 rounded-full relative overflow-hidden border border-black/50">
-                                        <div
-                                            style={{ width: `${unit.atb || 0}%` }}
-                                            className={`absolute left-0 top-0 h-full transition-all duration-100 ${(unit.atb || 0) >= 100 ? 'bg-yellow-300 shadow-[0_0_8px_rgba(253,224,71,0.65)]' : 'bg-cyan-500/80'}`}
-                                        />
-                                    </div>
+                                    <div
+                                        style={{ width: `${unit.atb || 0}%` }}
+                                        className={`absolute left-0 bottom-0 h-[1.5px] transition-all duration-100 ${(unit.atb || 0) >= 100 ? 'bg-yellow-300' : 'bg-cyan-500/60'}`}
+                                    />
                                 )}
                             </div>
+
+                            <h3 className="text-[13px] font-black text-white italic tracking-tight leading-none uppercase drop-shadow-lg mb-0.5">
+                                {unit.name || 'Champion'}
+                            </h3>
+                            <p className="text-[8px] font-black text-zinc-400 tracking-[0.2em] uppercase leading-none opacity-80">
+                                {unit.role || 'Operative'}
+                            </p>
                         </div>
                     </div>
 
-                    {/* Action Overlay */}
-                    {unit.isActing && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/40 animate-in fade-in zoom-in duration-300 pointer-events-none z-30">
-                            <div className="bg-yellow-400 text-black px-1 py-0.5 font-black text-[8px] transform -rotate-12 shadow-[0_5px_10px_rgba(0,0,0,0.8)] border border-white uppercase text-center leading-tight">
-                                {unit.lastAction}
-                            </div>
+                    {/* SIGNAL OVERLAYS (FLARE/COMBAT TEXT) */}
+                    {unit.isCharging && (
+                        <div className={`absolute inset-0 z-[70] border-4 border-${unit.chargeColor || 'amber'}-400 animate-flare-charge pointer-events-none shadow-[inset_0_0_20px_rgba(251,191,36,0.6)]`} />
+                    )}
+                    {unit.activeSigil && (
+                        <div className="absolute inset-0 z-[100] flex items-center justify-center pointer-events-none">
+                            <span className="text-7xl drop-shadow-[0_0_20px_rgba(255,255,255,0.8)] animate-sigil-appear">{unit.activeSigil}</span>
                         </div>
                     )}
-
-                    {/* Floating Combat Text (VFX) */}
                     {(unit.vfx || []).map((effect) => (
-                        <div
-                            key={effect.id}
-                            className={`absolute left-1/2 top-1/3 -translate-x-1/2 -translate-y-1/2 font-black text-2xl drop-shadow-[0_4px_4px_rgba(0,0,0,0.8)] stroke-black pointer-events-none animate-float-up z-50
-                                ${effect.type === 'damage' ? 'text-red-500' : 'text-emerald-400'}`}
-                            style={{ WebkitTextStroke: '1px black' }}
-                        >
+                        <div key={effect.id} className={`absolute left-1/2 top-1/3 -translate-x-1/2 -translate-y-1/2 font-black text-2xl drop-shadow-[0_4px_4px_rgba(0,0,0,0.8)] pointer-events-none animate-float-up z-[80] ${effect.type === 'damage' ? 'text-red-500' : 'text-emerald-400'}`} style={{ WebkitTextStroke: '1px black' }}>
                             {effect.text}
                         </div>
                     ))}
-
                     {unit.showImpact && (
-                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-50">
-                            <div className="relative w-14 h-14 md:w-16 md:h-16 rounded-full border-2 border-amber-100/90 bg-gradient-to-br from-amber-300/90 to-orange-500/80 shadow-[0_0_18px_rgba(251,191,36,0.75)] animate-impact-pop flex items-center justify-center">
-                                <div className="w-5 h-5 md:w-6 md:h-6 rounded-full bg-amber-100/90 shadow-[0_0_10px_rgba(255,255,255,0.6)]" />
-                                <div className="absolute w-8 md:w-9 h-1 bg-amber-100/90 rounded-full rotate-45" />
-                            </div>
-                        </div>
-                    )}
-
-                    {unit.healSparkle && (
-                        <div className="absolute inset-0 pointer-events-none z-40">
-                            <div className="absolute left-1/2 top-[30%] -translate-x-1/2 text-emerald-300 text-2xl animate-heal-sparkle" style={{ animationDelay: '0ms' }}>✦</div>
-                            <div className="absolute left-[35%] top-[55%] text-emerald-200 text-xl animate-heal-sparkle" style={{ animationDelay: '80ms' }}>✧</div>
-                            <div className="absolute left-[65%] top-[50%] text-lime-200 text-lg animate-heal-sparkle" style={{ animationDelay: '140ms' }}>✦</div>
-                            <div className="absolute inset-0 bg-emerald-400/15 animate-heal-glow" />
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[90]">
+                            <div className="relative w-16 h-16 rounded-full border-2 border-amber-100 bg-gradient-to-br from-amber-300 to-orange-500 animate-impact-pop" />
                         </div>
                     )}
                 </div>
@@ -780,9 +787,24 @@
 
             const executeTurn = async (unit, isHero) => {
                 unit.isActing = true;
+                
+                // Morgra Perk: Blood Priest (Battle Regen)
+                const leader = heroes.find(h => h.isLeader);
+                if (leader?.name === 'Morgra' && isHero && unit.hp > 0) {
+                    const regen = Math.max(1, Math.floor(unit.maxHp * 0.05));
+                    unit.hp = Math.min(unit.maxHp, unit.hp + regen);
+                    unit.addVfx(`+${regen}`, 'heal');
+                    unit.healSparkle = true;
+                    log(`🩸 Blood Priest: ${unit.name} heals ${regen} HP`);
+                    setTimeout(() => {
+                        unit.healSparkle = false;
+                        setHeroes([...heroes]);
+                    }, 800);
+                }
+
                 unit.atb = 0;
-                let target;
                 let selectedAbility;
+                let target;
 
                 if (unit.role === 'HEALER') {
                     const lowAlly = [...(isHero ? heroes : enemies)].sort((a,b) => (a.hp/a.maxHp) - (b.hp/b.maxHp))[0];
@@ -878,8 +900,14 @@
 
                         // --- OFFENSIVE TRAITS ---
                         // Leora: Eagle Eye (50% DEF ignore)
-                        const ignoreDef = unit.trait?.id === 'eagle_eye' ? 0.5 : 0;
-                        const effectiveDef = Math.floor(target.getDEF() * (1 - ignoreDef));
+                        // Kael Perk: Marksman (15% DEF ignore vs Rearguard)
+                        const leader = (isHero ? heroes : enemies).find(h => h.isLeader);
+                        let ignoreDef = unit.trait?.id === 'eagle_eye' ? 0.5 : 0;
+                        if (leader?.name === 'Kael' && target.positionLine === 'REARGUARD') {
+                            ignoreDef = Math.max(ignoreDef, 0.15);
+                        }
+                        
+                        const effectiveDef = Math.floor(target.getDEF(isHero ? enemies : heroes) * (1 - ignoreDef));
 
                         // Defense logic integration
                         amount = Math.max(1, amount - Math.floor(effectiveDef / 2));
@@ -1107,11 +1135,11 @@
                         <div className="flex-1 flex justify-end">
                             {/* Enemy Rearguard (Far left) */}
                             <div className="flex flex-col gap-4 opacity-90 scale-95 origin-right translate-x-6 z-10 justify-center">
-                                {enemies.filter(e => e.positionLine === 'REARGUARD').map(unit => <Card key={unit.id} unit={unit} />)}
+                                {enemies.filter(e => e.positionLine === 'REARGUARD').map(unit => <Card key={unit.id} unit={unit} party={enemies} />)}
                             </div>
                             {/* Enemy Vanguard (Inner left) */}
                             <div className="flex flex-col gap-4 z-20 justify-center min-w-[170px]">
-                                {enemies.filter(e => e.positionLine === 'VANGUARD').map(unit => <Card key={unit.id} unit={unit} />)}
+                                {enemies.filter(e => e.positionLine === 'VANGUARD').map(unit => <Card key={unit.id} unit={unit} party={enemies} />)}
                             </div>
                         </div>
 
@@ -1126,11 +1154,11 @@
                         <div className="flex-1 flex justify-start">
                             {/* Hero Vanguard (Inner right) */}
                             <div className="flex flex-col gap-4 z-20 justify-center min-w-[170px]">
-                                {heroes.filter(h => h.positionLine === 'VANGUARD').map(unit => <Card key={unit.id} unit={unit} />)}
+                                {heroes.filter(h => h.positionLine === 'VANGUARD').map(unit => <Card key={unit.id} unit={unit} party={heroes} />)}
                             </div>
                             {/* Hero Rearguard (Far right) */}
                             <div className="flex flex-col gap-4 opacity-90 scale-95 origin-left -translate-x-6 z-10 justify-center">
-                                {heroes.filter(h => h.positionLine === 'REARGUARD').map(unit => <Card key={unit.id} unit={unit} />)}
+                                {heroes.filter(h => h.positionLine === 'REARGUARD').map(unit => <Card key={unit.id} unit={unit} party={heroes} />)}
                             </div>
                         </div>
                     </main>
@@ -1197,66 +1225,17 @@
         };
 
         // --- EXPLORATION PHASE COMPONENT ---
-        const ExplorationPhase = ({ floor, heroes, credits, enemies, setEnemies, interactables, setInteractables, trapDamagePulse, onEncounter, onNextFloor, onPrevFloor, onTrap, onWin, onHeal, openInventory, isLocked }) => {
-            const GRID_SIZE = 7;
-
-            // 1 = Walkable Path, 0 = Void/Wall
-            const proceduralGenerateLayout = (size) => {
-                let layout = Array(size).fill().map(() => Array(size).fill(0));
-                let validTiles = [];
-
-                // Spawn point
-                layout[3][3] = 1;
-
-                // Randomly generate 2 distinct rooms
-                for (let r=0; r<2; r++) {
-                    const rx = Math.floor(Math.random() * 4) + 1; // 1 to 4
-                    const ry = Math.floor(Math.random() * 4) + 1; // 1 to 4
-                    for(let y = ry; y < ry + 2; y++) {
-                        for(let x = rx; x < rx + 3; x++) {
-                            layout[y][x] = 1; // 3x2 rooms
-                        }
-                    }
-                }
-
-                // Primary structural cross (guarantees everything connects to center Spawn)
-                for(let i=1; i<=5; i++) {
-                    layout[3][i] = 1;
-                    layout[i][3] = 1;
-                }
-
-                // Extra chaos paths
-                for(let i=0; i<6; i++) {
-                    const cx = Math.floor(Math.random() * 5) + 1;
-                    const cy = Math.floor(Math.random() * 5) + 1;
-                    layout[cy][cx] = 1;
-                    if(Math.random() > 0.5) layout[cy][cx+1] = 1;
-                    else layout[cy+1][cx] = 1;
-                }
-
-                // Strict Outer Walls
-                for(let i=0; i<size; i++) {
-                    layout[0][i] = 0; layout[6][i] = 0;
-                    layout[i][0] = 0; layout[i][6] = 0;
-                }
-
-                // Catalog walkable non-spawn tiles
-                for(let y = 1; y < size-1; y++) {
-                    for(let x = 1; x < size-1; x++) {
-                        if (layout[y][x] === 1 && !(x===3 && y===3)) {
-                            validTiles.push({x, y});
-                        }
-                    }
-                }
-
-                validTiles.sort(() => Math.random() - 0.5); // Shuffle
-                return { layout, validTiles };
-            };
-
-            const [DUNGEON_LAYOUT, setDungeonLayout] = useState(Array(GRID_SIZE).fill().map(() => Array(GRID_SIZE).fill(0)));
-            const [tileBgs, setTileBgs] = useState({}); // Mapping of 'x,y' to background ID
-            const [playerPos, setPlayerPos] = useState({ x: 3, y: 3 });
-            const [exploredCells, setExploredCells] = useState(new Set(['3,3']));
+        const ExplorationPhase = ({ 
+            floor, heroes, credits, 
+            enemies, setEnemies, 
+            interactables, setInteractables,
+            dungeonLayout, setDungeonLayout,
+            tileBgs, setTileBgs,
+            playerPos, setPlayerPos,
+            exploredCells, setExploredCells,
+            trapDamagePulse, onEncounter, onNextFloor, onPrevFloor, onTrap, onWin, onHeal, openInventory, isLocked 
+        }) => {
+            const GRID_SIZE = window.DungeonGenerator?.GRID_SIZE || 9;
             const [revealingCells, setRevealingCells] = useState(new Set());
             const mapFrameRef = useRef(null);
             const [frameSize, setFrameSize] = useState({ w: 0, h: 0 });
@@ -1266,6 +1245,7 @@
                 h: typeof window !== 'undefined' ? window.innerHeight : 900
             });
             const actionLocked = isLocked || !!stairsPrompt;
+
             const STAIR_MODAL_BACKGROUNDS = [
                 'assets/background-stairs-1.png',
                 'assets/background-stairs-2.png',
@@ -1274,6 +1254,7 @@
                 'assets/background-stairs-2.jpg',
                 'assets/background-stairs-3.jpg'
             ];
+
             const buildStairsPrompt = (direction) => {
                 const currentFloor = floor;
                 const targetFloor = direction === 'UP' ? Math.max(1, floor - 1) : floor + 1;
@@ -1319,52 +1300,36 @@
                 return () => observer.disconnect();
             }, []);
 
-            useEffect(() => {
-                const { layout, validTiles } = proceduralGenerateLayout(GRID_SIZE);
-                setDungeonLayout(layout);
-                setPlayerPos({ x: 3, y: 3 });
-                setExploredCells(new Set(['3,3']));
-                setRevealingCells(new Set());
-                setStairsPrompt(null);
+            const MiniMap = () => {
+                const miniSize = 80;
+                return (
+                    <div style={{ width: miniSize, height: miniSize, display: 'grid', gridTemplateColumns: `repeat(${GRID_SIZE}, 1fr)` }} className="bg-black/40 rounded overflow-hidden">
+                        {Array(GRID_SIZE * GRID_SIZE).fill().map((_, i) => {
+                            const x = i % GRID_SIZE;
+                            const y = Math.floor(i / GRID_SIZE);
+                            const isExplored = exploredCells.has(`${x},${y}`);
+                            const isPlayer = playerPos.x === x && playerPos.y === y;
+                            const layoutVal = dungeonLayout[y][x];
+                            const int = interactables.find(item => item.x === x && item.y === y);
 
-                const getLoc = () => validTiles.length > 0 ? validTiles.pop() : {x:3, y:3};
-
-                const TRAP_TYPES = ['SPIKES', 'ACID', 'BLADES'];
-                const getTrap = (id) => ({
-                    id, 
-                    ...getLoc(), 
-                    type: 'TRAP', 
-                    trapType: TRAP_TYPES[Math.floor(Math.random() * TRAP_TYPES.length)],
-                    status: 'ACTIVE'
-                });
-
-                if (floor === 1) {
-                    setInteractables([
-                        getTrap('t1'),
-                        { id: 'c1', ...getLoc(), type: 'CHEST' },
-                        { id: 's1', ...getLoc(), type: 'STAIRS' }
-                    ]);
-                } else if (floor >= 2) {
-                    setInteractables([
-                        getTrap('t2'),
-                        { id: 'c2', ...getLoc(), type: 'CHEST' },
-                        { id: 's2', ...getLoc(), type: 'STAIRS' },
-                        { id: 'p2', x: 3, y: 3, type: 'PREV_FLOOR' }
-                    ]);
-                }
-
-                // Generate random backgrounds for each tile positions
-                const backgrounds = {};
-                for (let y = 0; y < GRID_SIZE; y++) {
-                    for (let x = 0; x < GRID_SIZE; x++) {
-                        backgrounds[`${x},${y}`] = Math.floor(Math.random() * 5);
-                    }
-                }
-                setTileBgs(backgrounds);
-
-                // Route enemies onto randomized valid paths
-                setEnemies(prev => prev.map(e => ({ ...e, ...getLoc() })));
-            }, [floor]);
+                            let color = 'bg-transparent';
+                            if (isExplored) {
+                                color = layoutVal === 1 ? 'bg-zinc-700/60' : 'bg-transparent';
+                                if (int) {
+                                    if (int.type === 'STAIRS') color = 'bg-emerald-500 shadow-[0_0_8px_#10b981]';
+                                    if (int.type === 'TRAP') color = 'bg-rose-600 shadow-[0_0_8px_#e11d48]';
+                                    if (int.type === 'CHEST') color = 'bg-amber-500 shadow-[0_0_8px_#f59e0b]';
+                                }
+                            }
+                            return (
+                                <div key={i} className={`relative ${color} border-[0.5px] border-zinc-900/40`}>
+                                    {isPlayer && <div className="absolute inset-0 bg-cyan-400 animate-pulse rounded-full scale-[2] z-10 shadow-[0_0_10px_#22d3ee]" />}
+                                </div>
+                            );
+                        })}
+                    </div>
+                );
+            };
 
 
             // Handle Keyboard Movement
@@ -1392,44 +1357,35 @@
 
                 // Bounds & Wall Collision Check
                 if (newX < 0 || newX >= GRID_SIZE || newY < 0 || newY >= GRID_SIZE) return;
-                if (DUNGEON_LAYOUT[newY][newX] === 0) return;
+                if (dungeonLayout[newY][newX] === 0) return;
 
                 setPlayerPos({ x: newX, y: newY });
 
                 // Update Fog of War
-                setExploredCells(prev => {
-                    const cellKey = `${newX},${newY}`;
-                    if (!prev.has(cellKey)) {
-                        setRevealingCells(revealPrev => {
-                            const nextReveal = new Set(revealPrev);
-                            nextReveal.add(cellKey);
-                            return nextReveal;
-                        });
-                    }
-                    const next = new Set(prev);
-                    next.add(cellKey);
-                    return next;
-                });
-
-                // Check Interactables
-                const interactable = interactables.find(i => i.x === newX && i.y === newY);
-                if (interactable) {
-                    if (interactable.type === 'CHEST') {
-                        onHeal();
-                        setInteractables(prev => prev.filter(i => i.id !== interactable.id));
-                    } else if (interactable.type === 'TRAP' && interactable.status === 'ACTIVE') {
-                        onTrap(interactable);
-                        // Trap remains on map until disarmed!
-                    } else if (interactable.type === 'STAIRS') {
-                        setStairsPrompt(buildStairsPrompt('DOWN'));
-                        return; // Halt enemy move while waiting for confirmation
-                    } else if (interactable.type === 'PREV_FLOOR') {
-                        setStairsPrompt(buildStairsPrompt('UP'));
-                        return;
-                    }
+                const cellKey = `${newX},${newY}`;
+                if (!exploredCells.has(cellKey)) {
+                    setRevealingCells(prev => new Set(prev).add(cellKey));
+                    setExploredCells(prev => new Set(prev).add(cellKey));
                 }
 
-                moveEnemies(newX, newY);
+                // Check for encounters
+                const enemyGroup = enemies.find(e => e.x === newX && e.y === newY);
+                if (enemyGroup) {
+                    onEncounter(enemyGroup);
+                    return;
+                }
+
+                // Check for interactables
+                const int = interactables.find(i => i.x === newX && i.y === newY);
+                if (int) {
+                    if (int.type === 'TRAP' && int.status === 'ACTIVE') {
+                        onTrap(int);
+                    } else if (int.type === 'STAIRS') {
+                        setStairsPrompt(buildStairsPrompt('DOWN'));
+                    } else if (int.type === 'PREV_FLOOR') {
+                        setStairsPrompt(buildStairsPrompt('UP'));
+                    }
+                }
             };
 
             const handleConfirmDescend = () => {
@@ -1453,30 +1409,6 @@
 
             const handleCancelDescend = () => {
                 setStairsPrompt(null);
-                // Resolve the deferred enemy turn when player declines stair travel.
-                moveEnemies(playerPos.x, playerPos.y);
-            };
-
-            const moveEnemies = (newPlayerX, newPlayerY) => {
-                const updatedEnemies = enemies.map(e => {
-                    const moveDir = Math.floor(Math.random() * 5); // 0=none, 1=up, 2=down, 3=left, 4=right
-                    let nextX = e.x; let nextY = e.y;
-
-                    if (moveDir === 1 && e.y > 0 && DUNGEON_LAYOUT[e.y-1][e.x] === 1) nextY--;
-                    else if (moveDir === 2 && e.y < GRID_SIZE - 1 && DUNGEON_LAYOUT[e.y+1][e.x] === 1) nextY++;
-                    else if (moveDir === 3 && e.x > 0 && DUNGEON_LAYOUT[e.y][e.x-1] === 1) nextX--;
-                    else if (moveDir === 4 && e.x < GRID_SIZE - 1 && DUNGEON_LAYOUT[e.y][e.x+1] === 1) nextX++;
-
-                    return { ...e, x: nextX, y: nextY };
-                });
-
-                setEnemies(updatedEnemies);
-
-                // Collision Check!
-                const collidedEnemy = updatedEnemies.find(e => e.x === newPlayerX && e.y === newPlayerY);
-                if (collidedEnemy) {
-                    onEncounter(collidedEnemy);
-                }
             };
 
             const cells = [];
@@ -1499,23 +1431,34 @@
                     const enemy = enemies.find(e => e.x === x && e.y === y);
                     const intObj = interactables.find(i => i.x === x && i.y === y);
 
-                    const isWall = DUNGEON_LAYOUT[y][x] === 0;
+                    const isWall = dungeonLayout[y][x] === 0;
                     const isExplored = exploredCells.has(cellKey);
 
-                    // Scouting Logic: Hidden traversable tiles adjacent to explored ones
-                    const neighbors = [
-                        {ux: x, uy: y-1}, {ux: x, uy: y+1}, {ux: x-1, uy: y}, {ux: x+1, uy: y}
-                    ];
-                    const isScouted = !isExplored && !isWall && neighbors.some(n =>
-                        n.ux >= 0 && n.ux < GRID_SIZE && n.uy >= 0 && n.uy < GRID_SIZE &&
-                        exploredCells.has(`${n.ux},${n.uy}`)
-                    );
+                    // Scouting Logic: Radius based on Leader (TICKET-49: Leora Perk)
+                    const leader = heroes.find(h => h.isLeader);
+                    const scoutRadius = leader?.name === 'Leora' ? 2 : 1;
+                    
+                    let isScouted = false;
+                    if (!isExplored && !isWall) {
+                        for (let dy = -scoutRadius; dy <= scoutRadius; dy++) {
+                            for (let dx = -scoutRadius; dx <= scoutRadius; dx++) {
+                                if (dx === 0 && dy === 0) continue;
+                                const nx = x + dx;
+                                const ny = y + dy;
+                                if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE && exploredCells.has(`${nx},${ny}`)) {
+                                    isScouted = true;
+                                    break;
+                                }
+                            }
+                            if (isScouted) break;
+                        }
+                    }
 
                     // Doorway Logic
-                    const hasDoorN = y > 0 && DUNGEON_LAYOUT[y-1][x] === 1;
-                    const hasDoorS = y < GRID_SIZE - 1 && DUNGEON_LAYOUT[y+1][x] === 1;
-                    const hasDoorW = x > 0 && DUNGEON_LAYOUT[y][x-1] === 1;
-                    const hasDoorE = x < GRID_SIZE - 1 && DUNGEON_LAYOUT[y][x+1] === 1;
+                    const hasDoorN = y > 0 && dungeonLayout[y-1][x] === 1;
+                    const hasDoorS = y < GRID_SIZE - 1 && dungeonLayout[y+1][x] === 1;
+                    const hasDoorW = x > 0 && dungeonLayout[y][x-1] === 1;
+                    const hasDoorE = x < GRID_SIZE - 1 && dungeonLayout[y][x+1] === 1;
 
                     const renderEdge = (direction, hasDoor) => {
                         const baseColor = isScouted ? "bg-zinc-800/40" : "bg-zinc-800";
@@ -1542,7 +1485,6 @@
                         return null;
                     };
 
-                    const isStart = x === 3 && y === 3 && floor === 1;
                     const showTile = isExplored || isScouted;
                     const showEntity = isExplored;
                     const isScoutedOnly = isScouted && !isExplored;
@@ -1551,7 +1493,7 @@
                     const dx = Math.abs(x - playerPos.x);
                     const dy = Math.abs(y - playerPos.y);
                     const isManhattanAdjacent = (dx === 1 && dy === 0) || (dx === 0 && dy === 1);
-                    const hasTorchSpill = isExplored && isManhattanAdjacent && DUNGEON_LAYOUT[y][x] === 1;
+                    const hasTorchSpill = isExplored && isManhattanAdjacent && dungeonLayout[y][x] === 1;
 
                     const bgTypes = ['stone', 'moss', 'ruins', 'bone', 'shadow'];
                     // Mystery rooms logic: uses 'unknown' asset if scouted but not explored
@@ -1594,7 +1536,6 @@
                             {showTile && renderEdge('E', hasDoorE)}
                             {showTile && renderEdge('W', hasDoorW)}
                             {/* Path Decoration */}
-                            {showTile && <span className="absolute top-1 left-1 text-[8px] text-zinc-700 pointer-events-none">{x},{y}</span>}
                             {showTile && (x+y)%2===0 && <div className="absolute inset-0 bg-white opacity-[0.02]" />}
 
                             {/* Scout Indicator */}
@@ -1626,11 +1567,6 @@
                                     <div className="absolute inset-[-150%] rounded-full animate-torch pointer-events-none opacity-80" />
                                     
                                     <div className="relative w-[7vh] h-[7vh] rounded-full border-2 border-blue-400 bg-zinc-900 overflow-hidden shadow-[0_0_25px_rgba(96,165,250,0.6)] transform flex flex-col items-center justify-center gap-[2px]">
-                                        {intObj && (intObj.type === 'PREV_FLOOR' || intObj.type === 'STAIRS') && (
-                                            <div className={`absolute -top-2 -right-2 w-[2.2vh] h-[2.2vh] min-w-5 min-h-5 rounded-full border border-white text-[1.2vh] font-black flex items-center justify-center z-40 ${intObj.type === 'PREV_FLOOR' ? 'bg-purple-700 text-white' : 'bg-cyan-500 text-black'}`}>
-                                                {intObj.type === 'PREV_FLOOR' ? '↓' : '↑'}
-                                            </div>
-                                        )}
                                         <div className="flex -space-x-2">
                                             {heroes.map((hero, i) => (
                                                 <div key={hero.id} className="w-[3vh] h-[3vh] rounded-full border border-black overflow-hidden shadow-inner shrink-0 bg-zinc-800">
@@ -1647,9 +1583,32 @@
             }
 
             return (
-                <div className="h-screen w-screen bg-neutral-950 flex flex-col lg:flex-row items-stretch lg:justify-between relative animate-in fade-in duration-500 text-white tracking-widest font-sans overflow-hidden">
-                    <section className="w-full lg:w-[60vw] h-screen px-2 py-2 lg:px-3 lg:py-3 flex items-stretch justify-start">
-                        <div ref={mapFrameRef} className="w-full h-full bg-zinc-950 p-[1vh] border-4 border-zinc-800 rounded-xl shadow-2xl backdrop-blur-md relative overflow-hidden flex-shrink-0">
+                <div className="w-full h-screen flex flex-row overflow-hidden bg-zinc-950">
+                    {/* LEFT: Tactical Map (70% Width) */}
+                    <div className="w-[70%] relative flex flex-col items-center justify-center p-4 border-r border-zinc-800/40">
+                        {/* MINI-MAP (Relocated to bottom-right, minimized) */}
+                        <div className="absolute bottom-6 right-8 bg-black/90 border-2 border-zinc-700/80 p-1 rounded-lg shadow-2xl z-50 pointer-events-none border-dashed border-zinc-600/40">
+                            <MiniMap />
+                        </div>
+
+                        <div className="w-full flex justify-between items-end mb-4 z-10 px-8">
+                            <div className="flex flex-row items-end gap-10">
+                                <div className="text-left">
+                                    <h2 className="text-3xl font-black italic text-emerald-500 mb-0.5 drop-shadow-[0_2px_10px_rgba(16,185,129,0.3)] tracking-tighter leading-none">LEVEL {floor}</h2>
+                                    <p className="text-zinc-500 text-[9px] tracking-[0.3em] uppercase opacity-70">Deep Sector Exploration</p>
+                                </div>
+                                <div className="text-left pb-0.5">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-amber-500 text-lg">💰</span>
+                                        <h2 className="text-2xl font-black italic text-zinc-100 tracking-tighter leading-none">{credits.toLocaleString()}</h2>
+                                    </div>
+                                    <p className="text-zinc-500 text-[9px] tracking-[0.3em] uppercase opacity-70">Syndicate Credits</p>
+                                </div>
+                            </div>
+                            <button onClick={openInventory} className="bg-zinc-900 border-2 border-zinc-700 hover:border-amber-500/50 px-4 py-1.5 text-[9px] font-black uppercase tracking-widest transition-all">Inventory</button>
+                        </div>
+
+                        <div ref={mapFrameRef} className="w-full h-full bg-zinc-950 p-[1vh] border-4 border-zinc-800 rounded-xl shadow-2xl backdrop-blur-md relative overflow-hidden">
                             <div className="absolute inset-0 bg-radial-vignette opacity-80 pointer-events-none z-10" />
                             <div
                                 className="grid relative z-0 transition-transform duration-300 ease-out"
@@ -1663,105 +1622,68 @@
                                 {cells}
                             </div>
                         </div>
-                    </section>
+                    </div>
 
-                    <aside className="w-full lg:w-[40vw] h-screen bg-black/45 border-t-2 lg:border-t-0 lg:border-l-2 border-zinc-800 px-4 py-4 sm:px-6 lg:px-6 xl:px-8 flex flex-col gap-6 overflow-y-auto backdrop-blur-sm">
-                        <div className="flex items-center justify-between gap-4">
-                            <div className="font-black italic tracking-widest border border-zinc-800 bg-black/60 px-4 py-2 drop-shadow-xl text-zinc-300 inline-block">
-                                FLOOR {floor}
-                            </div>
-                            <div className="flex items-center gap-2 bg-amber-950/30 border border-amber-500/30 px-4 py-2 rounded-sm text-amber-500 font-bold">
-                                <span className="text-xl">💰</span>
-                                <span className="text-lg tracking-normal font-mono">{credits}</span>
+                    {/* RIGHT: Party Status Sidebar (30% Width) */}
+                    <div className="w-[30%] bg-zinc-900/40 p-4 sm:p-6 flex flex-col gap-4 z-20 overflow-y-auto shadow-[inset_10px_0_30px_rgba(0,0,0,0.5)]">
+                        <div className="border-b border-zinc-800/60 pb-3 mb-2">
+                            <h3 className="text-zinc-500 font-black italic text-[10px] tracking-widest uppercase mb-1">Syndicate Roster</h3>
+                            <div className="flex justify-between items-center text-[8px] font-black text-zinc-600 uppercase tracking-widest">
+                                <span>Tactical Status</span>
+                                <span>Phase: {isLocked ? 'Engaged' : 'Active'}</span>
                             </div>
                         </div>
-
-                        <div className="space-y-4">
-                            <p className="text-[11px] font-bold tracking-[0.3em] text-zinc-500 uppercase flex items-center gap-2">
-                                <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
-                                Syndicate Status
-                            </p>
-                            <div className="flex flex-col gap-3">
-                                {heroes.map((hero) => {
-                                    const hpPct = (hero.hp / hero.maxHp) * 100;
-                                    const isFainted = hero.hp <= 0;
-                                    const damageAnimation = trapDamagePulse ? 'animate-hero-damage' : '';
-                                    return (
-                                        <div key={hero.id} className={`flex items-center gap-4 bg-zinc-900/80 border-2 ${isFainted ? 'border-red-900/50 grayscale' : 'border-zinc-800'} ${damageAnimation} p-3 rounded-xl transition-all relative overflow-hidden group`}>
-                                            <div className="w-[8vh] h-[8vh] min-w-16 min-h-16 rounded overflow-hidden bg-black shrink-0 border border-zinc-700 shadow-inner">
-                                                <img src={`assets/${hero.imageId}.png`} className="w-full h-full object-cover" />
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-center justify-between mb-2">
-                                                    <div>
-                                                        <h4 className="font-black italic text-sm tracking-tight text-white uppercase truncate">{hero.name}</h4>
-                                                        <span className="text-[9px] font-bold text-zinc-500 tracking-widest uppercase">{hero.role}</span>
-                                                    </div>
-                                                    <span className={`text-xs font-mono font-bold ${hpPct < 30 ? 'text-red-500' : 'text-zinc-400'}`}>{hero.hp}/{hero.maxHp}</span>
-                                                </div>
-                                                <div className="h-2 w-full bg-zinc-800 rounded-full overflow-hidden border border-zinc-950">
-                                                    <div 
-                                                        className={`h-full transition-all duration-1000 ${hpPct < 30 ? 'bg-red-600' : 'bg-blue-600'}`} 
-                                                        style={{ width: `${hpPct}%` }} 
-                                                    />
-                                                </div>
-                                            </div>
-                                            {/* Hover highlight */}
-                                            <div className="absolute inset-0 border-2 border-transparent group-hover:border-blue-500/20 rounded-xl pointer-events-none" />
+                        <div className="flex flex-col gap-3">
+                            {heroes.filter(h => h.hp > 0).map(hero => (
+                                <div key={hero.name} className={`bg-zinc-900/80 border p-3 rounded-lg flex flex-col gap-3 relative overflow-hidden group hover:border-emerald-500/30 transition-all ${hero.isLeader ? 'border-amber-500/50 shadow-[0_0_15px_rgba(245,158,11,0.15)]' : 'border-zinc-800'}`}>
+                                    <div className="flex items-center gap-3">
+                                        <div className={`w-14 h-14 rounded-lg border bg-black overflow-hidden shrink-0 shadow-lg relative ${hero.isLeader ? 'border-amber-500' : 'border-zinc-700'}`}>
+                                            <img src={`assets/${hero.imageId}.png`} className="w-full h-full object-cover" />
+                                            {hero.isLeader && (
+                                                <div className="absolute top-0 right-0 bg-amber-500 text-black text-[7px] font-black px-1 leading-none py-0.5 rounded-bl">LEADER</div>
+                                            )}
+                                            <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
                                         </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-
-                        <div className="mt-auto pt-6 border-t border-zinc-900 flex flex-col gap-4">
-                            <div className="flex items-center justify-between">
-                                <button 
-                                    onClick={openInventory} 
-                                    disabled={actionLocked}
-                                    className={`bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 font-bold px-4 py-2 border border-zinc-700 text-[10px] tracking-widest uppercase transition-all
-                                        ${actionLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                >
-                                    Inventory
-                                </button>
-                                {actionLocked && (
-                                    <div className="text-[9px] text-amber-500 font-black uppercase tracking-widest animate-pulse">Action Required</div>
-                                )}
-                            </div>
-                            
-                            <div className={`bg-zinc-950/80 border-2 border-zinc-900 px-4 py-4 rounded-xl flex items-center justify-center gap-6 transition-all ${actionLocked ? 'opacity-40 grayscale' : ''}`}>
-                                <div className="grid grid-cols-3 gap-2">
-                                    <div />
-                                    <button 
-                                        onClick={() => movePlayer(0, -1)} 
-                                        disabled={actionLocked}
-                                        className="w-[7vh] h-[7vh] min-w-14 min-h-14 bg-zinc-900 border-2 border-zinc-800 active:bg-zinc-800 active:border-zinc-500 text-zinc-400 font-black text-xl rounded-lg transition-all flex items-center justify-center disabled:cursor-not-allowed"
-                                    >↑</button>
-                                    <div />
-                                    <button 
-                                        onClick={() => movePlayer(-1, 0)} 
-                                        disabled={actionLocked}
-                                        className="w-[7vh] h-[7vh] min-w-14 min-h-14 bg-zinc-900 border-2 border-zinc-800 active:bg-zinc-800 active:border-zinc-500 text-zinc-400 font-black text-xl rounded-lg transition-all flex items-center justify-center disabled:cursor-not-allowed"
-                                    >←</button>
-                                    <button 
-                                        onClick={() => movePlayer(0, 1)} 
-                                        disabled={actionLocked}
-                                        className="w-[7vh] h-[7vh] min-w-14 min-h-14 bg-zinc-900 border-2 border-zinc-800 active:bg-zinc-800 active:border-zinc-500 text-zinc-400 font-black text-xl rounded-lg transition-all flex items-center justify-center disabled:cursor-not-allowed"
-                                    >↓</button>
-                                    <button 
-                                        onClick={() => movePlayer(1, 0)} 
-                                        disabled={actionLocked}
-                                        className="w-[7vh] h-[7vh] min-w-14 min-h-14 bg-zinc-900 border-2 border-zinc-800 active:bg-zinc-800 active:border-zinc-500 text-zinc-400 font-black text-xl rounded-lg transition-all flex items-center justify-center disabled:cursor-not-allowed"
-                                    >→</button>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex justify-between items-end mb-1">
+                                                <div className="flex items-center gap-1">
+                                                    {hero.isLeader && <span className="text-amber-500 text-[10px]">👑</span>}
+                                                    <p className="font-black italic text-sm text-zinc-100 uppercase truncate tracking-tight leading-none">{hero.name}</p>
+                                                </div>
+                                                <span className="text-[9px] font-black text-emerald-500">{Math.floor((hero.hp / hero.maxHp) * 100)}%</span>
+                                            </div>
+                                            <div className="w-full h-1.5 bg-black rounded-full overflow-hidden border border-zinc-800">
+                                                <div 
+                                                    className="h-full bg-emerald-500 transition-all duration-700"
+                                                    style={{ width: `${(hero.hp / hero.maxHp) * 100}%` }}
+                                                />
+                                            </div>
+                                            <div className="flex justify-between mt-1 px-0.5">
+                                                <span className="text-[8px] font-black text-zinc-500 tabular-nums uppercase">Vitality</span>
+                                                <span className="text-[8px] font-black text-zinc-400 tabular-nums">{Math.floor(hero.hp)}/{hero.maxHp}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    {/* Parameter Grid: ATK / DEF / SPD */}
+                                    <div className="grid grid-cols-3 gap-2">
+                                        <div className="bg-black/40 p-1.5 rounded flex flex-col items-center border border-zinc-800/50">
+                                            <span className="text-[7px] font-black text-rose-500 uppercase mb-0.5">ATK</span>
+                                            <span className="text-[10px] font-black text-zinc-200 tabular-nums">{hero.getATK(heroes).toFixed(0)}</span>
+                                        </div>
+                                        <div className="bg-black/40 p-1.5 rounded flex flex-col items-center border border-zinc-800/50">
+                                            <span className="text-[7px] font-black text-amber-500 uppercase mb-0.5">DEF</span>
+                                            <span className="text-[10px] font-black text-zinc-200 tabular-nums">{hero.getDEF(heroes).toFixed(0)}</span>
+                                        </div>
+                                        <div className="bg-black/40 p-1.5 rounded flex flex-col items-center border border-zinc-800/50">
+                                            <span className="text-[7px] font-black text-cyan-500 uppercase mb-0.5">SPD</span>
+                                            <span className="text-[10px] font-black text-zinc-200 tabular-nums">{hero.getSPD(heroes).toFixed(0)}</span>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div className="w-[1px] h-20 bg-zinc-900" />
-                                <div className="text-left">
-                                    <p className="text-[9px] font-black italic text-zinc-600 uppercase mb-1">Status</p>
-                                    <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest leading-tight">Exploring<br/>Sector 09</p>
-                                </div>
-                            </div>
+                            ))}
                         </div>
-                    </aside>
+                    </div>
 
                     {stairsPrompt && (
                         <div className="absolute inset-0 z-[120] bg-black/80 backdrop-blur-sm flex items-center justify-center px-4">
@@ -2050,6 +1972,80 @@
             );
         };
 
+        const LeadershipPhase = ({ draftHeroes, onFinalize }) => {
+            const [selected, setSelected] = useState(null);
+
+            return (
+                <div className="h-screen w-full bg-zinc-950 flex flex-col items-center p-4 sm:p-4 text-white animate-in zoom-in duration-700 overflow-hidden relative">
+                    <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1533154683836-84ea7a0bc310?q=80&w=2574&auto=format&fit=crop')] bg-cover opacity-10 grayscale brightness-50" />
+                    
+                    <div className="relative z-10 text-center mb-4 sm:mb-6">
+                        <h2 className="text-3xl sm:text-4xl font-black italic text-white mb-1 drop-shadow-[0_0_30px_rgba(255,255,255,0.2)]">APPOINT YOUR <span className="text-amber-500">LEADER</span></h2>
+                        <p className="text-zinc-500 text-[10px] tracking-[0.4em] uppercase border-b border-zinc-800 pb-2">The Syndicate requires a single point of command.</p>
+                    </div>
+
+                    <div className="relative z-10 flex flex-wrap justify-center gap-4 sm:gap-8 max-w-6xl w-full">
+                        {draftHeroes.map(hero => {
+                            const perkInfo = LEADER_PERKS[hero.name] || { name: 'Unknown', perk: 'No perk available' };
+                            const isSelected = selected === hero.name;
+
+                            return (
+                                <div 
+                                    key={hero.name}
+                                    onClick={() => setSelected(hero.name)}
+                                    className={`relative transition-all duration-300 transform cursor-pointer
+                                        ${isSelected ? 'scale-100 z-20' : 'scale-90 opacity-70 hover:opacity-100 z-10 hover:-translate-y-2'}`}
+                                >
+                                    {isSelected && (
+                                        <div className="absolute -top-12 left-1/2 -translate-x-1/2 animate-bounce text-5xl z-30">👑</div>
+                                    )}
+                                    
+                                    <div className={`p-1 rounded-sm transition-all ${isSelected ? 'bg-amber-500/20' : 'bg-transparent'}`}>
+                                        <div className="transform scale-90 origin-top">
+                                            <Card unit={hero} isSelected={isSelected} />
+                                        </div>
+                                    </div>
+
+                                    <div className={`-mt-6 p-3 rounded-lg border-2 transition-all text-center
+                                        ${isSelected ? 'bg-amber-950/40 border-amber-500 shadow-xl' : 'bg-zinc-900/40 border-zinc-800'}`}>
+                                        <h4 className="text-amber-500 font-black italic text-[11px] tracking-widest uppercase mb-0.5">{perkInfo.name}</h4>
+                                        <p className="text-[9px] text-zinc-300 font-bold uppercase tracking-tighter leading-tight max-w-[140px] mx-auto">{perkInfo.perk}</p>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    <button 
+                        disabled={!selected}
+                        onClick={() => onFinalize(selected)}
+                        className={`relative z-10 mt-4 sm:mt-8 px-16 py-3 font-black italic text-xl border-4 transition-all
+                            ${selected 
+                                ? 'bg-amber-600 border-amber-800 text-white cursor-pointer hover:scale-105 shadow-[0_0_50px_rgba(217,119,6,0.3)]' 
+                                : 'bg-zinc-800 border-zinc-700 text-zinc-600 cursor-not-allowed opacity-50'}`}
+                    >
+                        CONFIRM LEADERSHIP
+                    </button>
+                </div>
+            );
+        };
+
+        const LEADER_PERKS = {
+            'Valerius': { id: 'tactician', name: 'Tactician', perk: '+15% Party DEF' },
+            'Slyn': { id: 'navigator', name: 'Navigator', perk: 'Reveals path to Sector Exit' },
+            'Morgra': { id: 'blood_priest', name: 'Blood Priest', perk: 'Party heals 5% HP per turn in battle' },
+            'Krix': { id: 'engineer', name: 'Engineer', perk: '+100 Credits per trap disarm' },
+            'Draka': { id: 'warden', name: 'Warden', perk: '20% Trap Damage Resistance' },
+            'Vex': { id: 'soul_harvester', name: 'Soul Harvester', perk: '+10% ATK for floor after Elites' },
+            'Leora': { id: 'scout', name: 'Scout', perk: 'Advanced Scouting (2-tile radius)' },
+            'Lira': { id: 'bard', name: 'Bard', perk: '+10% Party Speed' },
+            'Borum': { id: 'quartermaster', name: 'Quartermaster', perk: '+25% Rare+ Loot chance' },
+            'Valthea': { id: 'commander', name: 'Commander', perk: '+15% Vanguard ATK' },
+            'Elara': { id: 'oracle', name: 'Oracle', perk: 'Reveals Boss location on floor start' },
+            'Kael': { id: 'marksman', name: 'Marksman', perk: 'Ignore 15% DEF vs Rearguard' },
+            'Grimm': { id: 'wealth_seeker', name: 'Wealth Seeker', perk: '+20% Credits found' }
+        };
+
         const PASSIVES = {
             LIFESTEAL: { id: 'lifesteal', name: 'Lifesteal', description: 'Heal 20% of dmg dealt' },
             THORNS: { id: 'thorns', name: 'Thorns', description: 'Reflect 5 damage when hit' },
@@ -2058,7 +2054,6 @@
 
         // --- MASTER APP CONTROLLER ---
         const App = () => {
-            // Phase 41: Master Roster Expansion
             const HERO_ROSTER = [
                 { name: 'Valerius', hp: 140, atk: 8, def: 18, spd: 10, role: 'TANK', imageId: 'hero_valerius', trait: {id: 'iron_aura', name: 'Aura of Iron', description: 'Global 10% damage reduction for party'}, skills: [{name: 'Shield Slam', val: 12, type: 'damage'}, {name: 'Fortify', val: 15, type: 'heal'}] },
                 { name: 'Slyn', hp: 75, atk: 22, def: 6, spd: 28, role: 'DPS', imageId: 'hero_slyn', trait: {id: 'infiltrator', name: 'Infiltrator', description: 'Can target any enemy, ignoring Vanguard'}, skills: [{name: 'Backstab', val: 35, type: 'damage'}, {name: 'Shadow Dash', val: 20, type: 'damage'}] },
@@ -2075,21 +2070,133 @@
                 { name: 'Kael', hp: 85, atk: 18, def: 22, spd: 10, role: 'DPS', imageId: 'hero_kael', trait: {id: 'steady_aim', name: 'Steady Aim', description: '+25% damage to Rearguard targets'}, skills: [{name: 'Twin Arrow', val: 2*15, type: 'damage'}, {name: 'Steady Aim', val: 35, type: 'damage'}] }
             ];
 
-            const [gamePhase, setGamePhase] = useState('MAIN_MENU'); // 'MAIN_MENU' | 'DRAFT' | 'DEPLOYMENT' | 'EXPLORATION' | 'BATTLE' | 'INVENTORY'
+            const [gamePhase, setGamePhase] = useState('MAIN_MENU');
             const [floor, setFloor] = useState(1);
             const [activeEncounter, setActiveEncounter] = useState(null);
             const [credits, setCredits] = useState(0); 
             const [activeTrapDamagePulse, setActiveTrapDamagePulse] = useState(false);
-            const [activeTrapEvent, setActiveTrapEvent] = useState(null); // { type, status: 'IDLE'|'DODGE'|'RESULT', trapId, roll, bonus, resultType }
-
-            // Phase 41: Global Party Models & Inventory Cache
+            const [activeTrapEvent, setActiveTrapEvent] = useState(null);
+            
+            // TICKET-49: Special Leader State
+            const [hasKilledElitePrevFloor, setHasKilledElitePrevFloor] = useState(false);
+            const [killedEliteThisFloor, setKilledEliteThisFloor] = useState(false);
             const [inventory, setInventory] = useState([
                 new Item("Healing Potion", "CONSUMABLE", { heal: 40 }, "🧪", "Uncommon"),
                 new Item("Healing Potion", "CONSUMABLE", { heal: 40 }, "🧪", "Uncommon")
             ]);
             const [heroes, setHeroes] = useState([]);
             const [draftPool, setDraftPool] = useState([]);
-            const [runEndState, setRunEndState] = useState(null); // null | 'VICTORY' | 'DEFEAT'
+            const [runEndState, setRunEndState] = useState(null);
+
+            // Persistent Map State
+            const [activeLayout, setActiveLayout] = useState(null);
+            const [activeBgs, setActiveBgs] = useState({});
+            const [activeExplored, setActiveExplored] = useState(new Set(['4,4']));
+            const [activePlayerPos, setActivePlayerPos] = useState({ x: 4, y: 4 });
+            const [activeMapEnemies, setActiveMapEnemies] = useState([]);
+            const [activeMapInteractables, setActiveMapInteractables] = useState([]);
+
+            const [floorHistory, setFloorHistory] = useState({}); // TICKET-51: Persistent Floor Cache
+
+            // Helper for credits logic (TICKET-49: Grimm Perk)
+            const addCredits = (amount) => {
+                const leader = heroes.find(h => h.isLeader);
+                let finalAmount = amount;
+                if (leader?.name === 'Grimm') {
+                    finalAmount = Math.floor(amount * 1.20); // +20% Credits
+                }
+                setCredits(prev => prev + finalAmount);
+                return finalAmount;
+            };
+
+            const getEnemiesForFloor = (f) => {
+                // Scaling factors
+                const hpMult = 1 + (f - 1) * 0.25;
+                const pwrMult = 1 + (f - 1) * 0.15;
+                
+                if (f === 5) { // BOSS FLOOR
+                    return [{
+                        id: 'boss_floor_5', x: 4, y: 7, instances: [
+                            new Combatant("Void Archon", "TANK", Math.floor(600 * hpMult), 15, Math.floor(40 * pwrMult), 25, "enemy_ogre", [{name: 'Annihilation', val: 60, type: 'damage'}], 'VANGUARD', false),
+                            new Combatant("Void Guard", "DPS", Math.floor(150 * hpMult), 12, Math.floor(25 * pwrMult), 15, "enemy_lurker", [{name: 'Acid Spit', val: 20, type: 'damage'}], 'VANGUARD', false)
+                        ]
+                    }];
+                }
+
+                // Generates 2-3 packs
+                const packs = [];
+                for(let i=0; i < (f > 2 ? 3 : 2); i++) {
+                    const pool = [
+                        { name: "Shadow Bat", hp: 40, spd: 22, pwr: 10, def: 2, img: "enemy_bat" },
+                        { name: "Deep Lurker", hp: 90, spd: 12, pwr: 12, def: 5, img: "enemy_lurker" },
+                        { name: "Ogre King", hp: 200, spd: 8, pwr: 25, def: 10, img: "enemy_ogre" }
+                    ];
+                    const seed = pool[Math.floor(Math.random() * pool.length)];
+                    packs.push({
+                        id: `e_${f}_${i}`,
+                        x: 0, y: 0, // Assigned by generator
+                        instances: [
+                            new Combatant(seed.name, "DPS", Math.floor(seed.hp * hpMult), seed.spd, Math.floor(seed.pwr * pwrMult), seed.def, seed.img, [{name: 'Attack', val: Math.floor(seed.pwr * 1.2), type: 'damage'}], 'VANGUARD', false)
+                        ]
+                    });
+                }
+                return packs;
+            };
+
+            const loadFloor = (f, currentHistory = floorHistory) => {
+                let data = currentHistory[f];
+                if (!data) {
+                    const gen = window.DungeonGenerator.generate(f, 9);
+                    const enemies = getEnemiesForFloor(f).map(e => {
+                        const loc = gen.validTiles.pop() || {x:4, y:4};
+                        return { ...e, x: loc.x, y: loc.y };
+                    });
+                    const explored = new Set(['4,4']);
+                    
+                    // Elara Perk: Oracle (Reveal Boss)
+                    const leader = heroes.find(h => h.isLeader);
+                    if (leader?.name === 'Elara') {
+                        const boss = enemies.find(e => e.id.includes('boss') || e.id.includes('pack_') || e.id.includes('e_')); // Simple heuristic for boss/elite
+                        if (boss) explored.add(`${boss.x},${boss.y}`);
+                    }
+
+                    // Slyn Perk: Navigator (Reveal Exit)
+                    if (leader?.name === 'Slyn') {
+                        const exit = intObjs.find(i => i.id === 'exit');
+                        if (exit) explored.add(`${exit.x},${exit.y}`);
+                    }
+
+                    data = {
+                        layout: gen.layout,
+                        bgs: gen.bgs,
+                        interactables: gen.interactables,
+                        enemies: enemies,
+                        explored: explored,
+                        playerPos: { x: 4, y: 4 }
+                    };
+                    setFloorHistory(prev => ({ ...prev, [f]: data }));
+                }
+                
+                setActiveLayout(data.layout);
+                setActiveBgs(data.bgs);
+                setActiveMapInteractables(data.interactables);
+                setActiveMapEnemies(data.enemies);
+                setActiveExplored(data.explored);
+                setActivePlayerPos(data.playerPos);
+            };
+
+            const syncCurrentFloor = () => {
+                const currentData = {
+                    layout: activeLayout,
+                    bgs: activeBgs,
+                    interactables: activeMapInteractables,
+                    enemies: activeMapEnemies,
+                    explored: activeExplored,
+                    playerPos: activePlayerPos
+                };
+                setFloorHistory(prev => ({ ...prev, [floor]: currentData }));
+                return currentData;
+            };
 
             const startDraft = () => {
                 const pool = [...HERO_ROSTER].sort(() => Math.random() - 0.5).slice(0, 5);
@@ -2101,7 +2208,6 @@
                     new Item("Healing Potion", "CONSUMABLE", { heal: 40 }, "🧪", "Uncommon"),
                     new Item("Healing Potion", "CONSUMABLE", { heal: 40 }, "🧪", "Uncommon")
                 ]);
-                setActiveMapEnemies(getEnemiesForFloor(1));
                 setGamePhase('DRAFT');
             };
 
@@ -2110,15 +2216,23 @@
                     new Combatant(h.name, h.role, h.hp, h.spd, h.atk, h.def, `hero_${h.name.toLowerCase()}`, h.skills, 'VANGUARD', true, h.trait)
                 );
                 setHeroes(combatants);
+                setGamePhase('LEADERSHIP'); // TICKET-49: New Phase
+            };
+
+            const finalizeLeadership = (leaderName) => {
+                setHeroes(prev => prev.map(h => {
+                    const next = h.clone();
+                    next.isLeader = h.name === leaderName;
+                    return next;
+                }));
                 setGamePhase('DEPLOYMENT');
             };
 
             const finalizeDeployment = (deployedHeroes) => {
                 setHeroes(deployedHeroes);
+                loadFloor(1, {}); // Reset history for new run
                 setGamePhase('EXPLORATION');
             };
-
-
 
             const generateLoot = () => {
                 const tables = [
@@ -2133,48 +2247,23 @@
                     new Item("Healing Potion", "CONSUMABLE", { heal: 40 }, "🧪", "Uncommon")
                 ];
 
-                let item = tables[Math.floor(Math.random() * tables.length)];
-
-                // Roll for Passives on high-tier loot
+                // Borum Perk: Quartermaster (+25% Rare+ Chance)
+                const leader = heroes.find(h => h.isLeader);
+                let finalItem;
+                if (leader?.name === 'Borum') {
+                    const highTier = tables.filter(i => ['Rare', 'Epic', 'Legendary'].includes(i.rarity));
+                    if (Math.random() < 0.25) {
+                        finalItem = highTier[Math.floor(Math.random() * highTier.length)];
+                    }
+                }
+                
+                const item = finalItem || tables[Math.floor(Math.random() * tables.length)];
                 if (item.rarity === 'Epic' || item.rarity === 'Legendary') {
                     const passivePool = [PASSIVES.LIFESTEAL, PASSIVES.THORNS, PASSIVES.QUICKENING];
                     item.passives = [passivePool[Math.floor(Math.random() * passivePool.length)]];
                 }
-
                 return item;
             };
-
-            const getEnemiesForFloor = (f) => {
-                if (f === 2) {
-                    return [
-                        { id: 'e2_1', x: 2, y: 1, instances: [
-                            new Combatant("Shadow Bat", "DPS", 50, 24, 12, 4, "enemy_bat", [{name: 'Fang Bite', val: 18, type: 'damage'}], 'VANGUARD', false),
-                            new Combatant("Shadow Bat", "DPS", 50, 22, 12, 4, "enemy_bat", [{name: 'Fang Bite', val: 18, type: 'damage'}], 'REARGUARD', false)
-                        ]},
-                        { id: 'e2_2', x: 3, y: 5, instances: [
-                            new Combatant("Ogre King", "TANK", 300, 8, 30, 20, "enemy_ogre", [{name: 'Ground Smash', val: 45, type: 'damage'}], 'VANGUARD', false)
-                        ]}
-                    ];
-                }
-                return [ // Floor 1
-                    { id: 'e1', x: 1, y: 1, instances: [
-                        new Combatant("Shadow Bat", "DPS", 40, 22, 10, 2, "enemy_bat", [{name: 'Fang Bite', val: 15, type: 'damage'}], 'VANGUARD', false),
-                        new Combatant("Shadow Bat", "DPS", 40, 20, 10, 2, "enemy_bat", [{name: 'Fang Bite', val: 15, type: 'damage'}], 'REARGUARD', false)
-                    ]},
-                    { id: 'e2', x: 5, y: 1, instances: [
-                        new Combatant("Ogre King", "TANK", 250, 6, 25, 10, "enemy_ogre", [{name: 'Ground Smash', val: 35, type: 'damage'}], 'VANGUARD', false),
-                        new Combatant("Shadow Bat", "DPS", 40, 21, 10, 2, "enemy_bat", [{name: 'Screech', val: 8, type: 'damage'}], 'REARGUARD', false)
-                    ]},
-                    { id: 'e3', x: 3, y: 6, instances: [
-                        new Combatant("Deep Lurker", "DPS", 90, 12, 12, 5, "enemy_lurker", [{name: 'Acid Spit', val: 18, type: 'damage'}], 'VANGUARD', false),
-                        new Combatant("Deep Lurker", "DPS", 90, 14, 12, 5, "enemy_lurker", [{name: 'Acid Spit', val: 18, type: 'damage'}], 'VANGUARD', false),
-                        new Combatant("Deep Lurker", "DPS", 90, 10, 12, 5, "enemy_lurker", [{name: 'Acid Spit', val: 18, type: 'damage'}], 'REARGUARD', false)
-                    ]}
-                ];
-            };
-
-            const [activeMapEnemies, setActiveMapEnemies] = useState(getEnemiesForFloor(1));
-            const [activeMapInteractables, setActiveMapInteractables] = useState([]);
 
             const handleEncounter = (enemyData) => {
                 setActiveEncounter(enemyData);
@@ -2182,16 +2271,47 @@
             };
 
             const handleNextFloor = () => {
-                const nextFloor = floor + 1;
-                setFloor(nextFloor);
-                setActiveMapEnemies(getEnemiesForFloor(nextFloor));
+                if (floor >= 5) {
+                    setRunEndState('VICTORY');
+                    return;
+                }
+
+                // Vex Perk: Soul Harvester (Apply bonus to next floor)
+                setHeroes(prev => prev.map(h => {
+                    const next = h.clone();
+                    next.hasEliteBonus = killedEliteThisFloor;
+                    return next;
+                }));
+                setKilledEliteThisFloor(false);
+
+                const updatedHistory = { ...floorHistory, [floor]: {
+                    layout: activeLayout,
+                    bgs: activeBgs,
+                    interactables: activeMapInteractables,
+                    enemies: activeMapEnemies,
+                    explored: activeExplored,
+                    playerPos: activePlayerPos
+                }};
+                setFloorHistory(updatedHistory);
+                const nextF = floor + 1;
+                setFloor(nextF);
+                loadFloor(nextF, updatedHistory);
             };
 
             const handlePrevFloor = () => {
                 if (floor > 1) {
-                    const prevFloor = floor - 1;
-                    setFloor(prevFloor);
-                    setActiveMapEnemies(getEnemiesForFloor(prevFloor));
+                    const updatedHistory = { ...floorHistory, [floor]: {
+                        layout: activeLayout,
+                        bgs: activeBgs,
+                        interactables: activeMapInteractables,
+                        enemies: activeMapEnemies,
+                        explored: activeExplored,
+                        playerPos: activePlayerPos
+                    }};
+                    setFloorHistory(updatedHistory);
+                    const prevF = floor - 1;
+                    setFloor(prevF);
+                    loadFloor(prevF, updatedHistory);
                 }
             };
 
@@ -2201,16 +2321,15 @@
                 const totalStat = livingHeroes.reduce((acc, h) => {
                     if (statType === 'SPD') return acc + h.getSPD();
                     if (statType === 'DEF') return acc + h.getDEF();
-                    return acc + h.getSPD(); // Default to SPD
+                    return acc + h.getSPD();
                 }, 0);
-                return Math.floor(totalStat / livingHeroes.length / 5); // 1 bonus per 5 avg stat
+                return Math.floor(totalStat / livingHeroes.length / 5);
             };
 
             const handleTrap = (trapData) => {
                 const selectedType = trapData.trapType;
                 const bonusType = selectedType === 'ACID' ? 'DEF' : 'SPD';
                 const bonus = calculatePartyBonus(bonusType);
-
                 setActiveTrapEvent({
                     id: trapData.id,
                     type: selectedType,
@@ -2224,10 +2343,16 @@
 
             const handleTrapResult = (outcome, creditsAwarded = 0) => {
                 if (outcome === 'DAMAGE') {
-                    const damagePercent = 0.15 + (floor * 0.05);
+                    let damagePercent = 0.15 + (floor * 0.05);
+                    
+                    // Draka Perk: Warden (Trap Resistance)
+                    const leader = heroes.find(h => h.isLeader);
+                    if (leader?.name === 'Draka') {
+                        damagePercent *= 0.8; // -20% Damage
+                    }
+
                     setActiveTrapDamagePulse(true);
                     setTimeout(() => setActiveTrapDamagePulse(false), 800);
-                    
                     setHeroes(prev => {
                         const next = prev.map(hero => {
                             if (hero.hp <= 0) return hero;
@@ -2242,16 +2367,23 @@
                         return next;
                     });
                 } else if (outcome === 'DISARMED') {
-                    setCredits(prev => prev + creditsAwarded);
-                    // Successfully disarmed, update status on map!
+                    let finalCredits = creditsAwarded;
+                    
+                    // Krix Perk: Engineer (Disarm Bonus)
+                    const leader = heroes.find(h => h.isLeader);
+                    if (leader?.name === 'Krix') {
+                        finalCredits += 100;
+                    }
+                    
+                    addCredits(finalCredits); // Uses addCredits to also apply Grimm bonus if applicable (though nested leaders aren't possible, it's safer)
+                    
                     setActiveMapInteractables(prev => prev.map(i => 
                         i.id === activeTrapEvent.id ? { ...i, status: 'DISARMED' } : i
                     ));
                 }
-
-                // Close modal
                 setActiveTrapEvent(null);
             };
+
             const handleHeal = () => {
                 const drop = generateLoot();
                 setInventory(prev => [...prev, drop]);
@@ -2260,14 +2392,14 @@
 
             const handleBattleEnd = (result) => {
                 if (result === 'VICTORY') {
-                    // Delete defeated enemy from map!
-                    setActiveMapEnemies(prev => prev.filter(e => e.id !== activeEncounter.id));
+                    // Check if it was an Elite (e.g. Ogre King or multiple enemies)
+                    const isElite = activeEncounter.instances.some(i => i.name === 'Ogre King' || i.name === 'Void Archon') || activeEncounter.instances.length > 1;
+                    if (isElite) setKilledEliteThisFloor(true);
 
-                    // Phase 10: Drop Loot!
+                    setActiveMapEnemies(prev => prev.filter(e => e.id !== activeEncounter.id));
                     const drop = generateLoot();
                     setInventory(prev => [...prev, drop]);
                     alert(`VICTORY! Loot Acquired: ${drop.icon} ${drop.name}`);
-
                     setGamePhase('EXPLORATION');
                     setActiveEncounter(null);
                 } else {
@@ -2277,12 +2409,10 @@
 
             return (
                 <div className="selection:bg-yellow-400 selection:text-black font-sans relative">
-                    {/* Persistent Backgrounds */}
                     <div className="fixed inset-0 bg-[url('https://images.unsplash.com/photo-1544200175-ca6e80a7b323?q=80&w=2670&auto=format&fit=crop')] bg-cover opacity-10 grayscale brightness-50 pointer-events-none z-0" />
                     <div className="fixed inset-0 bg-radial-vignette opacity-70 pointer-events-none z-0" />
 
                     <div className="relative z-10">
-                        {/* Persistent state via CSS display trick! Exploration never actually unmounts. */}
                         {gamePhase === 'MAIN_MENU' && (
                             <div className="h-screen w-screen flex flex-col items-center justify-center bg-black relative overflow-hidden">
                                 <div className="z-10 text-center space-y-8 animate-in fade-in zoom-in duration-1000">
@@ -2302,13 +2432,12 @@
                         )}
 
                         {gamePhase === 'DRAFT' && (
-                            <div className="h-screen w-screen bg-zinc-950 flex flex-col items-center p-4 sm:p-8 text-white animate-in slide-in-from-bottom-8 duration-500 overflow-hidden">
-                                <div className="text-center mb-4 sm:mb-8">
+                            <div className="h-screen w-full bg-zinc-950 flex flex-col items-center p-4 sm:p-4 text-white animate-in slide-in-from-bottom-8 duration-500 overflow-hidden relative">
+                                <div className="text-center mb-4 sm:mb-6">
                                     <h2 className="text-3xl sm:text-4xl font-black italic text-amber-500 mb-1">MUSTER YOUR SYNDICATE</h2>
                                     <p className="text-zinc-500 text-[10px] sm:text-xs tracking-widest uppercase">Select exactly 3 champions to enlist for this run.</p>
                                 </div>
-
-                                <div className="flex-1 w-full max-w-[1400px] overflow-y-auto px-4 mb-4 scrollbar-hide">
+                                <div className="flex-1 w-full max-w-[1400px] px-4 mb-4">
                                     <div className="flex flex-wrap justify-center gap-6 py-8">
                                         {draftPool.map(hero => {
                                             const isSelected = heroes.find(h => h.name === hero.name);
@@ -2324,7 +2453,7 @@
                                                     }}
                                                     className="relative cursor-pointer transition-all hover:scale-105 active:scale-95 group z-10"
                                                 >
-                                                    <Card unit={hero} />
+                                                    <Card unit={hero} isSelected={!!isSelected} />
                                                     {isSelected && (
                                                         <div className="absolute top-4 right-4 bg-amber-500 text-black text-[10px] font-black px-2 py-1 rounded shadow-2xl z-50 animate-in zoom-in">SELECTED</div>
                                                     )}
@@ -2336,7 +2465,6 @@
                                         })}
                                     </div>
                                 </div>
-
                                 <button 
                                     disabled={heroes.length !== 3}
                                     onClick={() => finalizeDraft(heroes)}
@@ -2350,109 +2478,67 @@
                             </div>
                         )}
 
+                        {gamePhase === 'LEADERSHIP' && (
+                            <LeadershipPhase 
+                                draftHeroes={heroes} 
+                                onFinalize={finalizeLeadership} 
+                            />
+                        )}
+
                         {gamePhase === 'DEPLOYMENT' && (
                             <div className="h-screen w-screen bg-zinc-950 flex flex-col items-center p-4 sm:p-8 text-white animate-in fade-in duration-500 overflow-hidden">
                                 <div className="text-center mb-4 sm:mb-8">
                                     <h2 className="text-3xl sm:text-4xl font-black italic text-emerald-500 mb-1">STRATEGIZE FORMATION</h2>
                                     <p className="text-zinc-500 text-[10px] sm:text-xs tracking-widest uppercase">Assign your champions to the Vanguard (Front) or Rearguard (Back).</p>
                                 </div>
-
                                 <div className="flex-1 w-full flex flex-wrap justify-center gap-6 mb-4 overflow-y-auto px-4 content-start">
-                                    {/* Vanguard Area */}
                                     <div className="flex flex-col items-center gap-2">
                                         <h3 className="font-black italic text-zinc-500 tracking-widest uppercase text-[9px]">VANGUARD (FRONT)</h3>
                                         <div className="grid grid-cols-2 lg:grid-cols-2 gap-2 bg-zinc-900/50 p-2 border-2 border-dashed border-zinc-700 rounded-xl min-h-[160px] w-[340px]">
-                                            {heroes.filter(h => h.positionLine === 'VANGUARD').map(hero => {
-                                                const roleBadgeTone = hero.role === 'TANK' ? 'bg-amber-500/95' : hero.role === 'HEALER' ? 'bg-emerald-500/95' : 'bg-rose-500/95';
-                                                return (
-                                                    <div key={hero.name} className={`bg-zinc-900 border-2 border-zinc-700 p-2 rounded-lg flex flex-col gap-1 group shadow-lg transition-all hover:border-amber-500/50 w-[158px] h-[72px] relative overflow-hidden`}>
-                                                        <div className="absolute top-1 left-1 w-6 h-6 rounded border border-black/40 flex items-center justify-center scale-75 z-20 pointer-events-none">
-                                                            <div className={`absolute inset-0 ${roleBadgeTone} opacity-90 rounded`} />
-                                                            <span className="text-[10px] relative z-10">{ROLES[hero.role]?.icon}</span>
+                                            {heroes.filter(h => h.positionLine === 'VANGUARD').map(hero => (
+                                                <div key={hero.name} className="bg-zinc-900 border-2 border-zinc-700 p-2 rounded-lg flex flex-col gap-1 group shadow-lg transition-all hover:border-amber-500/50 w-[158px] h-[72px] relative overflow-hidden">
+                                                    <div className="flex items-center gap-2 relative z-10">
+                                                        <div className="w-10 h-10 rounded overflow-hidden bg-black shrink-0 border border-zinc-800 flex items-center justify-center relative">
+                                                            <img src={`assets/${hero.imageId}.png`} className="w-full h-full object-cover" />
                                                         </div>
-                                                        <div className="flex items-center gap-2 relative z-10">
-                                                            <div className="w-10 h-10 rounded overflow-hidden bg-black shrink-0 border border-zinc-800 flex items-center justify-center relative">
-                                                                <img 
-                                                                    src={`assets/${hero.imageId}.png`} 
-                                                                    className="w-full h-full object-cover" 
-                                                                    onError={(e) => { e.target.style.display = 'none'; }}
-                                                                />
-                                                                <span className="text-lg font-black italic text-zinc-700">{hero.name[0]}</span>
-                                                            </div>
-                                                            <div className="flex-1 min-w-0">
-                                                                <p className="font-black italic text-[10px] truncate uppercase text-zinc-200">{hero.name}</p>
-                                                                <button 
-                                                                    onClick={() => setHeroes(prev => prev.map(h => h.name === hero.name ? Object.assign(h.clone(), {positionLine: 'REARGUARD'}) : h))}
-                                                                    className="text-white bg-zinc-800 hover:bg-zinc-700 px-1.5 py-0.5 rounded-sm border border-zinc-700 text-[8px] font-black uppercase transition-colors"
-                                                                >
-                                                                    MOVE BACK →
-                                                                </button>
-                                                            </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="font-black italic text-[10px] truncate uppercase text-zinc-200">{hero.name}</p>
+                                                            <button onClick={() => setHeroes(prev => prev.map(h => h.name === hero.name ? Object.assign(h.clone(), {positionLine: 'REARGUARD'}) : h))} className="text-white bg-zinc-800 hover:bg-zinc-700 px-1.5 py-0.5 rounded-sm border border-zinc-700 text-[8px] font-black uppercase transition-colors">MOVE BACK →</button>
                                                         </div>
                                                     </div>
-                                                );
-                                            })}
+                                                </div>
+                                            ))}
                                         </div>
                                     </div>
-
-                                    {/* Rearguard Area */}
                                     <div className="flex flex-col items-center gap-2">
                                         <h3 className="font-black italic text-zinc-500 tracking-widest uppercase text-[9px]">REARGUARD (BACK)</h3>
                                         <div className="grid grid-cols-2 lg:grid-cols-2 gap-2 bg-zinc-900/50 p-2 border-2 border-dashed border-zinc-700 rounded-xl min-h-[160px] w-[340px]">
-                                            {heroes.filter(h => h.positionLine === 'REARGUARD').map(hero => {
-                                                const roleBadgeTone = hero.role === 'TANK' ? 'bg-amber-500/95' : hero.role === 'HEALER' ? 'bg-emerald-500/95' : 'bg-rose-500/95';
-                                                return (
-                                                    <div key={hero.name} className={`bg-zinc-900 border-2 border-zinc-700 p-2 rounded-lg flex flex-col gap-1 group shadow-lg transition-all hover:border-blue-500/50 w-[158px] h-[72px] relative overflow-hidden`}>
-                                                        <div className="absolute top-1 left-1 w-6 h-6 rounded border border-black/40 flex items-center justify-center scale-75 z-20 pointer-events-none">
-                                                            <div className={`absolute inset-0 ${roleBadgeTone} opacity-90 rounded`} />
-                                                            <span className="text-[10px] relative z-10">{ROLES[hero.role]?.icon}</span>
+                                            {heroes.filter(h => h.positionLine === 'REARGUARD').map(hero => (
+                                                <div key={hero.name} className="bg-zinc-900 border-2 border-zinc-700 p-2 rounded-lg flex flex-col gap-1 group shadow-lg transition-all hover:border-blue-500/50 w-[158px] h-[72px] relative overflow-hidden">
+                                                    <div className="flex items-center gap-2 relative z-10">
+                                                        <div className="w-10 h-10 rounded overflow-hidden bg-black shrink-0 border border-zinc-800 flex items-center justify-center relative">
+                                                            <img src={`assets/${hero.imageId}.png`} className="w-full h-full object-cover" />
                                                         </div>
-                                                        <div className="flex items-center gap-2 relative z-10">
-                                                            <div className="w-10 h-10 rounded overflow-hidden bg-black shrink-0 border border-zinc-800 flex items-center justify-center relative">
-                                                                <img 
-                                                                    src={`assets/${hero.imageId}.png`} 
-                                                                    className="w-full h-full object-cover" 
-                                                                    onError={(e) => { e.target.style.display = 'none'; }}
-                                                                />
-                                                                <span className="text-lg font-black italic text-zinc-700">{hero.name[0]}</span>
-                                                            </div>
-                                                            <div className="flex-1 min-w-0">
-                                                                <p className="font-black italic text-[10px] truncate uppercase text-zinc-200">{hero.name}</p>
-                                                                <button 
-                                                                    onClick={() => setHeroes(prev => prev.map(h => h.name === hero.name ? Object.assign(h.clone(), {positionLine: 'VANGUARD'}) : h))}
-                                                                    className="text-white bg-zinc-800 hover:bg-zinc-700 px-1.5 py-0.5 rounded-sm border border-zinc-700 text-[8px] font-black uppercase transition-colors"
-                                                                >
-                                                                    ← MOVE FRONT
-                                                                </button>
-                                                            </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="font-black italic text-[10px] truncate uppercase text-zinc-200">{hero.name}</p>
+                                                            <button onClick={() => setHeroes(prev => prev.map(h => h.name === hero.name ? Object.assign(h.clone(), {positionLine: 'VANGUARD'}) : h))} className="text-white bg-zinc-800 hover:bg-zinc-700 px-1.5 py-0.5 rounded-sm border border-zinc-700 text-[8px] font-black uppercase transition-colors">← MOVE FRONT</button>
                                                         </div>
                                                     </div>
-                                                );
-                                            })}
+                                                </div>
+                                            ))}
                                         </div>
                                     </div>
                                 </div>
-
                                 <button 
                                     onClick={() => finalizeDeployment(heroes)}
-                                    className="px-16 py-3 mb-6 bg-emerald-600 hover:bg-emerald-500 border-4 border-emerald-800 text-white font-black italic text-xl sm:text-2xl transition-all hover:scale-105 active:scale-95 shrink-0"
+                                    className="px-16 py-4 bg-emerald-600 border-4 border-emerald-800 text-white font-black italic text-2xl cursor-pointer hover:scale-105 transition-all shadow-[0_0_30px_rgba(16,185,129,0.3)] mt-8"
                                 >
                                     ENTER THE UNDERDELVE
                                 </button>
                             </div>
                         )}
 
-                        {activeTrapEvent && (
-                            <TrapEventModal 
-                                event={activeTrapEvent} 
-                                floor={floor}
-                                heroes={heroes}
-                                isLocked={!!activeTrapEvent}
-                                onResult={handleTrapResult} 
-                            />
-                        )}
-
-                        <div style={{ display: gamePhase === 'EXPLORATION' ? 'block' : 'none' }}>
+                        {gamePhase === 'EXPLORATION' && activeLayout && (
                             <ExplorationPhase
                                 floor={floor}
                                 heroes={heroes}
@@ -2461,6 +2547,14 @@
                                 setEnemies={setActiveMapEnemies}
                                 interactables={activeMapInteractables}
                                 setInteractables={setActiveMapInteractables}
+                                dungeonLayout={activeLayout}
+                                setDungeonLayout={setActiveLayout}
+                                tileBgs={activeBgs}
+                                setTileBgs={setActiveBgs}
+                                exploredCells={activeExplored}
+                                setExploredCells={setActiveExplored}
+                                playerPos={activePlayerPos}
+                                setPlayerPos={setActivePlayerPos}
                                 trapDamagePulse={activeTrapDamagePulse}
                                 onEncounter={handleEncounter}
                                 onNextFloor={handleNextFloor}
@@ -2471,7 +2565,18 @@
                                 openInventory={() => setGamePhase('INVENTORY')}
                                 isLocked={!!activeTrapEvent}
                             />
-                        </div>
+                        )}
+
+                        {activeTrapEvent && (
+                            <TrapEventModal 
+                                event={activeTrapEvent} 
+                                onResult={handleTrapResult} 
+                                floor={floor} 
+                                heroes={heroes} 
+                            />
+                        )}
+
+
 
                         {gamePhase === 'INVENTORY' && (
                             <InventoryPhase
