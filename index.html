@@ -14,7 +14,7 @@
     <script src="dungeon_generator.js"></script>
 
     <script type="text/babel">
-        const { useState, useEffect, useRef } = React;
+        const { useState, useEffect, useRef, useMemo } = React;
 
         // --- GAME ENGINE LOGIC ---
         class Item {
@@ -2087,6 +2087,12 @@
             const [heroes, setHeroes] = useState([]);
             const [draftPool, setDraftPool] = useState([]);
             const [runEndState, setRunEndState] = useState(null);
+            const draftTiltMap = useMemo(
+                () => Object.fromEntries(
+                    draftPool.map(hero => [hero.name, `${(Math.random() * 8 - 4).toFixed(2)}deg`])
+                ),
+                [draftPool]
+            );
 
             // Persistent Map State
             const [activeLayout, setActiveLayout] = useState(null);
@@ -2442,24 +2448,25 @@
                                         {draftPool.map(hero => {
                                             const isSelected = heroes.find(h => h.name === hero.name);
                                             return (
-                                                <div 
-                                                    key={hero.name}
-                                                    onClick={() => {
-                                                        if (isSelected) {
-                                                            setHeroes(prev => prev.filter(h => h.name !== hero.name));
-                                                        } else if (heroes.length < 3) {
-                                                            setHeroes(prev => [...prev, hero]);
-                                                        }
-                                                    }}
-                                                    className="relative cursor-pointer transition-all hover:scale-105 active:scale-95 group z-10"
-                                                >
-                                                    <Card unit={hero} isSelected={!!isSelected} />
-                                                    {isSelected && (
-                                                        <div className="absolute top-4 right-4 bg-amber-500 text-black text-[10px] font-black px-2 py-1 rounded shadow-2xl z-50 animate-in zoom-in">SELECTED</div>
-                                                    )}
-                                                    {!isSelected && (
-                                                        <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-all pointer-events-none rounded-xl" />
-                                                    )}
+                                                <div key={hero.name} style={{ transform: `rotate(${draftTiltMap[hero.name] || '0deg'})` }}>
+                                                    <div 
+                                                        onClick={() => {
+                                                            if (isSelected) {
+                                                                setHeroes(prev => prev.filter(h => h.name !== hero.name));
+                                                            } else if (heroes.length < 3) {
+                                                                setHeroes(prev => [...prev, hero]);
+                                                            }
+                                                        }}
+                                                        className="relative cursor-pointer transition-all hover:scale-105 active:scale-95 group z-10"
+                                                    >
+                                                        <Card unit={hero} isSelected={!!isSelected} />
+                                                        {isSelected && (
+                                                            <div className="absolute top-4 right-4 bg-amber-500 text-black text-[10px] font-black px-2 py-1 rounded shadow-2xl z-50 animate-in zoom-in">SELECTED</div>
+                                                        )}
+                                                        {!isSelected && (
+                                                            <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-all pointer-events-none rounded-xl" />
+                                                        )}
+                                                    </div>
                                                 </div>
                                             );
                                         })}
