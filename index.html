@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -442,6 +442,11 @@
             if (!unit) return null;
             const roleInfo = ROLES[unit.role] || ROLES.DPS;
             const unitSkills = unit.abilities || unit.skills || [];
+            const formatSkillText = (skill) => {
+                const amountLabel = skill.type === 'heal' ? 'Restore' : 'Deal';
+                const targetLabel = skill.type === 'heal' ? 'HP.' : 'damage.';
+                return `${amountLabel} ${skill.val} ${targetLabel}`;
+            };
             
             // Seeded random tilt for 'tabletop' feel (-3 to +3 degrees)
             const tiltAngle = getCardTiltAngle(unit);
@@ -490,8 +495,8 @@
                         <div className="absolute -top-7 -right-3 text-3xl z-40 drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)] animate-bounce-slow" style={{ animationDuration: '3s' }}>{'\uD83D\uDC51'}</div>
                     )}
 
-                    {/* MAIN IMAGE CONTAINER (Has Internal Overflow) */}
-                    <div className="h-[69%] w-full relative overflow-hidden bg-zinc-950 border-b border-zinc-800 rounded-t-xl">
+                    {/* MAIN IMAGE CONTAINER */}
+                    <div className="absolute inset-0 overflow-hidden bg-zinc-950 rounded-xl">
                         {/* FULL BLEED CHARACTER ART */}
                         <div className={`absolute inset-0 bg-zinc-950 ${unit.hitShake ? 'animate-hit-shake' : ''}`}>
                             <img 
@@ -512,7 +517,7 @@
                     </div>
 
                     {/* VERTICAL STAT COLUMN (RIGHT SIDE) */}
-                    <div className="absolute right-1.5 top-[34.5%] -translate-y-1/2 flex flex-col gap-1.5 z-40">
+                    <div className="absolute right-1.5 top-1 flex flex-col gap-1 z-40">
                         {/* ATK TOKEN */}
                         <div className="group relative flex items-center">
                             <div className="w-8 h-8 rounded-full bg-black/60 backdrop-blur-md border border-rose-500/50 flex flex-col items-center justify-center shadow-lg transform transition-transform group-hover:scale-110">
@@ -537,64 +542,20 @@
                     </div>
 
                     {/* ATTRIBUTE CAPSULES (TOP LEFT) */}
-                    <div className="absolute left-2 top-2 flex flex-col gap-1 z-40">
-                         {/* Role Icon */}
+                    <div className="absolute left-2 top-1 flex flex-col gap-1 z-40">
                          <div className={`w-7 h-7 rounded-lg border border-white/20 flex items-center justify-center shadow-lg backdrop-blur-md ${roleBadgeTone}`}>
                             <span className="text-xs drop-shadow-md">{roleInfo.icon}</span>
                         </div>
-                        {/* Trait Capsule (Overlay) */}
-                        {unit.trait && (
-                            <div className="group/trait relative">
-                                <div className="bg-amber-500/80 backdrop-blur-md text-black font-black text-[7px] px-1.5 py-0.5 rounded shadow-lg uppercase tracking-tight italic">
-                                    {unit.trait.name.charAt(0)}
-                                </div>
-                                <div className="absolute top-0 left-full ml-2 hidden w-48 rounded border border-zinc-700 bg-black/95 p-2 text-[9px] text-zinc-300 shadow-2xl backdrop-blur-md group-hover/trait:block z-50">
-                                    <div className="font-black text-amber-500 mb-1 uppercase tracking-widest leading-none">{unit.trait.name}</div>
-                                    {unit.trait.description}
-                                </div>
-                            </div>
-                        )}
                     </div>
-
-                    {/* SKILL STRIP */}
-                    {unitSkills.length > 0 && (
-                        <div className="absolute left-2 right-11 bottom-[22%] z-40 flex flex-col gap-1">
-                            {unitSkills.slice(0, 2).map((skill, index) => {
-                                const isHeal = skill.type === 'heal';
-                                const badgeTone = isHeal
-                                    ? 'border-emerald-400/60 bg-emerald-500/20 text-emerald-100'
-                                    : 'border-rose-400/60 bg-rose-500/20 text-rose-100';
-                                const tooltipAccent = isHeal ? 'text-emerald-400' : 'text-rose-400';
-                                const skillIcon = isHeal ? '\u2726' : '\u2694';
-                                const skillValueLabel = isHeal ? 'Heal' : 'Power';
-
-                                return (
-                                    <div key={`${skill.name}-${index}`} className="group/skill relative w-fit max-w-full">
-                                        <div data-skill-badge={skill.name} className={`inline-flex max-w-full items-center gap-1 rounded-md border px-1.5 py-0.5 text-[7px] font-black uppercase tracking-tight shadow-lg backdrop-blur-md ${badgeTone}`}>
-                                            <span className="shrink-0 text-[8px] leading-none">{skillIcon}</span>
-                                            <span className="truncate">{skill.name}</span>
-                                        </div>
-                                        <div data-skill-tooltip={skill.name} className="absolute bottom-full left-0 z-50 mb-2 hidden w-40 rounded border border-zinc-700 bg-black/95 p-2 text-[9px] text-zinc-300 shadow-2xl backdrop-blur-md group-hover/skill:block">
-                                            <div className={`mb-1 font-black uppercase tracking-widest leading-none ${tooltipAccent}`}>{skill.name}</div>
-                                            <div className="flex items-center justify-between text-[8px] font-black uppercase tracking-widest text-zinc-500">
-                                                <span>{skill.type}</span>
-                                                <span className={tooltipAccent}>{skillValueLabel} {skill.val}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    )}
 
                     {/* INDUSTRIAL FOOTER PLATE (NAME/ROLE) */}
                     <div className="absolute bottom-0 left-0 right-0 z-40 rounded-b-xl overflow-hidden">
                         {/* Industrial Border (The Grating) */}
                         <div className="h-1.5 w-full bg-[repeating-linear-gradient(90deg,transparent,transparent_2px,#3f3f46_2px,#3f3f46_4px)] opacity-60 border-y border-white/10" />
                         
-                        <div className="bg-gradient-to-t from-zinc-950 via-zinc-900/90 to-zinc-900/60 backdrop-blur-sm p-2 pt-3 flex flex-col items-center">
+                        <div className="bg-gradient-to-t from-zinc-950/95 via-zinc-900/80 to-zinc-900/40 backdrop-blur-[2px] px-2 py-1.5 flex flex-col">
                              {/* HP BAR (INTEGRATED) */}
-                            <div className="w-full h-1 bg-black/80 rounded-full border border-white/5 overflow-hidden relative mb-1.5">
+                            <div className="w-full h-1 bg-black/80 rounded-full border border-white/5 overflow-hidden relative mb-1">
                                 <div
                                     style={{ width: `${((unit.hp || unit.maxHp || 1) / (unit.maxHp || 1)) * 100}%` }}
                                     className="absolute left-0 top-0 h-full bg-gradient-to-r from-red-600 to-rose-500 shadow-[0_0_8px_rgba(225,29,72,0.4)]"
@@ -607,12 +568,33 @@
                                 )}
                             </div>
 
-                            <h3 className="text-[13px] font-black text-white italic tracking-tight leading-none uppercase drop-shadow-lg mb-0.5">
+                            <h3 className="text-[11px] font-black text-white italic tracking-tight leading-none uppercase drop-shadow-lg mb-0 text-center">
                                 {unit.name || 'Champion'}
                             </h3>
-                            <p className="text-[10px] font-black text-zinc-300 leading-none opacity-90">
-                                {roleInfo.icon}
-                            </p>
+
+                            <div className="mt-0.5 rounded-md border border-zinc-800/80 bg-black/35 px-2 py-1 space-y-0.5">
+                                {unitSkills.slice(0, 2).map((skill, index) => (
+                                    <div key={`${skill.name}-${index}`} className="flex items-start gap-1.5 text-[8px] leading-tight">
+                                        <span className={`shrink-0 font-black tracking-wide ${skill.type === 'heal' ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                            {ICONS.skill}
+                                        </span>
+                                        <p className="text-zinc-200">
+                                            <span className="font-black text-white">{skill.name}:</span>{' '}
+                                            <span className="text-zinc-300">{formatSkillText(skill)}</span>
+                                        </p>
+                                    </div>
+                                ))}
+
+                                {unit.trait && (
+                                    <div className="border-t border-amber-500/20 pt-0.5 flex items-start gap-1.5 text-[8px] leading-tight">
+                                        <span className="shrink-0 font-black tracking-wide text-amber-400">{ICONS.trait}</span>
+                                        <p className="text-zinc-200">
+                                            <span className="font-black text-white">{unit.trait.name}:</span>{' '}
+                                            <span className="text-zinc-300">{unit.trait.description}</span>
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
 
