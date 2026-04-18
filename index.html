@@ -1972,12 +1972,16 @@
             );
         };
 
-        const LeadershipPhase = ({ draftHeroes, onFinalize }) => {
+        const LeadershipPhase = ({ draftHeroes, onFinalize, draftBg }) => {
             const [selected, setSelected] = useState(null);
 
             return (
-                <div className="h-screen w-full bg-zinc-950 flex flex-col items-center p-4 sm:p-4 text-white animate-in zoom-in duration-700 overflow-hidden relative">
-                    <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1533154683836-84ea7a0bc310?q=80&w=2574&auto=format&fit=crop')] bg-cover opacity-10 grayscale brightness-50" />
+                <div className="h-screen w-full bg-zinc-950 flex flex-col items-center p-4 sm:p-4 text-white animate-in slide-in-from-bottom-8 duration-500 overflow-hidden relative">
+                    {/* THEMED BACKGROUND */}
+                    {draftBg && (
+                        <div className="absolute inset-0 z-0 bg-cover bg-center opacity-30 brightness-[0.4] grayscale-[0.3]" style={{ backgroundImage: `url(${draftBg})` }} />
+                    )}
+                    <div className="absolute inset-0 bg-radial-vignette opacity-80 z-0" />
                     
                     <div className="relative z-10 text-center mb-4 sm:mb-6">
                         <h2 className="text-3xl sm:text-4xl font-black italic text-white mb-1 drop-shadow-[0_0_30px_rgba(255,255,255,0.2)]">APPOINT YOUR <span className="text-amber-500">LEADER</span></h2>
@@ -2086,6 +2090,7 @@
             ]);
             const [heroes, setHeroes] = useState([]);
             const [draftPool, setDraftPool] = useState([]);
+            const [draftBg, setDraftBg] = useState(null);
             const [runEndState, setRunEndState] = useState(null);
 
             // Persistent Map State
@@ -2201,6 +2206,11 @@
             const startDraft = () => {
                 const pool = [...HERO_ROSTER].sort(() => Math.random() - 0.5).slice(0, 5);
                 setDraftPool(pool);
+                
+                // Randomize background from assets
+                const bgIdx = Math.floor(Math.random() * 3) + 1;
+                setDraftBg(`assets/bg_draft_${bgIdx}.png`);
+
                 setHeroes([]);
                 setFloor(1);
                 setRunEndState(null);
@@ -2433,11 +2443,17 @@
 
                         {gamePhase === 'DRAFT' && (
                             <div className="h-screen w-full bg-zinc-950 flex flex-col items-center p-4 sm:p-4 text-white animate-in slide-in-from-bottom-8 duration-500 overflow-hidden relative">
-                                <div className="text-center mb-4 sm:mb-6">
+                                {/* THEMED BACKGROUND */}
+                                {draftBg && (
+                                    <div className="absolute inset-0 z-0 bg-cover bg-center opacity-30 brightness-[0.4] grayscale-[0.3]" style={{ backgroundImage: `url(${draftBg})` }} />
+                                )}
+                                <div className="absolute inset-0 bg-radial-vignette opacity-80 z-0" />
+
+                                <div className="text-center mb-4 sm:mb-6 z-10">
                                     <h2 className="text-3xl sm:text-4xl font-black italic text-amber-500 mb-1">MUSTER YOUR SYNDICATE</h2>
                                     <p className="text-zinc-500 text-[10px] sm:text-xs tracking-widest uppercase">Select exactly 3 champions to enlist for this run.</p>
                                 </div>
-                                <div className="flex-1 w-full max-w-[1400px] px-4 mb-4">
+                                <div className="flex-1 w-full max-w-[1400px] px-4 mb-4 z-10">
                                     <div className="flex flex-wrap justify-center gap-6 py-8">
                                         {draftPool.map(hero => {
                                             const isSelected = heroes.find(h => h.name === hero.name);
@@ -2482,6 +2498,7 @@
                             <LeadershipPhase 
                                 draftHeroes={heroes} 
                                 onFinalize={finalizeLeadership} 
+                                draftBg={draftBg}
                             />
                         )}
 
