@@ -414,6 +414,7 @@
         const Card = ({ unit, party = [], isSelected = false }) => {
             if (!unit) return null;
             const roleInfo = ROLES[unit.role] || ROLES.DPS;
+            const heroSkillLabel = unit.trait?.name || unit.skills?.[0]?.name || unit.role || 'Operative';
             
             // Seeded random tilt for 'tabletop' feel (-3 to +3 degrees)
             const tiltAngle = getCardTiltAngle(unit);
@@ -462,25 +463,22 @@
                         <div className="absolute -top-7 -right-3 text-3xl z-40 drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)] animate-bounce-slow" style={{ animationDuration: '3s' }}>👑</div>
                     )}
 
-                    {/* MAIN IMAGE CONTAINER (Has Internal Overflow) */}
-                    <div className="h-[170px] w-full relative overflow-hidden bg-zinc-950 border-b border-zinc-800 rounded-t-xl">
-                        {/* FULL BLEED CHARACTER ART */}
-                        <div className={`absolute inset-0 bg-zinc-950 ${unit.hitShake ? 'animate-hit-shake' : ''}`}>
-                            <img 
-                                src={`assets/${unit.imageId || `hero_${unit.name?.toLowerCase() || 'unknown'}`}.png`} 
-                                alt={unit.name} 
-                                className={`w-full h-full object-cover object-top transition-transform duration-500
-                                    ${unit.isPopping ? 'scale-125 -translate-y-4 brightness-125 z-50 animate-frame-pop' : 'scale-100'}`} 
-                            />
-                            {/* THEMATIC OVERLAYS */}
-                            <div className={`absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/30`} />
-                            
-                            {unit.hp <= 0 && (
-                                <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                                    <span className="text-red-600 font-black text-xl tracking-tighter italic uppercase drop-shadow-[0_0_10px_rgba(0,0,0,1)]">SLAIN</span>
-                                </div>
-                            )}
-                        </div>
+                    {/* FULL-BLEED CHARACTER ART */}
+                    <div className={`absolute inset-0 rounded-xl overflow-hidden bg-zinc-950 ${unit.hitShake ? 'animate-hit-shake' : ''}`}>
+                        <img
+                            src={`assets/${unit.imageId || `hero_${unit.name?.toLowerCase() || 'unknown'}`}.png`}
+                            alt={unit.name}
+                            className={`w-full h-full object-cover object-top transition-transform duration-500
+                                ${unit.isPopping ? 'scale-125 -translate-y-4 brightness-125 z-50 animate-frame-pop' : 'scale-100'}`}
+                        />
+                        {/* Readability gradient for bottom text plate */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-black/20" />
+
+                        {unit.hp <= 0 && (
+                            <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                                <span className="text-red-600 font-black text-xl tracking-tighter italic uppercase drop-shadow-[0_0_10px_rgba(0,0,0,1)]">SLAIN</span>
+                            </div>
+                        )}
                     </div>
 
                     {/* VERTICAL STAT COLUMN (RIGHT SIDE) */}
@@ -514,18 +512,6 @@
                          <div className={`w-7 h-7 rounded-lg border border-white/20 flex items-center justify-center shadow-lg backdrop-blur-md ${roleBadgeTone}`}>
                             <span className="text-xs drop-shadow-md">{roleInfo.icon}</span>
                         </div>
-                        {/* Trait Capsule (Overlay) */}
-                        {unit.trait && (
-                            <div className="group relative">
-                                <div className="bg-amber-500/80 backdrop-blur-md text-black font-black text-[7px] px-1.5 py-0.5 rounded shadow-lg uppercase tracking-tight italic">
-                                    {unit.trait.name.charAt(0)}
-                                </div>
-                                <div className="absolute top-0 left-full ml-2 w-48 p-2 bg-black/95 text-[9px] text-zinc-300 rounded border border-zinc-700 hidden group-hover:block z-50 shadow-2xl backdrop-blur-md">
-                                    <div className="font-black text-amber-500 mb-1 uppercase tracking-widest leading-none">{unit.trait.name}</div>
-                                    {unit.trait.description}
-                                </div>
-                            </div>
-                        )}
                     </div>
 
                     {/* INDUSTRIAL FOOTER PLATE (NAME/ROLE) */}
@@ -533,7 +519,7 @@
                         {/* Industrial Border (The Grating) */}
                         <div className="h-1.5 w-full bg-[repeating-linear-gradient(90deg,transparent,transparent_2px,#3f3f46_2px,#3f3f46_4px)] opacity-60 border-y border-white/10" />
                         
-                        <div className="bg-gradient-to-t from-zinc-950 via-zinc-900/90 to-zinc-900/60 backdrop-blur-sm p-2 pt-3 flex flex-col items-center">
+                        <div className="bg-gradient-to-t from-black/90 via-black/55 to-transparent backdrop-blur-[1px] p-2 pt-3 flex flex-col items-center">
                              {/* HP BAR (INTEGRATED) */}
                             <div className="w-full h-1 bg-black/80 rounded-full border border-white/5 overflow-hidden relative mb-1.5">
                                 <div
@@ -552,7 +538,7 @@
                                 {unit.name || 'Champion'}
                             </h3>
                             <p className="text-[8px] font-black text-zinc-400 tracking-[0.2em] uppercase leading-none opacity-80">
-                                {unit.role || 'Operative'}
+                                {heroSkillLabel}
                             </p>
                         </div>
                     </div>
