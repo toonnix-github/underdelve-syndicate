@@ -415,6 +415,12 @@
             if (!unit) return null;
             const roleInfo = ROLES[unit.role] || ROLES.DPS;
             const heroSkillLabel = unit.trait?.name || unit.skills?.[0]?.name || unit.role || 'Operative';
+            const cardSkills = (unit.skills || []).slice(0, 3);
+            const getSkillIcon = (skill = {}) => {
+                if (skill.type === 'heal') return '✚';
+                if (skill.type === 'damage') return '⚔';
+                return '✦';
+            };
             
             // Seeded random tilt for 'tabletop' feel (-3 to +3 degrees)
             const tiltAngle = getCardTiltAngle(unit);
@@ -512,7 +518,37 @@
                          <div className={`w-7 h-7 rounded-lg border border-white/20 flex items-center justify-center shadow-lg backdrop-blur-md ${roleBadgeTone}`}>
                             <span className="text-xs drop-shadow-md">{roleInfo.icon}</span>
                         </div>
+                        {/* Passive Tooltip Trigger (non-banner) */}
+                        {unit.trait && (
+                            <div className="group relative">
+                                <div className="w-7 h-5 rounded-md border border-amber-300/50 bg-black/55 backdrop-blur-sm text-[9px] text-amber-300 font-black flex items-center justify-center shadow-lg">
+                                    ✦
+                                </div>
+                                <div className="absolute top-0 left-full ml-2 w-44 p-2 bg-black/95 text-[9px] text-zinc-300 rounded border border-zinc-700 hidden group-hover:block z-50 shadow-2xl">
+                                    <div className="font-black text-amber-500 mb-1 uppercase tracking-widest leading-none">{unit.trait.name}</div>
+                                    {unit.trait.description}
+                                </div>
+                            </div>
+                        )}
                     </div>
+
+                    {/* SKILL STACK (ABOVE INDUSTRIAL LINE) */}
+                    {cardSkills.length > 0 && (
+                        <div className="absolute bottom-[58px] left-2 right-10 z-40 flex flex-col gap-1">
+                            {cardSkills.map((skill, idx) => (
+                                <div key={`${skill.name}-${idx}`} className="group relative">
+                                    <div className="bg-black/55 border border-white/10 rounded px-1.5 py-0.5 text-[8px] font-black text-zinc-100 uppercase tracking-tight flex items-center justify-between gap-2">
+                                        <span className="truncate">{getSkillIcon(skill)} {skill.name}</span>
+                                        <span className={`${skill.type === 'heal' ? 'text-emerald-300' : 'text-rose-300'}`}>{skill.val ?? 0}</span>
+                                    </div>
+                                    <div className="absolute bottom-full mb-1 left-0 w-44 p-2 bg-black/95 text-[9px] text-zinc-300 rounded border border-zinc-700 hidden group-hover:block z-50 shadow-2xl">
+                                        <div className="font-black text-cyan-400 mb-1 uppercase tracking-wide leading-none">{skill.name}</div>
+                                        <div>{skill.type === 'heal' ? 'Healing' : 'Damage'} skill • Power {skill.val ?? 0}</div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
 
                     {/* INDUSTRIAL FOOTER PLATE (NAME/ROLE) */}
                     <div className="absolute bottom-0 left-0 right-0 z-40 rounded-b-xl overflow-hidden">
