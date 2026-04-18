@@ -405,8 +405,10 @@
                 hash = ((hash << 5) - hash) + seedSource.charCodeAt(i);
                 hash |= 0;
             }
-            // Stable tilt from -3 to +3 degrees so cards can lean both left and right.
-            return ((Math.abs(hash) % 61) / 10) - 3;
+            // Stable tilt with clear visibility and bidirectional lean.
+            const direction = (((hash ^ (hash >>> 16)) & 1) === 0) ? -1 : 1;
+            const magnitude = 1 + ((Math.abs(hash) % 31) / 10); // 1.0 -> 4.0
+            return Number((direction * magnitude).toFixed(2));
         };
 
         const Card = ({ unit, party = [], isSelected = false }) => {
