@@ -2218,19 +2218,6 @@
                 setActivePlayerPos(data.playerPos);
             };
 
-            const syncCurrentFloor = () => {
-                const currentData = {
-                    layout: activeLayout,
-                    bgs: activeBgs,
-                    interactables: activeMapInteractables,
-                    enemies: activeMapEnemies,
-                    explored: activeExplored,
-                    playerPos: activePlayerPos
-                };
-                setFloorHistory(prev => ({ ...prev, [floor]: currentData }));
-                return currentData;
-            };
-
             const startDraft = () => {
                 const pool = [...HERO_ROSTER].sort(() => Math.random() - 0.5).slice(0, 5);
                 setDraftPool(pool);
@@ -2481,7 +2468,7 @@
                                     <h2 className="text-3xl sm:text-4xl font-black italic text-amber-500 mb-1">MUSTER YOUR SYNDICATE</h2>
                                     <p className="text-zinc-500 text-[10px] sm:text-xs tracking-widest uppercase">Select exactly 3 champions to enlist for this run.</p>
                                 </div>
-                                <div className="flex-1 w-full max-w-[1400px] px-4 mb-4 z-10">
+                                <div className="flex-1 w-full max-w-[1400px] px-4 mb-4 z-10 overflow-y-auto">
                                     <div className="flex flex-wrap justify-center gap-6 py-8">
                                         {draftPool.map(hero => {
                                             const isSelected = heroes.find(h => h.name === hero.name);
@@ -2513,7 +2500,7 @@
                                 <button 
                                     disabled={heroes.length !== 3}
                                     onClick={() => finalizeDraft(heroes)}
-                                    className={`px-12 py-3 mb-4 font-black italic text-xl border-4 transition-all shrink-0
+                                    className={`sticky bottom-3 z-30 px-12 py-3 mb-4 font-black italic text-xl border-4 transition-all shrink-0
                                         ${heroes.length === 3 
                                             ? 'bg-amber-600 border-amber-800 text-white cursor-pointer hover:scale-105' 
                                             : 'bg-zinc-800 border-zinc-700 text-zinc-600 cursor-not-allowed opacity-50'}`}
