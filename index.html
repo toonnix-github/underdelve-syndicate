@@ -1985,6 +1985,13 @@
             );
         };
 
+        const getSelectCardInteractionClass = (isSelected) =>
+            `relative cursor-pointer transition-all duration-300 group z-10 ${
+                isSelected
+                    ? 'scale-105'
+                    : 'hover:scale-105 active:scale-95'
+            }`;
+
         const LeadershipPhase = ({ draftHeroes, onFinalize, draftBg }) => {
             const [selected, setSelected] = useState(null);
 
@@ -2010,7 +2017,7 @@
                                 <div 
                                     key={hero.name}
                                     onClick={() => setSelected(hero.name)}
-                                    className={`relative transition-all duration-300 transform cursor-pointer
+                                    className={`relative transition-all duration-300 transform
                                         ${isSelected ? 'scale-100 z-20' : 'scale-90 opacity-70 hover:opacity-100 z-10 hover:-translate-y-2'}`}
                                 >
                                     {isSelected && (
@@ -2019,7 +2026,9 @@
                                     
                                     <div className={`p-1 rounded-sm transition-all ${isSelected ? 'bg-amber-500/20' : 'bg-transparent'}`}>
                                         <div className="transform scale-90 origin-top">
-                                            <Card unit={hero} isSelected={isSelected} />
+                                            <div className={getSelectCardInteractionClass(isSelected)}>
+                                                <Card unit={hero} isSelected={isSelected} />
+                                            </div>
                                         </div>
                                     </div>
 
@@ -2486,7 +2495,7 @@
                                                                 setHeroes(prev => [...prev, hero]);
                                                             }
                                                         }}
-                                                        className="relative cursor-pointer transition-all hover:scale-105 active:scale-95 group z-10"
+                                                        className={getSelectCardInteractionClass(!!isSelected)}
                                                     >
                                                         <Card unit={hero} isSelected={!!isSelected} />
                                                         {isSelected && (
