@@ -464,7 +464,7 @@
                     data-unit-id={unit.id}
                     style={{ transform: `rotate(${tiltAngle}deg)` }}
                     className={`relative w-[170px] h-[245px] bg-[#0c0c0c] border-2 rounded-xl flex flex-col group transition-all duration-300 shadow-[0_20px_50px_rgba(0,0,0,0.85)]
-                        ${isSelected ? 'ring-4 ring-amber-500 shadow-[0_24px_70px_rgba(245,158,11,0.55)] border-amber-400 z-50 scale-110' : 'border-zinc-800 hover:border-zinc-600 hover:scale-[1.02]'}
+                        ${isSelected ? 'ring-4 ring-amber-500 shadow-[0_24px_70px_rgba(245,158,11,0.55)] border-amber-400 z-50 scale-100' : 'border-zinc-800 hover:border-zinc-600 hover:scale-[1.02]'}
                         ${unit.hp <= 0 ? 'grayscale opacity-60' : ''}
                         ${unit.hitShake ? 'animate-hit-shake' : ''}
                         ${unit.isActing ? 'ring-2 ring-white/50 z-30' : ''}
@@ -2045,7 +2045,7 @@
                                     key={hero.name}
                                     onClick={() => setSelected(hero.name)}
                                     className={`relative transition-all duration-300 transform
-                                        ${isSelected ? 'scale-110 z-20' : 'scale-90 opacity-70 hover:opacity-100 z-10 hover:-translate-y-2'}`}
+                                        ${isSelected ? 'scale-100 z-20' : 'scale-90 opacity-70 hover:opacity-100 z-10 hover:-translate-y-2'}`}
                                 >
                                     {isSelected && (
                                         <div className="absolute -top-12 left-1/2 -translate-x-1/2 animate-bounce text-5xl z-30">👑</div>
@@ -2511,7 +2511,7 @@
                                                                 return [...prev.slice(1), hero];
                                                             });
                                                         }}
-                                                        className={getSelectCardInteractionClass(!!isSelected, 'scale-[1.2]')}
+                                                        className={getSelectCardInteractionClass(!!isSelected, 'scale-[1.08]')}
                                                     >
                                                         <Card unit={hero} isSelected={!!isSelected} />
                                                         {isSelected && (
