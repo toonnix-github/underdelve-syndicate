@@ -550,9 +550,9 @@
                     {/* INDUSTRIAL FOOTER PLATE (NAME/ROLE) */}
                     <div className="absolute bottom-0 left-0 right-0 z-40 rounded-b-xl">
                         {/* Industrial Border (The Grating) */}
-                        <div className="h-1.5 w-full bg-[repeating-linear-gradient(90deg,transparent,transparent_2px,#3f3f46_2px,#3f3f46_4px)] opacity-60 border-y border-white/10" />
+                        <div className="h-1.5 w-full bg-[repeating-linear-gradient(90deg,transparent,transparent_2px,#3f3f46_2px,#3f3f46_4px)] opacity-60 border-y border-white/10 rounded-b-sm" />
                         
-                        <div className="bg-gradient-to-t from-black/90 via-black/55 to-transparent backdrop-blur-[1px] p-2 pt-3 flex flex-col items-center">
+                        <div className="bg-gradient-to-t from-black/90 via-black/55 to-transparent backdrop-blur-[1px] p-2 pt-3 flex flex-col items-center rounded-b-xl">
                              {/* HP BAR (INTEGRATED) */}
                             <div className="w-full h-1 bg-black/80 rounded-full border border-white/5 overflow-hidden relative mb-1.5">
                                 <div
@@ -567,15 +567,15 @@
                                 )}
                             </div>
 
-                            <h3 className="text-[13px] font-black text-white italic tracking-tight leading-none uppercase drop-shadow-lg mb-0.5">
+                            <h3 className="text-[10px] font-black text-white italic tracking-tight leading-none uppercase drop-shadow-lg mb-0.5">
                                 {unit.name || 'Champion'}
                             </h3>
-                            <p className="text-[8px] font-black text-zinc-400 tracking-[0.2em] uppercase leading-none opacity-80">
+                            <p className="text-[6px] font-black text-zinc-400 tracking-[0.2em] uppercase leading-none opacity-80">
                                 <span className="peer inline-flex cursor-help">
                                     {heroSkillLabel}
                                 </span>
                                 {unit.trait && (
-                                    <span className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-52 p-2 bg-black/95 text-[9px] text-zinc-300 rounded border border-zinc-700 hidden peer-hover:block z-[70] normal-case tracking-normal shadow-2xl pointer-events-none">
+                                    <span className="absolute top-full mt-1 left-1/2 -translate-x-1/2 w-52 p-2 bg-black/95 text-[9px] text-zinc-300 rounded border border-zinc-700 hidden peer-hover:block z-[70] normal-case tracking-normal shadow-2xl pointer-events-none">
                                         <span className="font-black text-amber-500 mb-1 uppercase tracking-widest leading-none block">{unit.trait.name}</span>
                                         <span>{unit.trait.description}</span>
                                     </span>
