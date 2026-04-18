@@ -1,5 +1,6 @@
 # Underdelve Syndicate - Git Ignore
 output/
+output/screenshots/
 *.log
 .DS_Store
 Thumbs.db

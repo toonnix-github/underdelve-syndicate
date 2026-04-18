@@ -1,0 +1,12 @@
+{
+  "name": "underdelve-syndicate",
+  "private": true,
+  "scripts": {
+    "dev": "http-server . -p 8000 -c-1 --silent",
+    "screenshot": "node scripts/capture_screenshot.mjs"
+  },
+  "devDependencies": {
+    "http-server": "^14.1.1",
+    "playwright": "^1.54.2"
+  }
+}
