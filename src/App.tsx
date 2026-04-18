@@ -66,7 +66,7 @@ const App: React.FC = () => {
                 proto.pwr,
                 proto.def,
                 proto.img,
-                [{ name: 'Strike', val: 12, type: 'damage' }],
+                [{ id: 'e_strike', name: 'Strike', description: 'Basic physical attack.', val: 12, type: 'damage', targetType: 'single' }],
                 i === 0 ? 'VANGUARD' : 'REARGUARD',
                 false
             );

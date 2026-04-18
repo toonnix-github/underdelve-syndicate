@@ -1,15 +1,56 @@
-export const HERO_ROSTER = [
-    { name: 'Valerius', hp: 140, atk: 8, def: 18, spd: 10, role: 'TANK', imageId: 'hero_valerius', trait: {id: 'iron_aura', name: 'Aura of Iron', description: 'Global 10% damage reduction for party'}, skills: [{name: 'Shield Slam', val: 12, type: 'damage'}, {name: 'Fortify', val: 15, type: 'heal'}] },
-    { name: 'Slyn', hp: 75, atk: 22, def: 6, spd: 28, role: 'DPS', imageId: 'hero_slyn', trait: {id: 'infiltrator', name: 'Infiltrator', description: 'Can target any enemy, ignoring Vanguard'}, skills: [{name: 'Backstab', val: 35, type: 'damage'}, {name: 'Shadow Dash', val: 20, type: 'damage'}] },
-    { name: 'Morgra', hp: 95, atk: 12, def: 12, spd: 15, role: 'HEALER', imageId: 'hero_morgra', trait: {id: 'blood_pact', name: 'Blood Pact', description: '+40% Heal power, but costs 5 HP per cast'}, skills: [{name: 'Blood Mend', val: 20, type: 'heal'}, {name: 'Spirit Link', val: 30, type: 'heal'}] },
-    { name: 'Krix', hp: 80, atk: 18, def: 10, spd: 22, role: 'DPS', imageId: 'hero_krix', trait: {id: 'overclock', name: 'Overclock', description: '15% chance for instant turn at end of turn'}, skills: [{name: 'Gatling Blast', val: 25, type: 'damage'}, {name: 'Overheat', val: 35, type: 'damage'}] },
-    { name: 'Draka', hp: 160, atk: 12, def: 20, spd: 6, role: 'TANK', imageId: 'hero_draka', trait: {id: 'dragon_scales', name: 'Dragon Scales', description: 'Reflect 6 damage when hit'}, skills: [{name: 'Dragon Breath', val: 20, type: 'damage'}, {name: 'Roar', val: 10, type: 'damage'}] },
-    { name: 'Vex', hp: 85, atk: 24, def: 8, spd: 18, role: 'DPS', imageId: 'hero_vex', trait: {id: 'soul_reaper', name: 'Soul Reaper', description: 'Heal 10 HP on enemy death'}, skills: [{name: 'Soul Siphon', val: 28, type: 'damage'}, {name: 'Death Nova', val: 40, type: 'damage'}] },
-    { name: 'Leora', hp: 70, atk: 26, def: 5, spd: 25, role: 'DPS', imageId: 'hero_leora', trait: {id: 'eagle_eye', name: 'Eagle Eye', description: 'Ignore 50% of target Defense'}, skills: [{name: 'Sniper Shot', val: 45, type: 'damage'}, {name: 'Wind Arrow', val: 25, type: 'damage'}] },
-    { name: 'Grimm', hp: 110, atk: 14, def: 15, spd: 12, role: 'TANK', imageId: 'hero_grimm', trait: {id: 'undying', name: 'Undying', description: 'Survive lethal damage once per battle'}, skills: [{name: 'Tremor', val: 18, type: 'damage'}, {name: 'Stone Wall', val: 20, type: 'heal'}] },
-    { name: 'Lira', hp: 85, atk: 10, def: 10, spd: 20, role: 'HEALER', imageId: 'hero_lira', trait: {id: 'inspire', name: 'Inspire', description: '+5% global ATB speed for party'}, skills: [{name: 'Serenade', val: 25, type: 'heal'}, {name: 'Song of Hope', val: 35, type: 'heal'}] },
-    { name: 'Borum', hp: 100, atk: 20, def: 12, spd: 8, role: 'DPS', imageId: 'hero_borum', trait: {id: 'sunder', name: 'Sunder', description: 'Reduces target Defense by 5 on hit'}, skills: [{name: 'Hammer Crash', val: 30, type: 'damage'}, {name: 'Forge Fire', val: 25, type: 'damage'}] },
-    { name: 'Valthea', hp: 120, atk: 10, def: 15, spd: 12, role: 'TANK', imageId: 'hero_valthea', trait: {id: 'vanguard_stance', name: 'Vanguard Stance', description: '+10% Defense in Vanguard position'}, skills: [{name: 'Vanguard Strike', val: 15, type: 'damage'}, {name: 'Bulwark', val: 20, type: 'heal'}] },
-    { name: 'Elara', hp: 70, atk: 14, def: 15, spd: 6, role: 'HEALER', imageId: 'hero_elara', trait: {id: 'moonlight_rain', name: 'Moonlight Rain', description: '25% chance for heals to target all allies'}, skills: [{name: 'Holy Rain', val: 25, type: 'heal'}, {name: 'Divine Shield', val: 15, type: 'heal'}] },
-    { name: 'Kael', hp: 85, atk: 18, def: 22, spd: 10, role: 'DPS', imageId: 'hero_kael', trait: {id: 'steady_aim', name: 'Steady Aim', description: '+25% damage to Rearguard targets'}, skills: [{name: 'Twin Arrow', val: 30, type: 'damage'}, {name: 'Steady Aim', val: 35, type: 'damage'}] }
+import { Ability, Trait, Role } from '../types';
+
+export interface HeroTemplate {
+    name: string;
+    hp: number;
+    atk: number;
+    def: number;
+    spd: number;
+    role: Role;
+    imageId: string;
+    trait: Trait;
+    skills: Ability[];
+}
+
+export const HERO_ROSTER: HeroTemplate[] = [
+    { 
+        name: 'Valerius', hp: 140, atk: 8, def: 18, spd: 10, role: 'TANK', imageId: 'hero_valerius', 
+        trait: { id: 'iron_aura', name: 'Aura of Iron', description: 'Provides 10% global damage reduction to the entire party.' }, 
+        skills: [
+            { id: 'v_s1', name: 'Shield Slam', description: 'Deals 100% damage to a single target.', val: 12, type: 'damage', targetType: 'single' },
+            { id: 'v_s2', name: 'Guardian Pulse', description: 'Rare chance to heal the entire party.', val: 15, type: 'heal', targetType: 'all', procChance: 0.12 }
+        ] 
+    },
+    { 
+        name: 'Slyn', hp: 75, atk: 22, def: 6, spd: 28, role: 'DPS', imageId: 'hero_slyn', 
+        trait: { id: 'infiltrator', name: 'Infiltrator', description: 'Ignores Vanguard protection; can strike any enemy freely.' }, 
+        skills: [
+            { id: 's_s1', name: 'Backstab', description: 'Deals 100% damage to a single target.', val: 35, type: 'damage', targetType: 'single' },
+            { id: 's_s2', name: 'Shadow Rain', description: 'Chance to pepper all enemies with needles.', val: 20, type: 'damage', targetType: 'all', procChance: 0.15 }
+        ] 
+    },
+    { 
+        name: 'Morgra', hp: 95, atk: 12, def: 12, spd: 15, role: 'HEALER', imageId: 'hero_morgra', 
+        trait: { id: 'blood_pact', name: 'Blood Pact', description: 'Heals are 40% stronger, but she loses 5 HP per cast.' }, 
+        skills: [
+            { id: 'm_s1', name: 'Blood Mend', description: 'High-potency single target heal.', val: 20, type: 'heal', targetType: 'single' },
+            { id: 'm_s2', name: 'Sanguine Burst', description: 'Rare chance to mend all allies simultaneously.', val: 25, type: 'heal', targetType: 'all', procChance: 0.12 }
+        ] 
+    },
+    { 
+        name: 'Kael', hp: 85, atk: 18, def: 22, spd: 12, role: 'DPS', imageId: 'hero_kael', 
+        trait: { id: 'steady_aim', name: 'Steady Aim', description: 'Gains +25% damage bonus when targeting enemies in the Rearguard.' }, 
+        skills: [
+            { id: 'k_s1', name: 'Twin Arrow', description: 'Precision physical strike.', val: 30, type: 'damage', targetType: 'single' },
+            { id: 'k_s2', name: 'Rain of Steel', description: 'Chance to loose a volley upon all opponents.', val: 25, type: 'damage', targetType: 'all', procChance: 0.15 }
+        ] 
+    },
+    { 
+        name: 'Borum', hp: 100, atk: 20, def: 12, spd: 8, role: 'DPS', imageId: 'hero_borum', 
+        trait: { id: 'sunder', name: 'Sunder', description: 'Strikes reduce the target\'s Defense by 5 permanently.' }, 
+        skills: [
+            { id: 'b_s1', name: 'Hammer Crash', description: 'Massive single-target blunt impact.', val: 30, type: 'damage', targetType: 'single' },
+            { id: 'b_s2', name: 'Earthquake', description: 'Chance to strike the entire enemy front row.', val: 28, type: 'damage', targetType: 'row', procChance: 0.12 }
+        ] 
+    }
 ];

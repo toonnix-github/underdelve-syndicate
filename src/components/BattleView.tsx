@@ -1,9 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Combatant } from '../models/Combatant';
 import { useBattle, UnitIntent, ActiveAction } from '../hooks/useBattle';
 import { CombatantCard } from './CombatantCard';
 import { Button } from './UI';
-import { Swords, Info, AlertCircle } from 'lucide-react';
+import { Swords, Info, Play, Pause } from 'lucide-react';
 import { clsx } from 'clsx';
 
 interface BattleViewProps {
@@ -15,7 +15,8 @@ interface BattleViewProps {
 
 export const BattleView: React.FC<BattleViewProps> = ({ heroes: initialHeroes, enemies: initialEnemies, onVictory, onDefeat }) => {
     const battleRef = useRef<HTMLDivElement>(null);
-    const [arcSystem, setArcSystem] = useState<Map<string, {x1: number, y1: number, x2: number, y2: number}>>(new Map());
+    const [arcSystem, setArcSystem] = useState<Map<string, {x: number, y: number}>>(new Map());
+    const [countdown, setCountdown] = useState<number | null>(3);
 
     const { 
         heroes, 
@@ -28,54 +29,62 @@ export const BattleView: React.FC<BattleViewProps> = ({ heroes: initialHeroes, e
         intents
     } = useBattle(initialHeroes, initialEnemies);
 
+    // Random Background selector (one per battle encounter)
+    const battleBg = useMemo(() => {
+        const bgIdx = Math.floor(Math.random() * 4) + 1;
+        return `assets/battle-bgs/bg_${bgIdx}.png`;
+    }, []);
+
+    // Initial Countdown logic
+    useEffect(() => {
+        if (!isPaused) {
+            setCountdown(null);
+            return;
+        }
+
+        if (countdown !== null && countdown > 0) {
+            const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+            return () => clearTimeout(timer);
+        } else if (countdown === 0) {
+            setIsPaused(false);
+            setCountdown(null);
+        }
+    }, [countdown, isPaused, setIsPaused]);
+
+    // Track unit positions in real-time
     useEffect(() => {
         const container = battleRef.current;
         if (!container) return;
 
-        const updateArcs = () => {
+        const updatePositions = () => {
             const containerBox = container.getBoundingClientRect();
-            const newArcMap = new Map();
+            const newPosMap = new Map();
 
-            const allTrackedIds = new Set([
-                ...intents.map(i => i.actorId),
-                ...activeActions.map(a => a.actorId)
-            ]);
+            const allUnitIds = [...heroes, ...enemies].map(u => u.id);
 
-            allTrackedIds.forEach(actorId => {
-                const intent = intents.find(i => i.actorId === actorId);
-                const action = activeActions.find(a => a.actorId === actorId);
-                const tid = action?.targetId || intent?.targetId;
-
-                if (!tid) return;
-
-                const actorEl = document.getElementById(`unit-${actorId}`);
-                const targetEl = document.getElementById(`unit-${tid}`);
-
-                if (actorEl && targetEl) {
-                    const actorBox = actorEl.getBoundingClientRect();
-                    const targetBox = targetEl.getBoundingClientRect();
-
-                    newArcMap.set(actorId, {
-                        x1: (actorBox.left + actorBox.width / 2) - containerBox.left,
-                        y1: (actorBox.top + actorBox.height / 2) - containerBox.top,
-                        x2: (targetBox.left + targetBox.width / 2) - containerBox.left,
-                        y2: (targetBox.top + targetBox.height / 2) - containerBox.top,
+            allUnitIds.forEach(id => {
+                const el = document.getElementById(`unit-${id}`);
+                if (el) {
+                    const box = el.getBoundingClientRect();
+                    newPosMap.set(id, {
+                        x: (box.left + box.width / 2) - containerBox.left,
+                        y: (box.top + box.height / 2) - containerBox.top,
                     });
                 }
             });
 
-            setArcSystem(newArcMap);
+            setArcSystem(newPosMap);
         };
 
         let frameId: number;
         const loop = () => {
-            updateArcs();
+            updatePositions();
             frameId = requestAnimationFrame(loop);
         };
         
         frameId = requestAnimationFrame(loop);
         return () => cancelAnimationFrame(frameId);
-    }, [intents, activeActions]);
+    }, [heroes, enemies, intents, activeActions]);
 
     useEffect(() => {
         if (winner === 'heros') {
@@ -89,81 +98,99 @@ export const BattleView: React.FC<BattleViewProps> = ({ heroes: initialHeroes, e
         switch (type) {
             case 'heal': return '#10b981';
             case 'magic': return '#d946ef';
-            default: return '#000000';
+            default: return '#f59e0b';
         }
     };
 
-    const getPath = (coords: {x1: number, y1: number, x2: number, y2: number}, geometry: 'melee' | 'range' | 'magic') => {
-        const { x1, y1, x2, y2 } = coords;
-        
-        if (geometry === 'melee') {
-            return `M ${x1} ${y1} L ${x2} ${y2}`;
-        }
-
-        const midX = (x1 + x2) / 2;
-        const dist = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
-        
-        // Ranged attacks arc moderately, Magic arcs high
-        const curveFactor = geometry === 'magic' ? 0.35 : 0.15;
-        const midY = Math.min(y1, y2) - (dist * curveFactor); 
-        return `M ${x1} ${y1} Q ${midX} ${midY} ${x2} ${y2}`;
+    const getPath = (p1: {x: number, y: number}, p2: {x: number, y: number}, geometry: 'melee' | 'range' | 'magic') => {
+        const midX = (p1.x + p2.x) / 2;
+        const dist = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+        const curveFactor = geometry === 'magic' ? 0.6 : geometry === 'range' ? 0.2 : 0.05; 
+        const midY = Math.min(p1.y, p2.y) - (dist * curveFactor); 
+        return `M ${p1.x} ${p1.y} Q ${midX} ${midY} ${p2.x} ${p2.y}`;
     };
 
     return (
         <div ref={battleRef} className="w-full h-full flex flex-col bg-zinc-950 p-6 relative overflow-hidden font-sans">
             
-            <svg className="absolute inset-0 pointer-events-none z-20 w-full h-full">
+            {/* AMBIENT BATTLE BACKGROUND */}
+            <div className="absolute inset-0 z-0">
+                <img 
+                    src={battleBg} 
+                    alt="Battle Arena" 
+                    className="w-full h-full object-cover opacity-60 brightness-[0.4] blur-[2px]" 
+                />
+                <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-transparent to-black/95" />
+            </div>
+            
+            <svg className="absolute inset-0 pointer-events-none z-[60] w-full h-full">
                 <defs>
-                    <marker id="arrow-dashed-black" markerWidth="6" markerHeight="4" refX="5" refY="2" orient="auto">
-                        <path d="M 0 0 L 6 2 L 0 4 Z" fill="#000000" fillOpacity="0.4" />
+                    <marker id="arrow-solid-amber" markerWidth="6" markerHeight="4" refX="5" refY="2" orient="auto">
+                        <path d="M 0 0 L 6 2 L 0 4 Z" fill="#f59e0b" />
                     </marker>
-                    <marker id="arrow-dashed-magic" markerWidth="6" markerHeight="4" refX="5" refY="2" orient="auto">
-                        <path d="M 0 0 L 6 2 L 0 4 Z" fill="#d946ef" fillOpacity="0.4" />
+                    <marker id="arrow-solid-magic" markerWidth="6" markerHeight="4" refX="5" refY="2" orient="auto">
+                        <path d="M 0 0 L 6 2 L 0 4 Z" fill="#d946ef" />
                     </marker>
-                    <marker id="arrow-dashed-heal" markerWidth="6" markerHeight="4" refX="5" refY="2" orient="auto">
-                        <path d="M 0 0 L 6 2 L 0 4 Z" fill="#10b981" fillOpacity="0.4" />
+                    <marker id="arrow-solid-heal" markerWidth="6" markerHeight="4" refX="5" refY="2" orient="auto">
+                        <path d="M 0 0 L 6 2 L 0 4 Z" fill="#10b981" />
                     </marker>
+                    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                        <feGaussianBlur stdDeviation="3" result="blur" />
+                        <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                    </filter>
                 </defs>
                 
-                {/* Intent Lines */}
-                {intents.filter(i => !activeActions.some(a => a.actorId === i.actorId) && i.atb > 5).map(intent => {
-                    const coords = arcSystem.get(intent.actorId);
-                    if (!coords) return null;
-                    return (
-                        <path 
-                            key={`intent-${intent.actorId}`}
-                            d={getPath(coords, intent.geometry)}
-                            fill="transparent"
-                            stroke="#333333"
-                            strokeWidth="1"
-                            strokeDasharray="2 4"
-                            opacity={0.15}
-                        />
-                    );
-                })}
-
-                {/* BOLDER, GEOMETRIC ACTIVE STRIKES */}
+                {/* HIGH-VISIBILITY NEON STRIKES */}
                 {activeActions.map(action => {
-                    const coords = arcSystem.get(action.actorId);
-                    if (!coords) return null;
-                    return (
-                        <g key={`action-${action.id}`} className="animate-in fade-in duration-200">
-                            <path 
-                                d={getPath(coords, action.geometry)}
-                                fill="transparent"
-                                stroke={getArcColor(action.type)}
-                                strokeWidth="4" // 1.3x BOLDER
-                                strokeDasharray="6 4"
-                                strokeOpacity="0.5"
-                                strokeLinecap="round"
-                                markerEnd={
-                                    action.type === 'heal' ? 'url(#arrow-dashed-heal)' : 
-                                    action.type === 'magic' ? 'url(#arrow-dashed-magic)' : 
-                                    'url(#arrow-dashed-black)'
-                                }
-                            />
-                        </g>
-                    );
+                    const p1 = arcSystem.get(action.actorId);
+                    if (!p1) return null;
+                    
+                    return action.targetIds.map(tid => {
+                        const p2 = arcSystem.get(tid);
+                        if (!p2) return null;
+                        const pathData = getPath(p1, p2, action.geometry);
+                        const color = getArcColor(action.type);
+                        
+                        return (
+                            <g key={`action-${action.id}-${tid}`} filter="url(#glow)">
+                                <path 
+                                    d={pathData}
+                                    fill="transparent"
+                                    stroke="#000"
+                                    strokeWidth="10"
+                                    opacity="0.3"
+                                    strokeLinecap="round"
+                                />
+                                <path 
+                                    d={pathData}
+                                    fill="transparent"
+                                    stroke={color}
+                                    strokeWidth="6"
+                                    strokeOpacity="0.8"
+                                    strokeLinecap="round"
+                                    strokeDasharray="15 10"
+                                    markerEnd={
+                                        action.type === 'heal' ? 'url(#arrow-solid-heal)' : 
+                                        action.type === 'magic' ? 'url(#arrow-solid-magic)' : 
+                                        'url(#arrow-solid-amber)'
+                                    }
+                                >
+                                    <animate attributeName="stroke-dashoffset" from="100" to="0" dur="1s" repeatCount="indefinite" />
+                                </path>
+                                <path 
+                                    d={pathData}
+                                    fill="transparent"
+                                    stroke="#fff"
+                                    strokeWidth="1.5"
+                                    strokeOpacity="0.6"
+                                    strokeLinecap="round"
+                                    strokeDasharray="15 10"
+                                >
+                                    <animate attributeName="stroke-dashoffset" from="100" to="0" dur="1s" repeatCount="indefinite" />
+                                </path>
+                            </g>
+                        );
+                    });
                 })}
             </svg>
 
@@ -177,14 +204,12 @@ export const BattleView: React.FC<BattleViewProps> = ({ heroes: initialHeroes, e
                         <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">{isPaused ? 'Engagement Paused' : 'Real-time Combat Active'}</p>
                     </div>
                 </div>
-
-                <Button 
-                    variant={isPaused ? "primary" : "secondary"} 
-                    onClick={() => setIsPaused(!isPaused)}
-                    className="w-40 py-2 text-xs"
-                >
-                    {isPaused ? "RESUME" : "PAUSE"}
-                </Button>
+                {/* Countdown visual if active */}
+                {countdown !== null && countdown > 0 && (
+                    <div className="flex items-center gap-2 px-3 py-1 bg-amber-500/20 rounded-full border border-amber-500/40 animate-pulse">
+                        <span className="text-[10px] font-black italic text-amber-500 tracking-widest">AUTO-DISPATCH IN {countdown}S</span>
+                    </div>
+                )}
             </div>
 
             <div className="flex-1 flex items-center justify-center gap-12 relative z-10 px-4">
@@ -195,7 +220,7 @@ export const BattleView: React.FC<BattleViewProps> = ({ heroes: initialHeroes, e
                             {enemies.filter(e => e.positionLine === 'REARGUARD').map(enemy => (
                                 <CombatantCard 
                                     key={enemy.id} unit={enemy} isEnemy party={enemies} 
-                                    className="scale-75 origin-center -my-8" 
+                                    className="w-48 h-64 scale-75 origin-center -my-8" 
                                     activeIcon={activeActions.find(a => a.actorId === enemy.id)?.icon}
                                 />
                             ))}
@@ -207,7 +232,7 @@ export const BattleView: React.FC<BattleViewProps> = ({ heroes: initialHeroes, e
                             {enemies.filter(e => e.positionLine === 'VANGUARD').map(enemy => (
                                 <CombatantCard 
                                     key={enemy.id} unit={enemy} isEnemy party={enemies} 
-                                    className="scale-75 origin-center -my-8" 
+                                    className="w-48 h-64 scale-75 origin-center -my-8" 
                                     activeIcon={activeActions.find(a => a.actorId === enemy.id)?.icon}
                                 />
                             ))}
@@ -215,11 +240,28 @@ export const BattleView: React.FC<BattleViewProps> = ({ heroes: initialHeroes, e
                     </div>
                 </div>
 
-                <div className="flex flex-col items-center flex-shrink-0">
+                {/* CENTRAL CONTROL HUB */}
+                <div className="flex flex-col items-center flex-shrink-0 group">
                     <div className="w-px h-24 bg-gradient-to-b from-transparent via-zinc-800 to-transparent" />
-                    <div className="p-3 bg-zinc-900 rounded-full border border-zinc-800 my-2">
-                        <AlertCircle className="text-zinc-600" size={16} />
-                    </div>
+                    
+                    <button 
+                        onClick={() => {
+                            setIsPaused(!isPaused);
+                            setCountdown(null);
+                        }}
+                        className={clsx(
+                            "w-16 h-16 rounded-full flex items-center justify-center border-2 transition-all duration-300 shadow-lg scale-110 active:scale-95",
+                            isPaused 
+                                ? "bg-cyan-500 border-cyan-400 text-black shadow-cyan-500/20 hover:scale-125 hover:shadow-cyan-500/40" 
+                                : "bg-black/80 border-zinc-800 text-zinc-400 hover:border-cyan-500 hover:text-cyan-500"
+                        )}
+                    >
+                        {isPaused ? <Play size={28} className="ml-1" fill="currentColor" /> : <Pause size={28} fill="currentColor" />}
+                        {isPaused && (
+                             <div className="absolute -inset-2 rounded-full border border-cyan-500/30 animate-ping pointer-events-none" />
+                        )}
+                    </button>
+
                     <div className="w-px h-24 bg-gradient-to-b from-transparent via-zinc-800 to-transparent" />
                 </div>
 
@@ -230,7 +272,7 @@ export const BattleView: React.FC<BattleViewProps> = ({ heroes: initialHeroes, e
                             {heroes.filter(h => h.positionLine === 'VANGUARD').map(hero => (
                                 <CombatantCard 
                                     key={hero.id} unit={hero} party={heroes} 
-                                    className="scale-75 origin-center -my-8" 
+                                    className="w-48 h-64 scale-75 origin-center -my-8" 
                                     activeIcon={activeActions.find(a => a.actorId === hero.id)?.icon}
                                 />
                             ))}
@@ -242,7 +284,7 @@ export const BattleView: React.FC<BattleViewProps> = ({ heroes: initialHeroes, e
                             {heroes.filter(h => h.positionLine === 'REARGUARD').map(hero => (
                                 <CombatantCard 
                                     key={hero.id} unit={hero} party={heroes} 
-                                    className="scale-75 origin-center -my-8" 
+                                    className="w-48 h-64 scale-75 origin-center -my-8" 
                                     activeIcon={activeActions.find(a => a.actorId === hero.id)?.icon}
                                 />
                             ))}

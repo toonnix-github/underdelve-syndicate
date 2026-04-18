@@ -17,15 +17,20 @@ export interface Passive {
 }
 
 export interface Ability {
+    id: string;
     name: string;
+    description: string;
     val: number;
     type: 'damage' | 'heal';
+    targetType: 'single' | 'row' | 'all';
+    procChance?: number; 
 }
 
 export interface Trait {
     id: string;
     name: string;
     description: string;
+    icon?: string;
 }
 
 export interface CombatantState {
@@ -45,5 +50,4 @@ export interface CombatantState {
     isHero: boolean;
     trait: Trait | null;
     isLeader: boolean;
-    // ... active visual states
 }

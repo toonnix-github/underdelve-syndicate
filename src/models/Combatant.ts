@@ -34,6 +34,7 @@ export class Combatant {
     chargeColor: string;
     activeSigil: string | null;
     isPopping: boolean;
+    activeChant: string | null;
 
     constructor(name: string, role: Role, maxHp: number, speed: number, power: number, def: number, imageId: string, abilities: Ability[], positionLine?: Position, isHero = true, trait: Trait | null = null) {
         this.id = Math.random().toString(36).substr(2, 9);
@@ -75,6 +76,7 @@ export class Combatant {
         this.chargeColor = 'amber';
         this.activeSigil = null;
         this.isPopping = false;
+        this.activeChant = null;
     }
 
     clone(): Combatant {
@@ -89,6 +91,7 @@ export class Combatant {
         copy.hitType = this.hitType;
         copy.hitShake = this.hitShake;
         copy.healSparkle = this.healSparkle;
+        copy.activeChant = this.activeChant;
         return copy;
     }
 
@@ -182,5 +185,12 @@ export class Combatant {
         setTimeout(() => {
             this.healSparkle = false;
         }, 600);
+    }
+
+    triggerChant(name: string) {
+        this.activeChant = name.toUpperCase();
+        setTimeout(() => {
+            this.activeChant = null;
+        }, 1500);
     }
 }

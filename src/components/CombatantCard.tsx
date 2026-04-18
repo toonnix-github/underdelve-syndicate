@@ -1,6 +1,6 @@
 import React from 'react';
 import { Combatant } from '../models/Combatant';
-import { ProgressBar } from './UI';
+import { ProgressBar, cn } from './UI';
 import { Shield, Sword, Zap, Heart, Flame, Target, Sparkles, Axe, Skull } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -10,9 +10,11 @@ interface CombatantCardProps {
     className?: string;
     party?: Combatant[];
     activeIcon?: string | null;
+    hideAtb?: boolean;
+    footer?: React.ReactNode;
 }
 
-export const CombatantCard: React.FC<CombatantCardProps> = ({ unit, isEnemy = false, className, party = [], activeIcon }) => {
+export const CombatantCard: React.FC<CombatantCardProps> = ({ unit, isEnemy = false, className, party = [], activeIcon, hideAtb = false, footer }) => {
     const getTranslateX = () => {
         if (unit.attackPhase === 'idle') return '0px';
         const direction = isEnemy ? 1 : -1;
@@ -23,8 +25,8 @@ export const CombatantCard: React.FC<CombatantCardProps> = ({ unit, isEnemy = fa
     return (
         <div 
             id={`unit-${unit.id}`}
-            className={clsx(
-                "relative w-48 h-64 rounded-xl border-2 transition-all duration-300 overflow-hidden",
+            className={cn(
+                "relative rounded-xl border-2 transition-all duration-300 overflow-hidden",
                 isEnemy ? "border-zinc-800 bg-zinc-950/80" : "border-zinc-700 bg-zinc-900/90",
                 unit.isActing && "scale-105 border-cyan-400 shadow-[0_0_20px_rgba(34,211,238,0.3)]",
                 unit.hp <= 0 && "grayscale opacity-50 translate-y-4 rotate-2",
@@ -37,19 +39,30 @@ export const CombatantCard: React.FC<CombatantCardProps> = ({ unit, isEnemy = fa
             }}
         >
             {/* Background Image */}
-            <div className="absolute inset-0 z-0 opacity-40">
+            <div className="absolute inset-0 z-0 opacity-80 brightness-110 contrast-110">
                 <img 
                     src={`/assets/${unit.imageId}.png`} 
                     alt={unit.name}
                     className={clsx(
                         "w-full h-full object-cover transition-transform duration-300",
-                        unit.hitShake && "scale-110 brightness-125"
+                        unit.hitShake && "scale-110 brightness-150 saturate-150"
                     )}
                     onError={(e) => {
                         (e.target as HTMLImageElement).src = 'https://via.placeholder.com/200x300/111/444?text=' + unit.role;
                     }}
                 />
             </div>
+
+            {/* SKILL CHANT OVERLAY */}
+            {unit.activeChant && (
+                <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 z-[80] pointer-events-none flex items-center justify-center">
+                    <div className="px-4 py-2 bg-black/80 border-y-2 border-amber-500/50 backdrop-blur-md animate-in zoom-in fade-in duration-300">
+                        <span className="text-lg font-black italic text-amber-500 uppercase tracking-tighter drop-shadow-[0_0_10px_rgba(245,158,11,0.8)]">
+                            {unit.activeChant}
+                        </span>
+                    </div>
+                </div>
+            )}
 
             {/* Acting Overlay Icon */}
             {unit.isActing && activeIcon && (
@@ -90,34 +103,61 @@ export const CombatantCard: React.FC<CombatantCardProps> = ({ unit, isEnemy = fa
             </div>
 
             {/* Header / Info */}
-            <div className="relative z-10 p-3 flex flex-col h-full bg-gradient-to-t from-zinc-950 via-transparent to-transparent">
-                <div className="flex justify-between items-start">
-                    <div className="text-left">
-                        <h3 className="text-sm font-bold uppercase tracking-tighter text-zinc-100">{unit.name}</h3>
-                        <span className="text-[10px] text-zinc-500 font-medium">{unit.role}</span>
+            <div className="relative z-10 p-2 flex flex-col h-full bg-gradient-to-t from-zinc-950 via-zinc-950/20 to-transparent">
+                <div className="flex items-center gap-2 mb-1.5">
+                    <div className="w-6 h-6 rounded bg-zinc-900 border border-zinc-800 overflow-hidden shrink-0">
+                        <img 
+                            src={`/assets/icon_${unit.role.toLowerCase()}.png`} 
+                            className="w-full h-full object-cover grayscale brightness-125"
+                            alt={unit.role}
+                        />
                     </div>
-                    <div className="p-1 rounded bg-zinc-900/80 border border-zinc-800">
-                        {unit.role === 'TANK' && <Shield size={12} className="text-blue-400" />}
-                        {unit.role === 'DPS' && <Sword size={12} className="text-red-400" />}
-                        {unit.role === 'HEALER' && <Heart size={12} className="text-green-400" />}
+                    <div className="text-left">
+                        <h3 className="text-[11px] font-black uppercase tracking-tight text-white leading-none">{unit.name}</h3>
                     </div>
                 </div>
 
-                <div className="mt-auto space-y-2">
+                <div className="mt-auto">
+                    <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-tighter mb-1">
+                        <div className="flex items-center gap-1.5 text-zinc-400">
+                             <div className="flex items-center gap-0.5">
+                                {unit.role === 'HEALER' ? <Sparkles size={8} className="text-emerald-500" /> : <Sword size={8} className="text-amber-500" />}
+                                <span>{unit.getATK(party)}</span>
+                            </div>
+                            <div className="flex items-center gap-0.5">
+                                <Shield size={8} className="text-blue-500" />
+                                <span>{unit.getDEF(party)}</span>
+                            </div>
+                             <div className="flex items-center gap-0.5">
+                                <Zap size={8} className="text-cyan-500" />
+                                <span>{unit.getSPD(party)}</span>
+                            </div>
+                        </div>
+                        <span className="text-zinc-100">{Math.floor(unit.hp)}/{unit.maxHp}</span>
+                    </div>
                     <ProgressBar 
                         value={unit.hp} 
                         max={unit.maxHp} 
                         color="bg-rose-600" 
-                        label="VIT" 
-                        showValues 
+                        label="" 
+                        showValues={false}
+                        className="space-y-0"
                     />
-                    <ProgressBar 
-                        value={unit.atb} 
-                        max={100} 
-                        color="bg-cyan-500" 
-                        label="ATB" 
-                    />
+                    {!hideAtb && (
+                        <ProgressBar 
+                            value={unit.atb} 
+                            max={100} 
+                            color="bg-cyan-500" 
+                            label="" 
+                            className="space-y-0 mt-1"
+                        />
+                    )}
                 </div>
+                {footer && (
+                    <div className="mt-1 pt-2 border-t border-zinc-900/50 overflow-visible">
+                        {footer}
+                    </div>
+                )}
             </div>
 
             {/* FLOATING DAMAGE NUMBERS (Z-INDEX OVERRIDE FOR VISIBILITY) */}

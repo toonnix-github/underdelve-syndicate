@@ -5,7 +5,7 @@ import { calculateDamage, calculateHeal } from '../utils/combatMath';
 export interface ActiveAction {
     id: string;
     actorId: string;
-    targetId: string;
+    targetIds: string[]; // UPDATED TO ARRAY FOR AOE
     type: 'damage' | 'heal' | 'magic';
     icon: 'sword' | 'bow' | 'fang' | 'fire' | 'heart' | 'zap';
     geometry: 'melee' | 'range' | 'magic';
@@ -37,41 +37,76 @@ export const useBattle = (initialHeroes: Combatant[], initialEnemies: Combatant[
         if (!unit || unit.hp <= 0 || unit.isActing) return;
 
         const isHero = unit.isHero;
-        const ability = unit.abilities[0];
         
-        let target: Combatant | null = null;
-        if (ability.type === 'heal') {
-            const teammates = isHero ? heroes : enemies;
-            target = teammates.filter(t => t.hp > 0).sort((a,b) => (a.hp/a.maxHp) - (b.hp/b.maxHp))[0];
+        // --- SIGNATURE MOVE SELECTION ---
+        let selectedSkill = unit.abilities[0]; // Normal
+        if (unit.abilities[1] && Math.random() < (unit.abilities[1].procChance || 0)) {
+            selectedSkill = unit.abilities[1]; 
+            unit.triggerChant(selectedSkill.name);
+            log(`!!! ${unit.name} triggers ${selectedSkill.name.toUpperCase()} !!!`);
+        }
+        
+        // --- MULTI-TARGET RESOLUTION ---
+        let targets: Combatant[] = [];
+        const opponents = isHero ? enemies : heroes;
+        const teammates = isHero ? heroes : enemies;
+
+        if (selectedSkill.targetType === 'all') {
+            targets = selectedSkill.type === 'heal' 
+                ? teammates.filter(t => t.hp > 0)
+                : opponents.filter(o => o.hp > 0);
+        } else if (selectedSkill.targetType === 'row') {
+            // Target the front row if anyone is alive, else back row
+            const front = opponents.filter(o => o.positionLine === 'VANGUARD' && o.hp > 0);
+            targets = front.length > 0 ? front : opponents.filter(o => o.hp > 0);
         } else {
-            const opponents = isHero ? enemies : heroes;
-            const aliveOpponents = opponents.filter(t => t.hp > 0);
-            if (aliveOpponents.length > 0) {
-                target = aliveOpponents[Math.floor(Math.random() * aliveOpponents.length)];
+            // Single target
+            if (selectedSkill.type === 'heal') {
+                const healT = teammates.filter(t => t.hp > 0).sort((a,b) => (a.hp/a.maxHp) - (b.hp/b.maxHp))[0];
+                if (healT) targets = [healT];
+            } else {
+                const aliveOps = opponents.filter(t => t.hp > 0);
+                if (aliveOps.length > 0) {
+                    targets = [aliveOps[Math.floor(Math.random() * aliveOps.length)]];
+                }
             }
         }
 
-        if (!target) return;
+        if (targets.length === 0) return;
 
+        // Visual Setup
         const actionId = Math.random().toString(36).substr(2, 9);
-        let type: 'damage' | 'heal' | 'magic' = 'damage';
         let icon: 'sword' | 'bow' | 'fang' | 'fire' | 'heart' | 'zap' = 'sword';
         let geometry: 'melee' | 'range' | 'magic' = 'melee';
         let hitType: 'slash' | 'broken' | 'burn' = 'slash';
 
-        if (ability.type === 'heal') {
-            type = 'heal'; icon = 'heart'; geometry = 'magic';
-        } else if (unit.role === 'DPS') {
-            type = 'magic'; icon = 'fire'; geometry = 'magic'; hitType = 'burn';
-        } else if (unit.role === 'HEALER') {
-            type = 'magic'; icon = 'zap'; geometry = 'magic'; hitType = 'broken';
-        } else if (!isHero && unit.role === 'TANK') {
-            icon = 'fang'; geometry = 'melee'; hitType = 'broken';
-        } else if (unit.role === 'TANK' && isHero) {
-            icon = 'sword'; geometry = 'melee'; hitType = 'slash';
+        if (selectedSkill.type === 'heal' || unit.role === 'HEALER') {
+            icon = selectedSkill.type === 'heal' ? 'heart' : 'zap';
+            geometry = 'magic';
+            hitType = selectedSkill.type === 'heal' ? 'slash' : 'broken';
+        } else if (unit.imageId === 'hero_kael' || unit.imageId === 'hero_slyn') {
+            icon = 'bow';
+            geometry = 'range';
+            hitType = 'slash';
+        } else if (unit.role === 'DPS' && selectedSkill.targetType !== 'single') {
+            // Big AOE/Special logic often feels like magic/tactical rain
+            icon = 'fire';
+            geometry = 'magic';
+            hitType = 'burn';
+        } else if (unit.role === 'TANK') {
+            icon = isHero ? 'sword' : 'fang';
+            geometry = 'melee';
+            hitType = 'broken';
         }
 
-        const newAction: ActiveAction = { id: actionId, actorId: unit.id, targetId: target.id, type, icon, geometry };
+        const newAction: ActiveAction = { 
+            id: actionId, 
+            actorId: unit.id, 
+            targetIds: targets.map(t => t.id), 
+            type: selectedSkill.type, 
+            icon, 
+            geometry 
+        };
         
         setActiveActions(prev => [...prev, newAction]);
         unit.isActing = true;
@@ -81,24 +116,28 @@ export const useBattle = (initialHeroes: Combatant[], initialEnemies: Combatant[
         await new Promise(r => setTimeout(r, 200));
         
         unit.attackPhase = 'strike';
-        if (ability.type === 'damage') {
-            const dmg = calculateDamage(unit, target, isHero ? heroes : enemies, isHero ? enemies : heroes);
-            target.hp = Math.max(0, target.hp - dmg);
-            target.addVfx(`-${dmg}`, 'damage');
-            target.triggerHit(hitType);
-            log(`${unit.name} strikes ${target.name} for ${dmg} damage!`);
-        } else {
-            const heal = calculateHeal(unit, ability.val, isHero ? heroes : enemies);
-            target.hp = Math.min(target.maxHp, target.hp + heal);
-            target.addVfx(`+${heal}`, 'heal');
-            target.triggerHeal();
-            log(`${unit.name} heals ${target.name} for ${heal}!`);
-        }
+        
+        // EXECUTE IMPACT ON ALL TARGETS
+        targets.forEach(target => {
+            if (selectedSkill.type === 'damage') {
+                const dmg = calculateDamage(unit, target, isHero ? heroes : enemies, isHero ? enemies : heroes);
+                target.hp = Math.max(0, target.hp - dmg);
+                target.addVfx(`-${dmg}`, 'damage');
+                target.triggerHit(hitType);
+            } else {
+                const heal = calculateHeal(unit, selectedSkill.val, isHero ? heroes : enemies);
+                target.hp = Math.min(target.maxHp, target.hp + heal);
+                target.addVfx(`+${heal}`, 'heal');
+                target.triggerHeal();
+            }
+        });
+        
+        log(`${unit.name} uses ${selectedSkill.name}!`);
 
         unit.atb = 0;
         setHeroes([...heroes]); setEnemies([...enemies]);
 
-        await new Promise(r => setTimeout(r, 300));
+        await new Promise(r => setTimeout(r, 400));
         unit.attackPhase = 'return';
         setHeroes([...heroes]); setEnemies([...enemies]);
 
