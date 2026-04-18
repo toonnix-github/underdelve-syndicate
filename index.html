@@ -398,12 +398,23 @@
                 );
             };
 
+        const getCardTiltAngle = (unit) => {
+            const seedSource = `${unit?.id || ''}-${unit?.name || ''}-${unit?.imageId || ''}`;
+            let hash = 0;
+            for (let i = 0; i < seedSource.length; i++) {
+                hash = ((hash << 5) - hash) + seedSource.charCodeAt(i);
+                hash |= 0;
+            }
+            // Stable tilt from -3 to +3 degrees so cards can lean both left and right.
+            return ((Math.abs(hash) % 61) / 10) - 3;
+        };
+
         const Card = ({ unit, party = [], isSelected = false }) => {
             if (!unit) return null;
             const roleInfo = ROLES[unit.role] || ROLES.DPS;
             
             // Seeded random tilt for 'tabletop' feel (-3 to +3 degrees)
-            const tiltAngle = ((parseInt(unit.id?.toString().slice(-2) || '0') % 10) / 1.5) - 3;
+            const tiltAngle = getCardTiltAngle(unit);
             
             const attackDirection = unit.isHero ? '-translate-x-7' : 'translate-x-7';
             const strikeDirection = unit.isHero ? '-translate-x-12' : 'translate-x-12';
