@@ -103,6 +103,17 @@ export const BattleView: React.FC<BattleViewProps> = ({ heroes: initialHeroes, e
         }
     };
 
+    const getSpecialColor = (icon?: string | null) => {
+        switch (icon) {
+            case 'heart': return '#10b981';
+            case 'zap': return '#38bdf8';
+            case 'fire': return '#f97316';
+            case 'bow': return '#c084fc';
+            case 'fang': return '#ef4444';
+            default: return '#f59e0b';
+        }
+    };
+
     const getPath = (p1: {x: number, y: number}, p2: {x: number, y: number}, geometry: 'melee' | 'range' | 'magic') => {
         const midX = (p1.x + p2.x) / 2;
         const dist = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
@@ -166,6 +177,43 @@ export const BattleView: React.FC<BattleViewProps> = ({ heroes: initialHeroes, e
                         
                         return (
                             <g key={`action-${action.id}-${tid}`} filter="url(#glow)">
+                                {action.isSpecial && (
+                                    <g>
+                                        <circle cx={p1.x} cy={p1.y} r="20" fill="none" stroke="#facc15" strokeWidth="2" strokeOpacity="0.95">
+                                            <animate attributeName="r" values="10;28;10" dur="0.8s" repeatCount="indefinite" />
+                                            <animate attributeName="stroke-opacity" values="1;0.2;1" dur="0.8s" repeatCount="indefinite" />
+                                        </circle>
+                                        <circle cx={p1.x} cy={p1.y} r="34" fill="none" stroke={isHero ? "#d946ef" : "#ef4444"} strokeWidth="1.5" strokeDasharray="4 8" strokeOpacity="0.8">
+                                            <animateTransform attributeName="transform" type="rotate" from={`0 ${p1.x} ${p1.y}`} to={`360 ${p1.x} ${p1.y}`} dur="1.2s" repeatCount="indefinite" />
+                                        </circle>
+                                        {Array.from({ length: 8 }).map((_, i) => {
+                                            const angle = (Math.PI * 2 * i) / 8;
+                                            const inner = 26;
+                                            const outer = 48;
+                                            const x1 = p1.x + Math.cos(angle) * inner;
+                                            const y1 = p1.y + Math.sin(angle) * inner;
+                                            const x2 = p1.x + Math.cos(angle) * outer;
+                                            const y2 = p1.y + Math.sin(angle) * outer;
+                                            return (
+                                                <line
+                                                    key={`${action.id}-ray-${i}`}
+                                                    x1={x1}
+                                                    y1={y1}
+                                                    x2={x2}
+                                                    y2={y2}
+                                                    stroke="#fff"
+                                                    strokeWidth="1.5"
+                                                    strokeOpacity="0.55"
+                                                >
+                                                    <animate attributeName="stroke-opacity" values="0.15;0.9;0.15" dur="0.8s" begin={`${i * 0.05}s`} repeatCount="indefinite" />
+                                                </line>
+                                            );
+                                        })}
+                                        <text x={p1.x} y={p1.y - 48} textAnchor="middle" className="fill-amber-300 font-black text-[10px] tracking-[0.3em] uppercase">
+                                            SPECIAL
+                                        </text>
+                                    </g>
+                                )}
                                 <path 
                                     d={pathData}
                                     fill="transparent"
@@ -178,24 +226,24 @@ export const BattleView: React.FC<BattleViewProps> = ({ heroes: initialHeroes, e
                                     d={pathData}
                                     fill="transparent"
                                     stroke={color}
-                                    strokeWidth="6"
-                                    strokeOpacity="0.8"
+                                    strokeWidth={action.isSpecial ? 8 : 6}
+                                    strokeOpacity={action.isSpecial ? 1 : 0.8}
                                     strokeLinecap="round"
-                                    strokeDasharray="15 10"
+                                    strokeDasharray={action.isSpecial ? "22 8" : "15 10"}
                                     markerEnd={markerEnd}
                                 >
-                                    <animate attributeName="stroke-dashoffset" from="100" to="0" dur="1s" repeatCount="indefinite" />
+                                    <animate attributeName="stroke-dashoffset" from="100" to="0" dur={action.isSpecial ? "0.55s" : "1s"} repeatCount="indefinite" />
                                 </path>
                                 <path 
                                     d={pathData}
                                     fill="transparent"
                                     stroke="#fff"
-                                    strokeWidth="1.5"
-                                    strokeOpacity="0.6"
+                                    strokeWidth={action.isSpecial ? 2.5 : 1.5}
+                                    strokeOpacity={action.isSpecial ? 0.95 : 0.6}
                                     strokeLinecap="round"
-                                    strokeDasharray="15 10"
+                                    strokeDasharray={action.isSpecial ? "22 8" : "15 10"}
                                 >
-                                    <animate attributeName="stroke-dashoffset" from="100" to="0" dur="1s" repeatCount="indefinite" />
+                                    <animate attributeName="stroke-dashoffset" from="100" to="0" dur={action.isSpecial ? "0.55s" : "1s"} repeatCount="indefinite" />
                                 </path>
                             </g>
                         );
@@ -213,12 +261,6 @@ export const BattleView: React.FC<BattleViewProps> = ({ heroes: initialHeroes, e
                         <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">{isPaused ? 'Engagement Paused' : 'Real-time Combat Active'}</p>
                     </div>
                 </div>
-                {/* Countdown visual if active */}
-                {countdown !== null && countdown > 0 && (
-                    <div className="flex items-center gap-2 px-3 py-1 bg-amber-500/20 rounded-full border border-amber-500/40 animate-pulse">
-                        <span className="text-[10px] font-black italic text-amber-500 tracking-widest">AUTO-DISPATCH IN {countdown}S</span>
-                    </div>
-                )}
             </div>
 
             <div className="flex-1 flex items-center justify-center gap-12 relative z-10 px-4">
@@ -266,6 +308,14 @@ export const BattleView: React.FC<BattleViewProps> = ({ heroes: initialHeroes, e
                         )}
                     >
                         {isPaused ? <Play size={28} className="ml-1" fill="currentColor" /> : <Pause size={28} fill="currentColor" />}
+                        {countdown !== null && countdown > 0 && (
+                            <>
+                                <div className="absolute -inset-3 rounded-full border border-amber-400/70 animate-pulse pointer-events-none" />
+                                <span className="absolute -bottom-4 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full bg-amber-400 text-black text-[10px] font-black leading-none shadow-lg tabular-nums">
+                                    {countdown}
+                                </span>
+                            </>
+                        )}
                         {isPaused && (
                              <div className="absolute -inset-2 rounded-full border border-cyan-500/30 animate-ping pointer-events-none" />
                         )}
@@ -280,9 +330,13 @@ export const BattleView: React.FC<BattleViewProps> = ({ heroes: initialHeroes, e
                         <div className="flex flex-col gap-2 min-w-[120px] min-h-[300px] items-center justify-center">
                             {heroes.filter(h => h.positionLine === 'VANGUARD').map(hero => (
                                 <CombatantCard 
-                                    key={hero.id} unit={hero} party={heroes} 
+                                    key={hero.id} 
+                                    unit={hero} 
+                                    party={heroes} 
                                     className="w-48 h-64 scale-75 origin-center -my-8" 
                                     activeIcon={activeActions.find(a => a.actorId === hero.id)?.icon}
+                                    isSpecialAction={Boolean(activeActions.find(a => a.actorId === hero.id && a.isSpecial))}
+                                    specialColor={getSpecialColor(activeActions.find(a => a.actorId === hero.id)?.icon)}
                                 />
                             ))}
                         </div>
@@ -292,9 +346,13 @@ export const BattleView: React.FC<BattleViewProps> = ({ heroes: initialHeroes, e
                         <div className="flex flex-col gap-2 min-w-[120px] min-h-[300px] items-center justify-center border-l border-zinc-900 pl-4">
                             {heroes.filter(h => h.positionLine === 'REARGUARD').map(hero => (
                                 <CombatantCard 
-                                    key={hero.id} unit={hero} party={heroes} 
+                                    key={hero.id} 
+                                    unit={hero} 
+                                    party={heroes} 
                                     className="w-48 h-64 scale-75 origin-center -my-8" 
                                     activeIcon={activeActions.find(a => a.actorId === hero.id)?.icon}
+                                    isSpecialAction={Boolean(activeActions.find(a => a.actorId === hero.id && a.isSpecial))}
+                                    specialColor={getSpecialColor(activeActions.find(a => a.actorId === hero.id)?.icon)}
                                 />
                             ))}
                         </div>

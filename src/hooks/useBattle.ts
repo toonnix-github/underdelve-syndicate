@@ -9,6 +9,8 @@ export interface ActiveAction {
     type: 'damage' | 'heal' | 'magic';
     icon: 'sword' | 'bow' | 'fang' | 'fire' | 'heart' | 'zap';
     geometry: 'melee' | 'range' | 'magic';
+    isSpecial?: boolean;
+    skillName?: string;
 }
 
 export interface UnitIntent {
@@ -76,6 +78,7 @@ export const useBattle = (initialHeroes: Combatant[], initialEnemies: Combatant[
 
         // Visual Setup
         const actionId = Math.random().toString(36).substr(2, 9);
+        const isSpecial = selectedSkill === unit.abilities[1];
         let icon: 'sword' | 'bow' | 'fang' | 'fire' | 'heart' | 'zap' = 'sword';
         let geometry: 'melee' | 'range' | 'magic' = 'melee';
         let hitType: 'slash' | 'broken' | 'burn' = 'slash';
@@ -105,7 +108,9 @@ export const useBattle = (initialHeroes: Combatant[], initialEnemies: Combatant[
             targetIds: targets.map(t => t.id), 
             type: selectedSkill.type, 
             icon, 
-            geometry 
+            geometry,
+            isSpecial,
+            skillName: selectedSkill.name
         };
         
         setActiveActions(prev => [...prev, newAction]);
