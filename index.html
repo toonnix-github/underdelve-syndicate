@@ -575,7 +575,7 @@
                                     {heroSkillLabel}
                                 </span>
                                 {unit.trait && (
-                                    <span className="absolute top-full mt-1 left-1/2 -translate-x-1/2 w-52 p-2 bg-black/95 text-[9px] text-zinc-300 rounded border border-zinc-700 hidden peer-hover:block z-[70] normal-case tracking-normal shadow-2xl pointer-events-none">
+                                    <span className="absolute top-full mt-1 left-1/2 -translate-x-1/2 w-[170px] p-2 bg-black/95 text-[9px] text-zinc-300 rounded border border-zinc-700 hidden peer-hover:block z-[70] normal-case tracking-normal shadow-2xl pointer-events-none">
                                         <span className="font-black text-amber-500 mb-1 uppercase tracking-widest leading-none block">{unit.trait.name}</span>
                                         <span>{unit.trait.description}</span>
                                     </span>
@@ -2012,10 +2012,10 @@
             );
         };
 
-        const getSelectCardInteractionClass = (isSelected) =>
+        const getSelectCardInteractionClass = (isSelected, selectedScaleClass = 'scale-105') =>
             `relative cursor-pointer transition-all duration-300 group z-10 ${
                 isSelected
-                    ? 'scale-105'
+                    ? selectedScaleClass
                     : 'hover:scale-105 active:scale-95'
             }`;
 
@@ -2503,13 +2503,15 @@
                                                 <div key={hero.name} style={{ transform: `rotate(${draftTiltMap[hero.name] || '0deg'})` }}>
                                                     <div 
                                                         onClick={() => {
-                                                            if (isSelected) {
-                                                                setHeroes(prev => prev.filter(h => h.name !== hero.name));
-                                                            } else if (heroes.length < 3) {
-                                                                setHeroes(prev => [...prev, hero]);
-                                                            }
+                                                            setHeroes(prev => {
+                                                                const alreadySelected = prev.some(h => h.name === hero.name);
+                                                                if (alreadySelected) return prev.filter(h => h.name !== hero.name);
+                                                                if (prev.length < 3) return [...prev, hero];
+                                                                // Draft cap reached: drop oldest selected, add newly clicked card.
+                                                                return [...prev.slice(1), hero];
+                                                            });
                                                         }}
-                                                        className={getSelectCardInteractionClass(!!isSelected)}
+                                                        className={getSelectCardInteractionClass(!!isSelected, 'scale-[1.2]')}
                                                     >
                                                         <Card unit={hero} isSelected={!!isSelected} />
                                                         {isSelected && (
