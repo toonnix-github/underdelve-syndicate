@@ -14,7 +14,7 @@
     <script src="dungeon_generator.js"></script>
 
     <script type="text/babel">
-        const { useState, useEffect, useRef } = React;
+        const { useState, useEffect, useRef, useMemo } = React;
 
         // --- GAME ENGINE LOGIC ---
         class Item {
@@ -398,12 +398,25 @@
                 );
             };
 
+        const getCardTiltAngle = (unit) => {
+            const seedSource = `${unit?.id || ''}-${unit?.name || ''}-${unit?.imageId || ''}`;
+            let hash = 0;
+            for (let i = 0; i < seedSource.length; i++) {
+                hash = ((hash << 5) - hash) + seedSource.charCodeAt(i);
+                hash |= 0;
+            }
+            // Stable tilt with clear visibility and bidirectional lean.
+            const direction = (((hash ^ (hash >>> 16)) & 1) === 0) ? -1 : 1;
+            const magnitude = 1 + ((Math.abs(hash) % 31) / 10); // 1.0 -> 4.0
+            return Number((direction * magnitude).toFixed(2));
+        };
+
         const Card = ({ unit, party = [], isSelected = false }) => {
             if (!unit) return null;
             const roleInfo = ROLES[unit.role] || ROLES.DPS;
             
             // Seeded random tilt for 'tabletop' feel (-3 to +3 degrees)
-            const tiltAngle = ((parseInt(unit.id?.toString().slice(-2) || '0') % 10) / 1.5) - 3;
+            const tiltAngle = getCardTiltAngle(unit);
             
             const attackDirection = unit.isHero ? '-translate-x-7' : 'translate-x-7';
             const strikeDirection = unit.isHero ? '-translate-x-12' : 'translate-x-12';
@@ -2092,6 +2105,12 @@
             const [draftPool, setDraftPool] = useState([]);
             const [draftBg, setDraftBg] = useState(null);
             const [runEndState, setRunEndState] = useState(null);
+            const draftTiltMap = useMemo(
+                () => Object.fromEntries(
+                    draftPool.map(hero => [hero.name, `${(Math.random() * 8 - 4).toFixed(2)}deg`])
+                ),
+                [draftPool]
+            );
 
             // Persistent Map State
             const [activeLayout, setActiveLayout] = useState(null);
@@ -2458,24 +2477,25 @@
                                         {draftPool.map(hero => {
                                             const isSelected = heroes.find(h => h.name === hero.name);
                                             return (
-                                                <div 
-                                                    key={hero.name}
-                                                    onClick={() => {
-                                                        if (isSelected) {
-                                                            setHeroes(prev => prev.filter(h => h.name !== hero.name));
-                                                        } else if (heroes.length < 3) {
-                                                            setHeroes(prev => [...prev, hero]);
-                                                        }
-                                                    }}
-                                                    className="relative cursor-pointer transition-all hover:scale-105 active:scale-95 group z-10"
-                                                >
-                                                    <Card unit={hero} isSelected={!!isSelected} />
-                                                    {isSelected && (
-                                                        <div className="absolute top-4 right-4 bg-amber-500 text-black text-[10px] font-black px-2 py-1 rounded shadow-2xl z-50 animate-in zoom-in">SELECTED</div>
-                                                    )}
-                                                    {!isSelected && (
-                                                        <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-all pointer-events-none rounded-xl" />
-                                                    )}
+                                                <div key={hero.name} style={{ transform: `rotate(${draftTiltMap[hero.name] || '0deg'})` }}>
+                                                    <div 
+                                                        onClick={() => {
+                                                            if (isSelected) {
+                                                                setHeroes(prev => prev.filter(h => h.name !== hero.name));
+                                                            } else if (heroes.length < 3) {
+                                                                setHeroes(prev => [...prev, hero]);
+                                                            }
+                                                        }}
+                                                        className="relative cursor-pointer transition-all hover:scale-105 active:scale-95 group z-10"
+                                                    >
+                                                        <Card unit={hero} isSelected={!!isSelected} />
+                                                        {isSelected && (
+                                                            <div className="absolute top-4 right-4 bg-amber-500 text-black text-[10px] font-black px-2 py-1 rounded shadow-2xl z-50 animate-in zoom-in">SELECTED</div>
+                                                        )}
+                                                        {!isSelected && (
+                                                            <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-all pointer-events-none rounded-xl" />
+                                                        )}
+                                                    </div>
                                                 </div>
                                             );
                                         })}
