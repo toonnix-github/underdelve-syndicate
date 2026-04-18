@@ -22,6 +22,7 @@ export class Combatant {
     attackPhase: 'idle' | 'advance' | 'strike' | 'return';
     impactPulse: boolean;
     hitShake: boolean;
+    hitType: 'slash' | 'broken' | 'burn' | null;
     showImpact: boolean;
     healSparkle: boolean;
     traitGlow: boolean;
@@ -56,6 +57,7 @@ export class Combatant {
         this.attackPhase = 'idle';
         this.impactPulse = false;
         this.hitShake = false;
+        this.hitType = null;
         this.showImpact = false;
         this.healSparkle = false;
         this.traitGlow = false;
@@ -84,6 +86,9 @@ export class Combatant {
         copy.chargeColor = this.chargeColor;
         copy.activeSigil = this.activeSigil;
         copy.isPopping = this.isPopping;
+        copy.hitType = this.hitType;
+        copy.hitShake = this.hitShake;
+        copy.healSparkle = this.healSparkle;
         return copy;
     }
 
@@ -125,7 +130,6 @@ export class Combatant {
             total = Math.floor(total * 1.15);
         }
 
-        // --- NEW FORMATION PERK ---
         if (this.positionLine === 'VANGUARD') {
             total = Math.floor(total * 1.10); // +10% DEF
         }
@@ -142,7 +146,6 @@ export class Combatant {
             total = Math.floor(total * 1.10);
         }
 
-        // --- NEW FORMATION PERK ---
         if (this.positionLine === 'REARGUARD') {
             total = Math.floor(total * 1.15); // +15% SPD
         }
@@ -152,7 +155,8 @@ export class Combatant {
 
     updateAtb(dt: number, partySpeedMult = 1.0) {
         if (this.hp <= 0) return;
-        const increment = (this.getSPD() * dt * partySpeedMult) * 5;
+        const speed = this.getSPD();
+        const increment = (speed * dt * partySpeedMult) * 5;
         this.atb = Math.min(100, this.atb + increment);
     }
 
@@ -162,5 +166,21 @@ export class Combatant {
         setTimeout(() => {
             this.vfx = this.vfx.filter(v => v.id !== id);
         }, 1000);
+    }
+
+    triggerHit(type: 'slash' | 'broken' | 'burn') {
+        this.hitShake = true;
+        this.hitType = type;
+        setTimeout(() => {
+            this.hitShake = false;
+            this.hitType = null;
+        }, 300);
+    }
+
+    triggerHeal() {
+        this.healSparkle = true;
+        setTimeout(() => {
+            this.healSparkle = false;
+        }, 600);
     }
 }

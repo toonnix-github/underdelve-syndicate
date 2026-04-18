@@ -2,79 +2,113 @@ import { useState, useCallback, useEffect } from 'react';
 import { Combatant } from '../models/Combatant';
 import { calculateDamage, calculateHeal } from '../utils/combatMath';
 
+export interface ActiveAction {
+    id: string;
+    actorId: string;
+    targetId: string;
+    type: 'damage' | 'heal' | 'magic';
+    icon: 'sword' | 'bow' | 'fang' | 'fire' | 'heart' | 'zap';
+    geometry: 'melee' | 'range' | 'magic';
+}
+
+export interface UnitIntent {
+    actorId: string;
+    targetId: string;
+    atb: number;
+    geometry: 'melee' | 'range' | 'magic';
+}
+
 export const useBattle = (initialHeroes: Combatant[], initialEnemies: Combatant[]) => {
-    // Clone to ensure we don't mutate original refs
     const [heroes, setHeroes] = useState<Combatant[]>(initialHeroes.map(h => h.clone()));
     const [enemies, setEnemies] = useState<Combatant[]>(initialEnemies.map(e => e.clone()));
     const [isPaused, setIsPaused] = useState(true);
     const [battleLog, setBattleLog] = useState<string[]>([]);
     const [winner, setWinner] = useState<'heros' | 'enemies' | null>(null);
+    const [activeActions, setActiveActions] = useState<ActiveAction[]>([]);
+    const [intents, setIntents] = useState<UnitIntent[]>([]);
 
     const log = useCallback((msg: string) => {
         setBattleLog(prev => [msg, ...prev].slice(0, 5));
     }, []);
 
-    const processAction = useCallback(async (unit: Combatant) => {
+    const processAction = useCallback(async (unitId: string) => {
+        const all = [...heroes, ...enemies];
+        const unit = all.find(u => u.id === unitId);
+        if (!unit || unit.hp <= 0 || unit.isActing) return;
+
         const isHero = unit.isHero;
-        const targets = isHero ? enemies : heroes;
-        const aliveTargets = targets.filter(t => t.hp > 0);
-
-        if (aliveTargets.length === 0) return;
-
-        const target = aliveTargets[Math.floor(Math.random() * aliveTargets.length)];
         const ability = unit.abilities[0];
+        
+        let target: Combatant | null = null;
+        if (ability.type === 'heal') {
+            const teammates = isHero ? heroes : enemies;
+            target = teammates.filter(t => t.hp > 0).sort((a,b) => (a.hp/a.maxHp) - (b.hp/b.maxHp))[0];
+        } else {
+            const opponents = isHero ? enemies : heroes;
+            const aliveOpponents = opponents.filter(t => t.hp > 0);
+            if (aliveOpponents.length > 0) {
+                target = aliveOpponents[Math.floor(Math.random() * aliveOpponents.length)];
+            }
+        }
 
-        // START ACTION CYCLE
+        if (!target) return;
+
+        const actionId = Math.random().toString(36).substr(2, 9);
+        let type: 'damage' | 'heal' | 'magic' = 'damage';
+        let icon: 'sword' | 'bow' | 'fang' | 'fire' | 'heart' | 'zap' = 'sword';
+        let geometry: 'melee' | 'range' | 'magic' = 'melee';
+        let hitType: 'slash' | 'broken' | 'burn' = 'slash';
+
+        if (ability.type === 'heal') {
+            type = 'heal'; icon = 'heart'; geometry = 'magic';
+        } else if (unit.role === 'DPS') {
+            type = 'magic'; icon = 'fire'; geometry = 'magic'; hitType = 'burn';
+        } else if (unit.role === 'HEALER') {
+            type = 'magic'; icon = 'zap'; geometry = 'magic'; hitType = 'broken';
+        } else if (!isHero && unit.role === 'TANK') {
+            icon = 'fang'; geometry = 'melee'; hitType = 'broken';
+        } else if (unit.role === 'TANK' && isHero) {
+            icon = 'sword'; geometry = 'melee'; hitType = 'slash';
+        }
+
+        const newAction: ActiveAction = { id: actionId, actorId: unit.id, targetId: target.id, type, icon, geometry };
+        
+        setActiveActions(prev => [...prev, newAction]);
         unit.isActing = true;
         unit.attackPhase = 'advance';
+        setHeroes([...heroes]); setEnemies([...enemies]);
         
-        // Trigger React rerender for 'advance'
-        setHeroes(prev => prev.map(h => h.id === unit.id ? unit : h));
-        setEnemies(prev => prev.map(e => e.id === unit.id ? unit : e));
-        
-        await new Promise(r => setTimeout(r, 150));
+        await new Promise(r => setTimeout(r, 200));
         
         unit.attackPhase = 'strike';
-        
         if (ability.type === 'damage') {
             const dmg = calculateDamage(unit, target, isHero ? heroes : enemies, isHero ? enemies : heroes);
             target.hp = Math.max(0, target.hp - dmg);
             target.addVfx(`-${dmg}`, 'damage');
-            log(`${unit.name} uses ${ability.name} on ${target.name} for ${dmg} damage!`);
+            target.triggerHit(hitType);
+            log(`${unit.name} strikes ${target.name} for ${dmg} damage!`);
         } else {
             const heal = calculateHeal(unit, ability.val, isHero ? heroes : enemies);
-            const healTarget = isHero 
-                ? heroes.filter(h => h.hp > 0).sort((a,b) => (a.hp/a.maxHp) - (b.hp/b.maxHp))[0]
-                : enemies.filter(e => e.hp > 0).sort((a,b) => (a.hp/a.maxHp) - (b.hp/b.maxHp))[0];
-            
-            if (healTarget) {
-                healTarget.hp = Math.min(healTarget.maxHp, healTarget.hp + heal);
-                healTarget.addVfx(`+${heal}`, 'heal');
-                log(`${unit.name} heals ${healTarget.name} for ${heal}!`);
-            }
+            target.hp = Math.min(target.maxHp, target.hp + heal);
+            target.addVfx(`+${heal}`, 'heal');
+            target.triggerHeal();
+            log(`${unit.name} heals ${target.name} for ${heal}!`);
         }
 
         unit.atb = 0;
-        
-        // Trigger React rerender for 'strike' results
-        setHeroes([...heroes]);
-        setEnemies([...enemies]);
+        setHeroes([...heroes]); setEnemies([...enemies]);
 
-        await new Promise(r => setTimeout(r, 200));
-
+        await new Promise(r => setTimeout(r, 300));
         unit.attackPhase = 'return';
-        setHeroes([...heroes]);
-        setEnemies([...enemies]);
+        setHeroes([...heroes]); setEnemies([...enemies]);
 
         await new Promise(r => setTimeout(r, 150));
-
         unit.attackPhase = 'idle';
         unit.isActing = false;
+        setActiveActions(prev => prev.filter(a => a.id !== actionId));
 
-        setHeroes([...heroes]);
-        setEnemies([...enemies]);
+        setHeroes([...heroes]); setEnemies([...enemies]);
 
-        // Check for win/loss
         if (enemies.every(e => e.hp <= 0)) setWinner('heros');
         if (heroes.every(h => h.hp <= 0)) setWinner('enemies');
     }, [heroes, enemies, log]);
@@ -83,16 +117,29 @@ export const useBattle = (initialHeroes: Combatant[], initialEnemies: Combatant[
         if (isPaused || winner) return;
 
         const interval = setInterval(() => {
-            const allUnits = [...heroes, ...enemies].filter(u => u.hp > 0);
-            
-            // Update ATB
-            allUnits.forEach(u => u.updateAtb(0.05));
+            const allAlive = [...heroes, ...enemies].filter(u => u.hp > 0);
+            allAlive.forEach(u => {
+                if (!u.isActing) u.updateAtb(0.05);
+            });
 
-            // Check if anyone can act
-            const actor = allUnits.find(u => u.atb >= 100);
-            if (actor) {
-                processAction(actor);
-            }
+            const newIntents: UnitIntent[] = allAlive.map(u => {
+                let tid = "";
+                let geom: 'melee' | 'range' | 'magic' = 'melee';
+                if (u.abilities[0].type === 'heal') {
+                    const teammates = u.isHero ? heroes : enemies;
+                    tid = teammates.filter(t => t.hp > 0).sort((a,b) => (a.hp/a.maxHp) - (b.hp/b.maxHp))[0]?.id || "";
+                    geom = 'magic';
+                } else {
+                    const opponents = u.isHero ? enemies : heroes;
+                    tid = opponents.filter(t => t.hp > 0)[0]?.id || "";
+                    geom = (u.role === 'DPS' || u.role === 'HEALER') ? 'magic' : 'melee';
+                }
+                return { actorId: u.id, targetId: tid, atb: u.atb, geometry: geom };
+            });
+            setIntents(newIntents);
+
+            const actors = allAlive.filter(u => u.atb >= 100 && !u.isActing);
+            actors.forEach(actor => processAction(actor.id));
 
             setHeroes([...heroes]);
             setEnemies([...enemies]);
@@ -108,6 +155,8 @@ export const useBattle = (initialHeroes: Combatant[], initialEnemies: Combatant[
         setIsPaused,
         battleLog,
         winner,
+        activeActions,
+        intents,
         setHeroes,
         setEnemies
     };
