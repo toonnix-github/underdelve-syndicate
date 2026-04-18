@@ -27,25 +27,27 @@ export const useDungeon = (initialFloor: number, heroes: Combatant[]) => {
 
     const getScoutedCells = useCallback(() => {
         const scouted = new Set<string>();
-        const leader = heroes.find(h => h.isLeader);
-        const scoutRadius = leader?.name === 'Leora' ? 2 : 1;
-
+        
         exploredCells.forEach(cell => {
             const [cx, cy] = cell.split(',').map(Number);
-            for (let dy = -scoutRadius; dy <= scoutRadius; dy++) {
-                for (let dx = -scoutRadius; dx <= scoutRadius; dx++) {
-                    const nx = cx + dx;
-                    const ny = cy + dy;
-                    if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE) {
-                        if (dungeonData.layout[ny][nx] === 1) {
-                            scouted.add(`${nx},${ny}`);
-                        }
+            const adjacents = [
+                { nx: cx, ny: cy - 1 }, // Top
+                { nx: cx, ny: cy + 1 }, // Bottom
+                { nx: cx - 1, ny: cy }, // Left
+                { nx: cx + 1, ny: cy }  // Right
+            ];
+
+            adjacents.forEach(({ nx, ny }) => {
+                if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE) {
+                    // It's scouted if it's a floor tile (connected by doorway)
+                    if (dungeonData.layout[ny][nx] === 1) {
+                        scouted.add(`${nx},${ny}`);
                     }
                 }
-            }
+            });
         });
         return scouted;
-    }, [exploredCells, heroes, dungeonData]);
+    }, [exploredCells, dungeonData]);
 
     const nextFloor = useCallback(() => {
         const nf = floor + 1;

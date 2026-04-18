@@ -7,19 +7,19 @@ import { clsx } from 'clsx';
 
 interface DungeonViewProps {
     heroes: Combatant[];
+    dungeonState: ReturnType<typeof useDungeon>;
     onEncounter: (pos: TilePos) => void;
     onStairs: (direction: 'UP' | 'DOWN') => void;
     onTrap: (trap: Interactable) => void;
 }
 
-export const DungeonView: React.FC<DungeonViewProps> = ({ heroes, onEncounter, onStairs, onTrap }) => {
-    const { floor, playerPos, exploredCells, dungeonData, movePlayer, getScoutedCells } = useDungeon(1, heroes);
+export const DungeonView: React.FC<DungeonViewProps> = ({ heroes, dungeonState, onEncounter, onStairs, onTrap }) => {
+    const { floor, playerPos, exploredCells, dungeonData, movePlayer, getScoutedCells } = dungeonState;
     const scoutedCells = getScoutedCells();
     const mapFrameRef = useRef<HTMLDivElement>(null);
     const [offset, setOffset] = useState({ x: 0, y: 0 });
 
     const TILE_SIZE = 160;
-    const GAP = 8;
 
     const handleMove = useCallback((dx: number, dy: number) => {
         const newX = playerPos.x + dx;
@@ -30,12 +30,10 @@ export const DungeonView: React.FC<DungeonViewProps> = ({ heroes, onEncounter, o
 
         movePlayer(dx, dy);
 
-        // Check for interactables AFTER movePlayer state update (simplified here by using newX/newY)
+        // Hazards like TRAPS remain automatic, but transitions are now manual
         const interactable = dungeonData.interactables.find(i => i.x === newX && i.y === newY);
-        if (interactable) {
-            if (interactable.type === 'STAIRS') onStairs('DOWN');
-            if (interactable.type === 'PREV_FLOOR') onStairs('UP');
-            if (interactable.type === 'TRAP') onTrap(interactable);
+        if (interactable && interactable.type === 'TRAP') {
+            onTrap(interactable);
         } else {
             if (Math.random() < 0.1) onEncounter({ x: newX, y: newY });
         }
@@ -52,18 +50,27 @@ export const DungeonView: React.FC<DungeonViewProps> = ({ heroes, onEncounter, o
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [handleMove]);
 
-    // Center view on player
-    useEffect(() => {
-        if (!mapFrameRef.current) return;
-        const frame = mapFrameRef.current.getBoundingClientRect();
-        const targetX = (playerPos.x * (TILE_SIZE + GAP)) + (TILE_SIZE / 2);
-        const targetY = (playerPos.y * (TILE_SIZE + GAP)) + (TILE_SIZE / 2);
+    // Center view on player using grid-relative pivot logic
+    const centerOnPlayer = useCallback(() => {
+        // Grid center is half of the total pixel-size
+        const gridCenter = (GRID_SIZE * TILE_SIZE) / 2;
         
+        // Player center is their tile coordinate + half tile
+        const playerCenterX = (playerPos.x * TILE_SIZE) + (TILE_SIZE / 2);
+        const playerCenterY = (playerPos.y * TILE_SIZE) + (TILE_SIZE / 2);
+        
+        // Offset is the difference to drag the player focal point to the grid's pivot
         setOffset({
-            x: (frame.width / 2) - targetX,
-            y: (frame.height / 2) - targetY
+            x: gridCenter - playerCenterX,
+            y: gridCenter - playerCenterY
         });
-    }, [playerPos]);
+    }, [playerPos, TILE_SIZE]);
+
+    useEffect(() => {
+        centerOnPlayer();
+    }, [centerOnPlayer]);
+
+    const activeInteractable = dungeonData.interactables.find(i => i.x === playerPos.x && i.y === playerPos.y);
 
     return (
         <div className="w-full h-full flex flex-col relative overflow-hidden bg-zinc-950">
@@ -85,15 +92,32 @@ export const DungeonView: React.FC<DungeonViewProps> = ({ heroes, onEncounter, o
                 </div>
             </div>
 
+            {/* Manual Interaction Notice */}
+            {activeInteractable && (activeInteractable.type === 'STAIRS' || activeInteractable.type === 'PREV_FLOOR') && (
+                <div className="absolute bottom-12 left-1/2 -translate-x-1/2 z-50 animate-bounce">
+                    <button 
+                        onClick={() => {
+                            if (activeInteractable.type === 'STAIRS') onStairs('DOWN');
+                            if (activeInteractable.type === 'PREV_FLOOR') onStairs('UP');
+                        }}
+                        className="bg-cyan-600 hover:bg-cyan-500 text-white font-black px-8 py-4 rounded-xl shadow-[0_0_40px_rgba(8,145,178,0.4)] border-2 border-cyan-400/50 transition-all flex items-center gap-3 uppercase tracking-tighter"
+                    >
+                        {activeInteractable.type === 'STAIRS' ? 'DESCEND TO NEXT FLOOR' : 'ASCEND TO PREVIOUS FLOOR'}
+                    </button>
+                </div>
+            )}
+
             {/* Main Dungeon Grid */}
-            <div ref={mapFrameRef} className="flex-1 relative cursor-grab active:cursor-grabbing">
+            <div ref={mapFrameRef} className="flex-1 relative overflow-hidden flex items-center justify-center">
                 <div 
-                    className="absolute transition-all duration-500 ease-out"
+                    className="absolute transition-transform duration-700 ease-[cubic-bezier(0.34,1.56,0.64,1)] origin-center"
                     style={{ 
                         transform: `translate(${offset.x}px, ${offset.y}px)`,
                         display: 'grid',
+                        width: `${GRID_SIZE * TILE_SIZE}px`,
+                        height: `${GRID_SIZE * TILE_SIZE}px`,
                         gridTemplateColumns: `repeat(${GRID_SIZE}, ${TILE_SIZE}px)`,
-                        gap: `${GAP}px`
+                        gridTemplateRows: `repeat(${GRID_SIZE}, ${TILE_SIZE}px)`,
                     }}
                 >
                     {Array.from({ length: GRID_SIZE * GRID_SIZE }).map((_, i) => {
@@ -112,14 +136,89 @@ export const DungeonView: React.FC<DungeonViewProps> = ({ heroes, onEncounter, o
                             <div 
                                 key={i}
                                 className={clsx(
-                                    "relative w-full aspect-square rounded-xl border-2 transition-all duration-700 overflow-hidden",
-                                    isExplored ? "border-zinc-800 bg-zinc-900" : (isScouted ? "border-zinc-900 bg-zinc-950/40" : "opacity-0 scale-90"),
-                                    isPlayer && "border-white shadow-[0_0_30px_rgba(255,255,255,0.2)] z-10"
+                                    "relative w-full aspect-square transition-all duration-700 overflow-hidden bg-zinc-950",
+                                    (isExplored || isScouted) ? "scale-100 opacity-100" : "opacity-0 scale-90",
+                                    isPlayer && "z-10"
                                 )}
                             >
-                                {/* Tile Texture Placeholder */}
+                                {/* Room Art (Conditional) */}
                                 <div className={clsx(
-                                    "absolute inset-0 opacity-20",
+                                    "absolute inset-0 transition-opacity duration-1000",
+                                    isExplored ? "opacity-60" : "opacity-0"
+                                )}>
+                                    <img 
+                                        src={
+                                            interactable?.type === 'STAIRS' ? 'assets/tiles/tile_stairs_down.png' :
+                                            interactable?.type === 'PREV_FLOOR' ? 'assets/tiles/tile_stairs_up.png' :
+                                            `assets/tiles/tile_${(dungeonData.bgs[cellKey] % 9) + 1}.${((dungeonData.bgs[cellKey] % 9) + 1) <= 4 ? 'png' : 'jpg'}`
+                                        } 
+                                        className="w-full h-full object-cover scale-110"
+                                        alt=""
+                                    />
+                                    <div className="absolute inset-0 bg-black/50" />
+                                </div>
+
+                                {/* Unrevealed / Fog of War Art */}
+                                <div className={clsx(
+                                    "absolute inset-0 transition-opacity duration-700",
+                                    (isScouted && !isExplored) ? "opacity-100" : "opacity-0"
+                                )}>
+                                    <img 
+                                        src="assets/tiles/unrevealed.jpg" 
+                                        className="w-full h-full object-cover scale-110 rotate-90"
+                                        alt=""
+                                    />
+                                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                                        <div className="text-zinc-600/50">
+                                            <svg viewBox="0 0 24 24" width="48" height="48" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* ARCHITECTURAL BORDER SYSTEM (CORNER-CAGE) */}
+                                <div className={clsx(
+                                    "absolute inset-0 pointer-events-none z-20 transition-opacity duration-700",
+                                    isExplored ? "opacity-100" : "opacity-30"
+                                )}>
+                                    {/* PERSISTENT L-CORNERS */}
+                                    <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-zinc-700/80 rounded-tl-sm" />
+                                    <div className="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-zinc-700/80 rounded-tr-sm" />
+                                    <div className="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-zinc-700/80 rounded-bl-sm" />
+                                    <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-zinc-700/80 rounded-br-sm" />
+
+                                    {/* DYNAMIC EDGE SEGMENTS (WALLS) */}
+                                    {/* TOP EDGE */}
+                                    {(!(isExplored && y > 0 && dungeonData.layout[y-1][x] === 1)) ? (
+                                        <div className="absolute top-0 left-4 right-4 h-[2px] bg-zinc-700/80" />
+                                    ) : (
+                                        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-12 h-4 bg-gradient-to-b from-amber-500/20 to-transparent blur-sm" />
+                                    )}
+
+                                    {/* BOTTOM EDGE */}
+                                    {(!(isExplored && y < GRID_SIZE - 1 && dungeonData.layout[y+1][x] === 1)) ? (
+                                        <div className="absolute bottom-0 left-4 right-4 h-[2px] bg-zinc-700/80" />
+                                    ) : (
+                                        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-4 bg-gradient-to-t from-amber-500/20 to-transparent blur-sm" />
+                                    )}
+
+                                    {/* LEFT EDGE */}
+                                    {(!(isExplored && x > 0 && dungeonData.layout[y][x-1] === 1)) ? (
+                                        <div className="absolute left-0 top-4 bottom-4 w-[2px] bg-zinc-700/80" />
+                                    ) : (
+                                        <div className="absolute left-0 top-1/2 -translate-y-1/2 h-12 w-4 bg-gradient-to-r from-amber-500/10 to-transparent blur-sm opacity-50" />
+                                    )}
+
+                                    {/* RIGHT EDGE */}
+                                    {(!(isExplored && x < GRID_SIZE - 1 && dungeonData.layout[y][x+1] === 1)) ? (
+                                        <div className="absolute right-0 top-4 bottom-4 w-[2px] bg-zinc-700/80" />
+                                    ) : (
+                                        <div className="absolute right-0 top-1/2 -translate-y-1/2 h-12 w-4 bg-gradient-to-l from-amber-500/10 to-transparent blur-sm opacity-50" />
+                                    )}
+                                </div>
+
+                                {/* Tile Texture Overlay */}
+                                <div className={clsx(
+                                    "absolute inset-0 opacity-10 mix-blend-overlay",
                                     isExplored ? "bg-zinc-800" : "bg-black"
                                 )} />
 

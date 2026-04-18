@@ -8,6 +8,7 @@ import { LeadershipPhase } from './components/LeadershipPhase';
 import { DeploymentPhase } from './components/DeploymentPhase';
 import { DungeonView } from './components/DungeonView';
 import { BattleView } from './components/BattleView';
+import { useDungeon } from './hooks/useDungeon';
 import { Flame, Compass } from 'lucide-react';
 
 type GamePhase = 'MAIN_MENU' | 'RECRUIT' | 'LEADERSHIP' | 'DEPLOYMENT' | 'EXPLORATION' | 'BATTLE' | 'GAME_OVER';
@@ -53,6 +54,8 @@ const App: React.FC = () => {
         setParty(deployed);
         setPhase('EXPLORATION');
     };
+
+    const { floor, playerPos, exploredCells, dungeonData, movePlayer, getScoutedCells, nextFloor } = useDungeon(1, party);
 
     const handleEncounter = useCallback(() => {
         const numEnemies = Math.floor(Math.random() * 2) + 1;
@@ -126,8 +129,9 @@ const App: React.FC = () => {
                 {phase === 'EXPLORATION' && (
                     <DungeonView 
                         heroes={party} 
+                        dungeonState={{ floor, playerPos, exploredCells, dungeonData, movePlayer, getScoutedCells, nextFloor }}
                         onEncounter={handleEncounter} 
-                        onStairs={() => {}} 
+                        onStairs={nextFloor} 
                         onTrap={() => {}} 
                     />
                 )}
