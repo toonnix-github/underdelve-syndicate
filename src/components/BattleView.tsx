@@ -94,7 +94,8 @@ export const BattleView: React.FC<BattleViewProps> = ({ heroes: initialHeroes, e
         }
     }, [winner, heroes, onVictory, onDefeat]);
 
-    const getArcColor = (type: string) => {
+    const getArcColor = (type: string, isHero: boolean) => {
+        if (!isHero) return '#ef4444';
         switch (type) {
             case 'heal': return '#10b981';
             case 'magic': return '#d946ef';
@@ -134,6 +135,9 @@ export const BattleView: React.FC<BattleViewProps> = ({ heroes: initialHeroes, e
                     <marker id="arrow-solid-heal" markerWidth="6" markerHeight="4" refX="5" refY="2" orient="auto">
                         <path d="M 0 0 L 6 2 L 0 4 Z" fill="#10b981" />
                     </marker>
+                    <marker id="arrow-solid-villain" markerWidth="6" markerHeight="4" refX="5" refY="2" orient="auto">
+                        <path d="M 0 0 L 6 2 L 0 4 Z" fill="#ef4444" />
+                    </marker>
                     <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
                         <feGaussianBlur stdDeviation="3" result="blur" />
                         <feComposite in="SourceGraphic" in2="blur" operator="over" />
@@ -144,12 +148,21 @@ export const BattleView: React.FC<BattleViewProps> = ({ heroes: initialHeroes, e
                 {activeActions.map(action => {
                     const p1 = arcSystem.get(action.actorId);
                     if (!p1) return null;
+                    const actor = [...heroes, ...enemies].find(u => u.id === action.actorId);
                     
                     return action.targetIds.map(tid => {
                         const p2 = arcSystem.get(tid);
                         if (!p2) return null;
                         const pathData = getPath(p1, p2, action.geometry);
-                        const color = getArcColor(action.type);
+                        const isHero = actor?.isHero ?? true;
+                        const color = getArcColor(action.type, isHero);
+                        const markerEnd = isHero
+                            ? (action.type === 'heal'
+                                ? 'url(#arrow-solid-heal)'
+                                : action.type === 'magic'
+                                    ? 'url(#arrow-solid-magic)'
+                                    : 'url(#arrow-solid-amber)')
+                            : 'url(#arrow-solid-villain)';
                         
                         return (
                             <g key={`action-${action.id}-${tid}`} filter="url(#glow)">
@@ -169,11 +182,7 @@ export const BattleView: React.FC<BattleViewProps> = ({ heroes: initialHeroes, e
                                     strokeOpacity="0.8"
                                     strokeLinecap="round"
                                     strokeDasharray="15 10"
-                                    markerEnd={
-                                        action.type === 'heal' ? 'url(#arrow-solid-heal)' : 
-                                        action.type === 'magic' ? 'url(#arrow-solid-magic)' : 
-                                        'url(#arrow-solid-amber)'
-                                    }
+                                    markerEnd={markerEnd}
                                 >
                                     <animate attributeName="stroke-dashoffset" from="100" to="0" dur="1s" repeatCount="indefinite" />
                                 </path>
