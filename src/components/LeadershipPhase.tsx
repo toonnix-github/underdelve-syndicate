@@ -70,7 +70,7 @@ export const LeadershipPhase: React.FC<LeadershipPhaseProps> = ({ draftHeroes, o
                             </div>
 
                             <div className={cn(
-                                "mt-10 p-4 rounded-xl border-2 transition-all duration-500 text-center max-w-[200px]",
+                                "mt-3 p-3 rounded-xl border-2 transition-all duration-500 text-center max-w-[200px]",
                                 isSelected ? 'bg-amber-950/40 border-amber-500 shadow-xl scale-105' : 'bg-zinc-900/40 border-zinc-800 opacity-40'
                             )}>
                                 <h4 className="text-amber-500 font-black italic text-[11px] tracking-widest uppercase mb-1 flex items-center justify-center gap-1">

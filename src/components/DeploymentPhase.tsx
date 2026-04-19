@@ -17,8 +17,6 @@ export const DeploymentPhase: React.FC<DeploymentPhaseProps> = ({ heroes: initia
             if (h.name === name) {
                 const next = h.clone();
                 const newPos = h.positionLine === 'VANGUARD' ? 'REARGUARD' : 'VANGUARD';
-                const countInNewPos = prev.filter(p => p.positionLine === newPos).length;
-                if (countInNewPos >= 2) return h; 
                 next.positionLine = newPos;
                 return next;
             }
@@ -28,6 +26,8 @@ export const DeploymentPhase: React.FC<DeploymentPhaseProps> = ({ heroes: initia
 
     const vanguard = heroes.filter(h => h.positionLine === 'VANGUARD');
     const rearguard = heroes.filter(h => h.positionLine === 'REARGUARD');
+    const isFormationValid = vanguard.length <= 2 && rearguard.length <= 2;
+    const formationWarning = !isFormationValid ? 'Deployment requires at most 2 units in each row' : null;
 
     return (
         <div className="h-screen w-full bg-zinc-950 flex flex-col items-center pt-8 p-4 text-white animate-in fade-in duration-700 overflow-hidden font-sans relative">
@@ -41,6 +41,12 @@ export const DeploymentPhase: React.FC<DeploymentPhaseProps> = ({ heroes: initia
                     Squad <span className="text-emerald-500">Formation</span>
                 </h2>
                 <p className="text-zinc-500 text-[9px] uppercase font-bold tracking-[0.3em]">Operational 2x2 Tactical Grid</p>
+                <p className="mt-2 text-zinc-600 text-[9px] uppercase font-bold tracking-[0.2em]">You can adjust freely, but deployment needs a 2 x 2 split</p>
+                {formationWarning && (
+                    <p className="mt-2 text-rose-400 text-[9px] uppercase font-black tracking-[0.2em]">
+                        {formationWarning}
+                    </p>
+                )}
             </div>
 
             <div className="flex gap-10 items-center justify-center z-10 scale-100 mb-24">
@@ -52,7 +58,7 @@ export const DeploymentPhase: React.FC<DeploymentPhaseProps> = ({ heroes: initia
                         {vanguard.map(hero => (
                             <CompactCard key={hero.name} hero={hero} onClick={() => togglePosition(hero.name)} color="red" />
                         ))}
-                        {Array.from({ length: 2 - vanguard.length }).map((_, i) => (
+                        {Array.from({ length: Math.max(0, 2 - vanguard.length) }).map((_, i) => (
                             <EmptySlot key={i} />
                         ))}
                     </div>
@@ -72,7 +78,7 @@ export const DeploymentPhase: React.FC<DeploymentPhaseProps> = ({ heroes: initia
                         {rearguard.map(hero => (
                             <CompactCard key={hero.name} hero={hero} onClick={() => togglePosition(hero.name)} color="blue" />
                         ))}
-                        {Array.from({ length: 2 - rearguard.length }).map((_, i) => (
+                        {Array.from({ length: Math.max(0, 2 - rearguard.length) }).map((_, i) => (
                             <EmptySlot key={i} />
                         ))}
                     </div>
@@ -83,8 +89,14 @@ export const DeploymentPhase: React.FC<DeploymentPhaseProps> = ({ heroes: initia
             {/* Standardized Bottom Button */}
             <div className="absolute bottom-10 z-30 animate-in slide-in-from-bottom-6 duration-1000">
                 <Button 
+                    disabled={!isFormationValid}
                     onClick={() => onFinalize(heroes)}
-                    className="px-16 py-4 text-xl tracking-[0.2em] bg-emerald-600 border-emerald-400 shadow-[0_0_30px_rgba(16,185,129,0.3)]"
+                    className={clsx(
+                        "px-16 py-4 text-xl tracking-[0.2em]",
+                        isFormationValid
+                            ? "bg-emerald-600 border-emerald-400 shadow-[0_0_30px_rgba(16,185,129,0.3)]"
+                            : "bg-zinc-900 border-zinc-800 text-zinc-600 opacity-50"
+                    )}
                 >
                     INITIALIZE MISSION
                 </Button>
