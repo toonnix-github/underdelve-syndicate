@@ -132,10 +132,6 @@ export class Combatant {
         if (leader?.name === 'Valerius') {
             total = Math.floor(total * 1.15);
         }
-
-        if (this.positionLine === 'VANGUARD') {
-            total = Math.floor(total * 1.10); // +10% DEF
-        }
         
         return total;
     }
@@ -147,10 +143,6 @@ export class Combatant {
         const leader = party.find(h => h.isLeader);
         if (leader?.name === 'Lira') {
             total = Math.floor(total * 1.10);
-        }
-
-        if (this.positionLine === 'REARGUARD') {
-            total = Math.floor(total * 1.15); // +15% SPD
         }
 
         return total;

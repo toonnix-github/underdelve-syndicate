@@ -126,22 +126,16 @@ export const BattleView: React.FC<BattleViewProps> = ({ heroes: initialHeroes, e
                 defRunning = boosted;
             }
 
-            if (unit.positionLine === 'VANGUARD') {
-                const boosted = Math.floor(defRunning * 1.10);
-                pushStat(boosted - defRunning, 'DEF', 'Frontline');
-                defRunning = boosted;
-            }
-
             if (leader?.name === 'Lira') {
                 const boosted = Math.floor(spdRunning * 1.10);
                 pushStat(boosted - spdRunning, 'SPD', 'Leader');
                 spdRunning = boosted;
             }
 
-            if (unit.positionLine === 'REARGUARD') {
-                const boosted = Math.floor(spdRunning * 1.15);
-                pushStat(boosted - spdRunning, 'SPD', 'Rearline');
-                spdRunning = boosted;
+            if (unit.positionLine === 'VANGUARD') {
+                stats.push('SCREENS BACKLINE');
+            } else {
+                stats.push('PROTECTED BY FRONT');
             }
 
             return {
@@ -340,12 +334,17 @@ export const BattleView: React.FC<BattleViewProps> = ({ heroes: initialHeroes, e
             <div className="space-y-1">
                 {items.map(item => {
                     const isNegative = item.trim().startsWith('-');
+                    const isPositive = item.trim().startsWith('+');
                     return (
                         <div
                             key={item}
                             className={clsx(
                                 'rounded-md border px-2 py-1 text-[9px] leading-tight bg-black/20',
-                                isNegative ? 'border-rose-500/15 text-rose-100' : 'border-emerald-500/15 text-emerald-100'
+                                isNegative
+                                    ? 'border-rose-500/15 text-rose-100'
+                                    : isPositive
+                                        ? 'border-emerald-500/15 text-emerald-100'
+                                        : 'border-zinc-700/40 text-zinc-300'
                             )}
                         >
                             <span className="font-black uppercase tracking-[0.12em]">{item}</span>

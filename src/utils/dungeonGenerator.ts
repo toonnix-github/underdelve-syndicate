@@ -11,9 +11,16 @@ export interface TilePos {
 
 export interface Interactable extends TilePos {
     id: string;
-    type: 'TRAP' | 'CHEST' | 'STAIRS' | 'PREV_FLOOR';
+    type: 'TRAP' | 'CHEST' | 'STAIRS' | 'PREV_FLOOR' | 'ENEMY';
     trapType?: 'SPIKES' | 'ACID' | 'BLADES';
-    status?: 'ACTIVE' | 'TRIGGERED';
+    status: 'ACTIVE' | 'TRIGGERED' | 'DISARMED' | 'FAILED';
+    resolution?: {
+        avoided: boolean;
+        disarmed: boolean;
+        scripReward: number;
+        avoidanceDC: number;
+        disarmDC: number;
+    };
 }
 
 export const generateFloor = (floor: number, size = GRID_SIZE) => {
@@ -79,27 +86,37 @@ export const generateFloor = (floor: number, size = GRID_SIZE) => {
     const getLoc = () => validTiles.length > 0 ? validTiles.pop()! : { x: centerX, y: centerY };
 
     const TRAP_TYPES = ['SPIKES', 'ACID', 'BLADES'] as const;
-    const getTrap = (id: string): Interactable => ({
+    const getTrap = (id: string, floorLevel: number): Interactable => ({
         id,
         ...getLoc(),
         type: 'TRAP',
         trapType: TRAP_TYPES[Math.floor(Math.random() * TRAP_TYPES.length)],
-        status: 'ACTIVE'
+        status: 'ACTIVE',
+        resolution: {
+            avoided: false,
+            disarmed: false,
+            scripReward: 25 + (floorLevel * 10),
+            avoidanceDC: 8 + (floorLevel * 1.5),
+            disarmDC: 10 + (floorLevel * 2)
+        }
     });
 
     let interactables: Interactable[] = [];
     if (floor === 1) {
         interactables = [
-            getTrap('t1'),
-            { id: 'c1', ...getLoc(), type: 'CHEST' },
-            { id: 's1', ...getLoc(), type: 'STAIRS' }
+            getTrap('t1', floor),
+            { id: 'e1', ...getLoc(), type: 'ENEMY', status: 'ACTIVE' },
+            { id: 'c1', ...getLoc(), type: 'CHEST', status: 'ACTIVE' },
+            { id: 's1', ...getLoc(), type: 'STAIRS', status: 'ACTIVE' }
         ];
     } else {
         interactables = [
-            getTrap(`t${floor}`),
-            { id: `c${floor}`, ...getLoc(), type: 'CHEST' },
-            { id: `s${floor}`, ...getLoc(), type: 'STAIRS' },
-            { id: `p${floor}`, x: centerX, y: centerY, type: 'PREV_FLOOR' }
+            getTrap(`t${floor}`, floor),
+            { id: `e${floor}_1`, ...getLoc(), type: 'ENEMY', status: 'ACTIVE' },
+            { id: `e${floor}_2`, ...getLoc(), type: 'ENEMY', status: 'ACTIVE' },
+            { id: `c${floor}`, ...getLoc(), type: 'CHEST', status: 'ACTIVE' },
+            { id: `s${floor}`, ...getLoc(), type: 'STAIRS', status: 'ACTIVE' },
+            { id: `p${floor}`, x: centerX, y: centerY, type: 'PREV_FLOOR', status: 'ACTIVE' }
         ];
     }
 

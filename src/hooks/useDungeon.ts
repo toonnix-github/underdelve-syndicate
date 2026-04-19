@@ -57,6 +57,13 @@ export const useDungeon = (initialFloor: number, heroes: Combatant[]) => {
         setExploredCells(new Set(['4,4']));
     }, [floor]);
 
+    const updateInteractable = useCallback((id: string, updates: Partial<Interactable>) => {
+        setDungeonData(prev => ({
+            ...prev,
+            interactables: prev.interactables.map(i => i.id === id ? { ...i, ...updates } : i)
+        }));
+    }, []);
+
     return {
         floor,
         playerPos,
@@ -64,6 +71,7 @@ export const useDungeon = (initialFloor: number, heroes: Combatant[]) => {
         dungeonData,
         movePlayer,
         getScoutedCells,
-        nextFloor
+        nextFloor,
+        updateInteractable
     };
 };

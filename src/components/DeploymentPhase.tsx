@@ -41,7 +41,7 @@ export const DeploymentPhase: React.FC<DeploymentPhaseProps> = ({ heroes: initia
                     Squad <span className="text-emerald-500">Formation</span>
                 </h2>
                 <p className="text-zinc-500 text-[9px] uppercase font-bold tracking-[0.3em]">Operational 2x2 Tactical Grid</p>
-                <p className="mt-2 text-zinc-600 text-[9px] uppercase font-bold tracking-[0.2em]">You can adjust freely, but deployment needs a 2 x 2 split</p>
+                <p className="mt-2 text-zinc-600 text-[9px] uppercase font-bold tracking-[0.2em]">Frontline screens the backline. Rearline stays protected until the front breaks.</p>
                 {formationWarning && (
                     <p className="mt-2 text-rose-400 text-[9px] uppercase font-black tracking-[0.2em]">
                         {formationWarning}
@@ -53,7 +53,7 @@ export const DeploymentPhase: React.FC<DeploymentPhaseProps> = ({ heroes: initia
                 
                 {/* VANGUARD SECTION */}
                 <div className="flex flex-col items-center gap-3 group animate-in slide-in-from-left-10 duration-1000">
-                    <div className="text-[9px] font-black uppercase tracking-widest text-red-500/60 pb-1">Vanguard (+10% DEF)</div>
+                    <div className="text-[9px] font-black uppercase tracking-widest text-red-500/60 pb-1">Vanguard (screens rear line)</div>
                     <div className="grid grid-cols-1 gap-3 w-[160px] p-2 bg-zinc-900/20 border border-zinc-800 rounded-3xl transition-all duration-500 hover:border-red-900/30">
                         {vanguard.map(hero => (
                             <CompactCard key={hero.name} hero={hero} onClick={() => togglePosition(hero.name)} color="red" />
@@ -73,7 +73,7 @@ export const DeploymentPhase: React.FC<DeploymentPhaseProps> = ({ heroes: initia
 
                 {/* REARGUARD SECTION */}
                 <div className="flex flex-col items-center gap-3 group animate-in slide-in-from-right-10 duration-1000">
-                    <div className="text-[9px] font-black uppercase tracking-widest text-blue-500/60 pb-1">Rearguard (+15% SPD)</div>
+                    <div className="text-[9px] font-black uppercase tracking-widest text-blue-500/60 pb-1">Rearguard (protected while front holds)</div>
                     <div className="grid grid-cols-1 gap-3 w-[160px] p-2 bg-zinc-900/20 border border-zinc-800 rounded-3xl transition-all duration-500 hover:border-blue-900/30">
                         {rearguard.map(hero => (
                             <CompactCard key={hero.name} hero={hero} onClick={() => togglePosition(hero.name)} color="blue" />

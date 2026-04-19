@@ -19,6 +19,9 @@ const App: React.FC = () => {
     const [enemies, setEnemies] = useState<Combatant[]>([]);
     const [draftPool, setDraftPool] = useState<any[]>([]);
     const [draftBg, setDraftBg] = useState<string | null>(null);
+    const [scrip, setScrip] = useState(2500);
+    const [vault, setVault] = useState<string[]>([]);
+    const [lastEncounterId, setLastEncounterId] = useState<string | null>(null);
 
     const startRun = () => {
         // Old Mechanism: Pick 3 from pool of 5
@@ -30,6 +33,8 @@ const App: React.FC = () => {
         setDraftBg(`assets/bg_draft_${bgIdx}.png`);
         
         setParty([]);
+        setScrip(2500);
+        setVault([]);
         setPhase('RECRUIT');
     };
 
@@ -55,9 +60,13 @@ const App: React.FC = () => {
         setPhase('EXPLORATION');
     };
 
-    const { floor, playerPos, exploredCells, dungeonData, movePlayer, getScoutedCells, nextFloor } = useDungeon(1, party);
+    const { floor, playerPos, exploredCells, dungeonData, movePlayer, getScoutedCells, nextFloor, updateInteractable } = useDungeon(1, party);
 
-    const handleEncounter = useCallback(() => {
+    const handleEncounter = useCallback((pos: any) => {
+        // Find encounter ID to persist victory
+        const encounter = dungeonData.interactables.find(i => i.x === pos.x && i.y === pos.y);
+        if (encounter) setLastEncounterId(encounter.id);
+
         const numEnemies = Math.floor(Math.random() * 2) + 1;
         const newEnemies = Array.from({ length: numEnemies }).map((_, i) => {
             const proto = ENEMY_POOL[Math.floor(Math.random() * ENEMY_POOL.length)];
@@ -76,6 +85,24 @@ const App: React.FC = () => {
         });
         setEnemies(newEnemies);
         setPhase('BATTLE');
+    }, [dungeonData.interactables]);
+
+    const handleTrap = useCallback((interactable: any) => {
+        const trapType = interactable.trapType;
+        let damage = 5;
+        if (trapType === 'SPIKES') damage = 10;
+        if (trapType === 'ACID') damage = 15;
+        if (trapType === 'BLADES') damage = 20;
+
+        setParty(prev => prev.map(hero => {
+            const nextHero = hero.clone();
+            nextHero.hp = Math.max(0, hero.hp - damage);
+            return nextHero;
+        }));
+    }, []);
+
+    const handleReward = useCallback((amount: number) => {
+        setScrip(prev => prev + amount);
     }, []);
 
     return (
@@ -129,10 +156,17 @@ const App: React.FC = () => {
                 {phase === 'EXPLORATION' && (
                     <DungeonView 
                         heroes={party} 
-                        dungeonState={{ floor, playerPos, exploredCells, dungeonData, movePlayer, getScoutedCells, nextFloor }}
+                        dungeonState={{ 
+                            floor, playerPos, exploredCells, dungeonData, 
+                            movePlayer, getScoutedCells, nextFloor, 
+                            updateInteractable 
+                        }}
+                        scrip={scrip}
+                        vault={vault}
                         onEncounter={handleEncounter} 
                         onStairs={nextFloor} 
-                        onTrap={() => {}} 
+                        onTrap={handleTrap} 
+                        onReward={handleReward}
                     />
                 )}
 
@@ -140,7 +174,13 @@ const App: React.FC = () => {
                     <BattleView 
                         heroes={party} 
                         enemies={enemies} 
-                        onVictory={(rem) => { setParty(rem); setPhase('EXPLORATION'); }} 
+                        onVictory={(rem) => { 
+                            setParty(rem); 
+                            if (lastEncounterId) {
+                                updateInteractable(lastEncounterId, { status: 'DISARMED' });
+                            }
+                            setPhase('EXPLORATION'); 
+                        }} 
                         onDefeat={() => setPhase('GAME_OVER')} 
                     />
                 )}

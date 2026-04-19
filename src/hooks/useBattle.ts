@@ -52,24 +52,29 @@ export const useBattle = (initialHeroes: Combatant[], initialEnemies: Combatant[
         let targets: Combatant[] = [];
         const opponents = isHero ? enemies : heroes;
         const teammates = isHero ? heroes : enemies;
+        const frontlineOpponents = opponents.filter(o => o.positionLine === 'VANGUARD' && o.hp > 0);
+        const canBypassFrontline =
+            unit.trait?.id === 'infiltrator' ||
+            unit.imageId === 'hero_kael' ||
+            unit.imageId === 'hero_slyn';
+        const selectableOpponents = frontlineOpponents.length > 0 && !canBypassFrontline
+            ? frontlineOpponents
+            : opponents.filter(o => o.hp > 0);
 
         if (selectedSkill.targetType === 'all') {
             targets = selectedSkill.type === 'heal' 
                 ? teammates.filter(t => t.hp > 0)
                 : opponents.filter(o => o.hp > 0);
         } else if (selectedSkill.targetType === 'row') {
-            // Target the front row if anyone is alive, else back row
-            const front = opponents.filter(o => o.positionLine === 'VANGUARD' && o.hp > 0);
-            targets = front.length > 0 ? front : opponents.filter(o => o.hp > 0);
+            targets = frontlineOpponents.length > 0 ? frontlineOpponents : opponents.filter(o => o.hp > 0);
         } else {
             // Single target
             if (selectedSkill.type === 'heal') {
                 const healT = teammates.filter(t => t.hp > 0).sort((a,b) => (a.hp/a.maxHp) - (b.hp/b.maxHp))[0];
                 if (healT) targets = [healT];
             } else {
-                const aliveOps = opponents.filter(t => t.hp > 0);
-                if (aliveOps.length > 0) {
-                    targets = [aliveOps[Math.floor(Math.random() * aliveOps.length)]];
+                if (selectableOpponents.length > 0) {
+                    targets = [selectableOpponents[Math.floor(Math.random() * selectableOpponents.length)]];
                 }
             }
         }

@@ -133,3 +133,61 @@
   animation: special-flash 0.7s ease-in-out infinite;
   mix-blend-mode: screen;
 }
+
+@keyframes success-burst {
+  0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.8); }
+  30% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; box-shadow: 0 0 30px 10px rgba(16, 185, 129, 0.6); }
+  100% { transform: translate(-50%, -50%) scale(1.8); opacity: 0; box-shadow: 0 0 80px 40px rgba(16, 185, 129, 0); }
+}
+.animate-success-burst {
+  animation: success-burst 0.8s cubic-bezier(0.19, 1, 0.22, 1) forwards;
+}
+
+@keyframes scrip-float {
+  0% { transform: translateY(0); opacity: 0; }
+  20% { transform: translateY(-20px); opacity: 1; }
+  100% { transform: translateY(-60px); opacity: 0; }
+}
+.animate-scrip-float {
+  animation: scrip-float 1.5s ease-out forwards;
+}
+
+@keyframes card-hit-flash {
+  0% { background-color: rgba(244, 63, 94, 0); }
+  10% { background-color: rgba(244, 63, 94, 0.8); }
+  100% { background-color: rgba(244, 63, 94, 0); }
+}
+.animate-card-hit-flash {
+  animation: card-hit-flash 0.4s ease-out forwards;
+}
+
+@keyframes dice-glow {
+  0% { filter: drop-shadow(0 0 2px rgba(255,255,255,0.2)); }
+  50% { filter: drop-shadow(0 0 15px rgba(255,255,255,0.8)); }
+  100% { filter: drop-shadow(0 0 2px rgba(255,255,255,0.2)); }
+}
+.animate-dice-glow {
+  animation: dice-glow 0.4s ease-in-out infinite;
+}
+
+@keyframes scanline {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100%); }
+}
+.animate-scanline {
+  animation: scanline 4s linear infinite;
+  background: linear-gradient(to bottom, transparent, rgba(16, 185, 129, 0.05), transparent);
+}
+
+@keyframes crt-flicker {
+  0% { opacity: 0.97; }
+  5% { opacity: 0.95; }
+  10% { opacity: 0.9; }
+  15% { opacity: 0.95; }
+  20% { opacity: 0.98; }
+  25% { opacity: 0.95; }
+  100% { opacity: 1; }
+}
+.animate-crt-flicker {
+  animation: crt-flicker 0.15s infinite;
+}
