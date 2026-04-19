@@ -12,6 +12,9 @@ interface CombatantCardProps {
     activeIcon?: string | null;
     isSpecialAction?: boolean;
     specialColor?: string;
+    showInfoBadge?: boolean;
+    onInfoHoverStart?: (event: React.MouseEvent<HTMLDivElement>) => void;
+    onInfoHoverEnd?: () => void;
     hideAtb?: boolean;
     footer?: React.ReactNode;
 }
@@ -24,6 +27,9 @@ export const CombatantCard: React.FC<CombatantCardProps> = ({
     activeIcon,
     isSpecialAction = false,
     specialColor = '#f59e0b',
+    showInfoBadge = false,
+    onInfoHoverStart,
+    onInfoHoverEnd,
     hideAtb = false,
     footer
 }) => {
@@ -61,6 +67,8 @@ export const CombatantCard: React.FC<CombatantCardProps> = ({
         <div
             id={`unit-${unit.id}`}
             className="relative will-change-transform transform-gpu"
+            onMouseEnter={onInfoHoverStart}
+            onMouseLeave={onInfoHoverEnd}
             style={{
                 transform: `translate3d(${getTranslateX()}, 0, 0)`,
                 transition: getTransformTransition(),
@@ -87,6 +95,20 @@ export const CombatantCard: React.FC<CombatantCardProps> = ({
                         className="absolute inset-0 z-[5] pointer-events-none animate-special-flash"
                         style={{ backgroundColor: specialColor }}
                     />
+                )}
+
+                {showInfoBadge && (
+                    <div
+                        aria-hidden="true"
+                        className={clsx(
+                            "absolute top-2 right-2 z-[90] w-5 h-5 rounded-full border text-[10px] font-black leading-none flex items-center justify-center pointer-events-none",
+                            isEnemy
+                                ? "bg-red-950/60 border-red-400/45 text-red-100"
+                                : "bg-cyan-950/60 border-cyan-400/45 text-cyan-100"
+                        )}
+                    >
+                        !
+                    </div>
                 )}
 
                 <div className="absolute inset-0 z-0 opacity-80 brightness-110 contrast-110">

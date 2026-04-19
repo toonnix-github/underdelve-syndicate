@@ -1,8 +1,7 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Combatant } from '../models/Combatant';
-import { useBattle, UnitIntent, ActiveAction } from '../hooks/useBattle';
+import { useBattle } from '../hooks/useBattle';
 import { CombatantCard } from './CombatantCard';
-import { Button } from './UI';
 import { Swords, Info, Play, Pause } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -13,28 +12,40 @@ interface BattleViewProps {
     onDefeat: () => void;
 }
 
+interface BattleUnitNotes {
+    unitId: string;
+    summary: string[];
+    stats: string[];
+}
+
+interface HoverPanelPosition {
+    top: number;
+    left: number;
+}
+
 export const BattleView: React.FC<BattleViewProps> = ({ heroes: initialHeroes, enemies: initialEnemies, onVictory, onDefeat }) => {
     const battleRef = useRef<HTMLDivElement>(null);
-    const [arcSystem, setArcSystem] = useState<Map<string, {x: number, y: number}>>(new Map());
+    const hoverCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const [arcSystem, setArcSystem] = useState<Map<string, { x: number; y: number }>>(new Map());
     const [countdown, setCountdown] = useState<number | null>(3);
+    const [hoveredUnitId, setHoveredUnitId] = useState<string | null>(null);
+    const [hoverPanelPosition, setHoverPanelPosition] = useState<HoverPanelPosition | null>(null);
 
-    const { 
-        heroes, 
-        enemies, 
-        isPaused, 
-        setIsPaused, 
-        battleLog, 
+    const {
+        heroes,
+        enemies,
+        isPaused,
+        setIsPaused,
+        battleLog,
         winner,
         activeActions
     } = useBattle(initialHeroes, initialEnemies);
 
-    // Random Background selector (one per battle encounter)
     const battleBg = useMemo(() => {
         const bgIdx = Math.floor(Math.random() * 4) + 1;
         return `assets/battle-bgs/bg_${bgIdx}.png`;
     }, []);
 
-    // Initial Countdown logic
     useEffect(() => {
         if (!isPaused) {
             setCountdown(null);
@@ -44,7 +55,9 @@ export const BattleView: React.FC<BattleViewProps> = ({ heroes: initialHeroes, e
         if (countdown !== null && countdown > 0) {
             const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
             return () => clearTimeout(timer);
-        } else if (countdown === 0) {
+        }
+
+        if (countdown === 0) {
             setIsPaused(false);
             setCountdown(null);
         }
@@ -58,14 +71,181 @@ export const BattleView: React.FC<BattleViewProps> = ({ heroes: initialHeroes, e
         return new Map(activeActions.map(action => [action.actorId, action]));
     }, [activeActions]);
 
-    // Track unit positions only while an attack arc is visible
+    const battleNotesById = useMemo(() => {
+        const describeUnit = (unit: Combatant, allies: Combatant[]): BattleUnitNotes => {
+            const stats: string[] = [];
+            const leader = allies.find(member => member.isLeader);
+            const pushStat = (delta: number, label: string, source: string) => {
+                if (delta !== 0) {
+                    stats.push(`${delta > 0 ? '+' : ''}${delta} ${label} : ${source}`);
+                }
+            };
+
+            let atkRunning = unit.power;
+            let defRunning = unit.def;
+            let spdRunning = unit.speed;
+
+            Object.values(unit.equipment || {}).forEach((item: any) => {
+                if (!item?.statBoost) return;
+                const boost = item.statBoost as { atk?: number; def?: number; spd?: number };
+                if (boost.atk) {
+                    atkRunning += boost.atk;
+                    pushStat(boost.atk, 'ATK', 'Gear');
+                }
+                if (boost.def) {
+                    defRunning += boost.def;
+                    pushStat(boost.def, 'DEF', 'Gear');
+                }
+                if (boost.spd) {
+                    spdRunning += boost.spd;
+                    pushStat(boost.spd, 'SPD', 'Gear');
+                }
+            });
+
+            if (leader?.name === 'Valthea' && unit.positionLine === 'VANGUARD') {
+                const boosted = Math.floor(atkRunning * 1.15);
+                pushStat(boosted - atkRunning, 'ATK', 'Leader');
+                atkRunning = boosted;
+            }
+
+            if (leader?.name === 'Vex' && unit.hasEliteBonus) {
+                const boosted = Math.floor(atkRunning * 1.10);
+                pushStat(boosted - atkRunning, 'ATK', 'Leader');
+                atkRunning = boosted;
+            }
+
+            if (unit.trait?.id === 'vanguard_stance' && unit.positionLine === 'VANGUARD') {
+                const boosted = Math.floor(defRunning * 1.1);
+                pushStat(boosted - defRunning, 'DEF', 'Trait');
+                defRunning = boosted;
+            }
+
+            if (leader?.name === 'Valerius') {
+                const boosted = Math.floor(defRunning * 1.15);
+                pushStat(boosted - defRunning, 'DEF', 'Leader');
+                defRunning = boosted;
+            }
+
+            if (unit.positionLine === 'VANGUARD') {
+                const boosted = Math.floor(defRunning * 1.10);
+                pushStat(boosted - defRunning, 'DEF', 'Frontline');
+                defRunning = boosted;
+            }
+
+            if (leader?.name === 'Lira') {
+                const boosted = Math.floor(spdRunning * 1.10);
+                pushStat(boosted - spdRunning, 'SPD', 'Leader');
+                spdRunning = boosted;
+            }
+
+            if (unit.positionLine === 'REARGUARD') {
+                const boosted = Math.floor(spdRunning * 1.15);
+                pushStat(boosted - spdRunning, 'SPD', 'Rearline');
+                spdRunning = boosted;
+            }
+
+            return {
+                unitId: unit.id,
+                summary: [
+                    unit.isLeader ? 'Leader' : 'Fighter',
+                    unit.role,
+                    unit.positionLine === 'VANGUARD' ? 'Frontline' : 'Rearline'
+                ],
+                stats,
+            };
+        };
+
+        return new Map(
+            [...heroes, ...enemies].map(unit => [
+                unit.id,
+                describeUnit(unit, unit.isHero ? heroes : enemies)
+            ])
+        );
+    }, [heroes, enemies]);
+
+    const hoveredUnit = useMemo(() => {
+        if (!hoveredUnitId) return null;
+        return unitById.get(hoveredUnitId) ?? null;
+    }, [hoveredUnitId, unitById]);
+
+    const hoveredUnitNotes = useMemo(() => {
+        if (!hoveredUnitId) return null;
+        return battleNotesById.get(hoveredUnitId) ?? null;
+    }, [battleNotesById, hoveredUnitId]);
+
+    useEffect(() => {
+        if (hoveredUnitId && !unitById.has(hoveredUnitId)) {
+            setHoveredUnitId(null);
+            setHoverPanelPosition(null);
+        }
+    }, [hoveredUnitId, unitById]);
+
+    useEffect(() => {
+        if (!hoveredUnitId) return;
+
+        let frameId = 0;
+        const syncPosition = () => {
+            const cardEl = document.getElementById(`unit-${hoveredUnitId}`);
+            if (cardEl) {
+                updateHoverPanelPosition(cardEl.getBoundingClientRect());
+                frameId = requestAnimationFrame(syncPosition);
+            }
+        };
+
+        syncPosition();
+        return () => cancelAnimationFrame(frameId);
+    }, [hoveredUnitId]);
+
+    useEffect(() => {
+        return () => {
+            if (hoverCloseTimer.current) {
+                clearTimeout(hoverCloseTimer.current);
+            }
+        };
+    }, []);
+
+    const updateHoverPanelPosition = (cardRect: DOMRect) => {
+        const panelWidth = 200;
+        const viewportPadding = 12;
+        const left = Math.min(
+            Math.max(viewportPadding, cardRect.left + (cardRect.width - panelWidth) / 2),
+            window.innerWidth - panelWidth - viewportPadding
+        );
+        const top = Math.min(
+            Math.max(viewportPadding, cardRect.top),
+            window.innerHeight - 180
+        );
+
+        setHoverPanelPosition({ top, left });
+    };
+
+    const openUnitNotes = (unitId: string, cardRect: DOMRect) => {
+        if (hoverCloseTimer.current) {
+            clearTimeout(hoverCloseTimer.current);
+            hoverCloseTimer.current = null;
+        }
+        setHoveredUnitId(unitId);
+        updateHoverPanelPosition(cardRect);
+    };
+
+    const closeUnitNotesSoon = () => {
+        if (hoverCloseTimer.current) {
+            clearTimeout(hoverCloseTimer.current);
+        }
+        hoverCloseTimer.current = setTimeout(() => {
+            setHoveredUnitId(null);
+            setHoverPanelPosition(null);
+            hoverCloseTimer.current = null;
+        }, 90);
+    };
+
     useEffect(() => {
         const container = battleRef.current;
         if (!container) return;
 
         const updatePositions = () => {
             const containerBox = container.getBoundingClientRect();
-            const newPosMap = new Map();
+            const newPosMap = new Map<string, { x: number; y: number }>();
 
             const allUnitIds = [...heroes, ...enemies].map(u => u.id);
 
@@ -127,6 +307,14 @@ export const BattleView: React.FC<BattleViewProps> = ({ heroes: initialHeroes, e
         }
     };
 
+    const getPath = (p1: { x: number; y: number }, p2: { x: number; y: number }, geometry: 'melee' | 'range' | 'magic') => {
+        const midX = (p1.x + p2.x) / 2;
+        const dist = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+        const curveFactor = geometry === 'magic' ? 0.6 : geometry === 'range' ? 0.2 : 0.05;
+        const midY = Math.min(p1.y, p2.y) - (dist * curveFactor);
+        return `M ${p1.x} ${p1.y} Q ${midX} ${midY} ${p2.x} ${p2.y}`;
+    };
+
     const renderCombatantCard = (unit: Combatant, party: Combatant[], isEnemy = false) => {
         const action = actionByActorId.get(unit.id);
 
@@ -140,31 +328,45 @@ export const BattleView: React.FC<BattleViewProps> = ({ heroes: initialHeroes, e
                 activeIcon={action?.icon}
                 isSpecialAction={Boolean(action?.isSpecial)}
                 specialColor={getSpecialColor(action?.icon)}
+                showInfoBadge
+                onInfoHoverStart={(event) => openUnitNotes(unit.id, event.currentTarget.getBoundingClientRect())}
+                onInfoHoverEnd={closeUnitNotesSoon}
             />
         );
     };
 
-    const getPath = (p1: {x: number, y: number}, p2: {x: number, y: number}, geometry: 'melee' | 'range' | 'magic') => {
-        const midX = (p1.x + p2.x) / 2;
-        const dist = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
-        const curveFactor = geometry === 'magic' ? 0.6 : geometry === 'range' ? 0.2 : 0.05; 
-        const midY = Math.min(p1.y, p2.y) - (dist * curveFactor); 
-        return `M ${p1.x} ${p1.y} Q ${midX} ${midY} ${p2.x} ${p2.y}`;
+    const renderNoteSection = (items: string[]) => {
+        return (
+            <div className="space-y-1">
+                {items.map(item => {
+                    const isNegative = item.trim().startsWith('-');
+                    return (
+                        <div
+                            key={item}
+                            className={clsx(
+                                'rounded-md border px-2 py-1 text-[9px] leading-tight bg-black/20',
+                                isNegative ? 'border-rose-500/15 text-rose-100' : 'border-emerald-500/15 text-emerald-100'
+                            )}
+                        >
+                            <span className="font-black uppercase tracking-[0.12em]">{item}</span>
+                        </div>
+                    );
+                })}
+            </div>
+        );
     };
 
     return (
         <div ref={battleRef} className="w-full h-full flex flex-col bg-zinc-950 p-6 relative overflow-hidden font-sans">
-            
-            {/* AMBIENT BATTLE BACKGROUND */}
             <div className="absolute inset-0 z-0">
-                <img 
-                    src={battleBg} 
-                    alt="Battle Arena" 
-                    className="w-full h-full object-cover opacity-60 brightness-[0.4] blur-[2px]" 
+                <img
+                    src={battleBg}
+                    alt="Battle Arena"
+                    className="w-full h-full object-cover opacity-60 brightness-[0.4] blur-[2px]"
                 />
                 <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-transparent to-black/95" />
             </div>
-            
+
             <svg className="absolute inset-0 pointer-events-none z-[60] w-full h-full">
                 <defs>
                     <marker id="arrow-solid-amber" markerWidth="6" markerHeight="4" refX="5" refY="2" orient="auto">
@@ -184,13 +386,12 @@ export const BattleView: React.FC<BattleViewProps> = ({ heroes: initialHeroes, e
                         <feComposite in="SourceGraphic" in2="blur" operator="over" />
                     </filter>
                 </defs>
-                
-                {/* HIGH-VISIBILITY NEON STRIKES */}
+
                 {activeActions.map(action => {
                     const p1 = arcSystem.get(action.actorId);
                     if (!p1) return null;
                     const actor = unitById.get(action.actorId);
-                    
+
                     return action.targetIds.map(tid => {
                         const p2 = arcSystem.get(tid);
                         if (!p2) return null;
@@ -204,7 +405,7 @@ export const BattleView: React.FC<BattleViewProps> = ({ heroes: initialHeroes, e
                                     ? 'url(#arrow-solid-magic)'
                                     : 'url(#arrow-solid-amber)')
                             : 'url(#arrow-solid-villain)';
-                        
+
                         return (
                             <g key={`action-${action.id}-${tid}`} filter="url(#glow)">
                                 {action.isSpecial && (
@@ -244,7 +445,7 @@ export const BattleView: React.FC<BattleViewProps> = ({ heroes: initialHeroes, e
                                         </text>
                                     </g>
                                 )}
-                                <path 
+                                <path
                                     d={pathData}
                                     fill="transparent"
                                     stroke="#000"
@@ -252,28 +453,28 @@ export const BattleView: React.FC<BattleViewProps> = ({ heroes: initialHeroes, e
                                     opacity="0.3"
                                     strokeLinecap="round"
                                 />
-                                <path 
+                                <path
                                     d={pathData}
                                     fill="transparent"
                                     stroke={color}
                                     strokeWidth={action.isSpecial ? 8 : 6}
                                     strokeOpacity={action.isSpecial ? 1 : 0.8}
                                     strokeLinecap="round"
-                                    strokeDasharray={action.isSpecial ? "22 8" : "15 10"}
+                                    strokeDasharray={action.isSpecial ? '22 8' : '15 10'}
                                     markerEnd={markerEnd}
                                 >
-                                    <animate attributeName="stroke-dashoffset" from="100" to="0" dur={action.isSpecial ? "0.55s" : "1s"} repeatCount="indefinite" />
+                                    <animate attributeName="stroke-dashoffset" from="100" to="0" dur={action.isSpecial ? '0.55s' : '1s'} repeatCount="indefinite" />
                                 </path>
-                                <path 
+                                <path
                                     d={pathData}
                                     fill="transparent"
                                     stroke="#fff"
                                     strokeWidth={action.isSpecial ? 2.5 : 1.5}
                                     strokeOpacity={action.isSpecial ? 0.95 : 0.6}
                                     strokeLinecap="round"
-                                    strokeDasharray={action.isSpecial ? "22 8" : "15 10"}
+                                    strokeDasharray={action.isSpecial ? '22 8' : '15 10'}
                                 >
-                                    <animate attributeName="stroke-dashoffset" from="100" to="0" dur={action.isSpecial ? "0.55s" : "1s"} repeatCount="indefinite" />
+                                    <animate attributeName="stroke-dashoffset" from="100" to="0" dur={action.isSpecial ? '0.55s' : '1s'} repeatCount="indefinite" />
                                 </path>
                             </g>
                         );
@@ -309,19 +510,18 @@ export const BattleView: React.FC<BattleViewProps> = ({ heroes: initialHeroes, e
                     </div>
                 </div>
 
-                {/* CENTRAL CONTROL HUB */}
                 <div className="flex flex-col items-center flex-shrink-0 group">
                     <div className="w-px h-24 bg-gradient-to-b from-transparent via-zinc-800 to-transparent" />
-                    
-                    <button 
+
+                    <button
                         onClick={() => {
                             setIsPaused(!isPaused);
                             setCountdown(null);
                         }}
                         className={clsx(
                             "w-16 h-16 rounded-full flex items-center justify-center border-2 transition-all duration-300 shadow-lg scale-110 active:scale-95",
-                            isPaused 
-                                ? "bg-cyan-500 border-cyan-400 text-black shadow-cyan-500/20 hover:scale-125 hover:shadow-cyan-500/40" 
+                            isPaused
+                                ? "bg-cyan-500 border-cyan-400 text-black shadow-cyan-500/20 hover:scale-125 hover:shadow-cyan-500/40"
                                 : "bg-black/80 border-zinc-800 text-zinc-400 hover:border-cyan-500 hover:text-cyan-500"
                         )}
                     >
@@ -335,7 +535,7 @@ export const BattleView: React.FC<BattleViewProps> = ({ heroes: initialHeroes, e
                             </>
                         )}
                         {isPaused && (
-                             <div className="absolute -inset-2 rounded-full border border-cyan-500/30 animate-ping pointer-events-none" />
+                            <div className="absolute -inset-2 rounded-full border border-cyan-500/30 animate-ping pointer-events-none" />
                         )}
                     </button>
 
@@ -370,6 +570,42 @@ export const BattleView: React.FC<BattleViewProps> = ({ heroes: initialHeroes, e
                         <p className="text-zinc-400 font-bold uppercase tracking-widest">
                             {winner === 'heros' ? 'The syndicate secures the floor.' : 'The expedition has been terminated.'}
                         </p>
+                    </div>
+                </div>
+            )}
+
+            {hoveredUnit && hoveredUnitNotes && hoverPanelPosition && (
+                <div
+                    className="fixed z-40 w-[12.5rem] max-w-[calc(100vw-1rem)] overflow-hidden rounded-xl border border-zinc-800/45 bg-black/45 backdrop-blur-sm shadow-xl shadow-black/20 transition-opacity duration-150"
+                    style={{
+                        top: hoverPanelPosition.top,
+                        left: hoverPanelPosition.left,
+                    }}
+                    onMouseEnter={() => {
+                        if (hoverCloseTimer.current) {
+                            clearTimeout(hoverCloseTimer.current);
+                            hoverCloseTimer.current = null;
+                        }
+                    }}
+                    onMouseLeave={closeUnitNotesSoon}
+                >
+                    <div className="border-b border-zinc-800/70 px-3 py-2">
+                        <div className="flex items-center gap-1.5 text-[7px] font-black uppercase tracking-[0.22em] text-zinc-400">
+                            <Info size={9} /> Params
+                        </div>
+                        <div className="mt-1 text-[12px] font-black uppercase tracking-tight text-zinc-100">
+                            {hoveredUnit.name}
+                        </div>
+                    </div>
+
+                    <div className="max-h-48 overflow-y-auto p-2">
+                        {hoveredUnitNotes.stats.length > 0 ? (
+                            renderNoteSection(hoveredUnitNotes.stats)
+                        ) : (
+                            <div className="rounded-md border border-zinc-800 px-2 py-1 text-[9px] leading-tight text-zinc-500 bg-black/20">
+                                No battle parameter changes
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
