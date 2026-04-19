@@ -25,8 +25,7 @@ export const BattleView: React.FC<BattleViewProps> = ({ heroes: initialHeroes, e
         setIsPaused, 
         battleLog, 
         winner,
-        activeActions,
-        intents
+        activeActions
     } = useBattle(initialHeroes, initialEnemies);
 
     // Random Background selector (one per battle encounter)
@@ -51,7 +50,15 @@ export const BattleView: React.FC<BattleViewProps> = ({ heroes: initialHeroes, e
         }
     }, [countdown, isPaused, setIsPaused]);
 
-    // Track unit positions in real-time
+    const unitById = useMemo(() => {
+        return new Map([...heroes, ...enemies].map(unit => [unit.id, unit]));
+    }, [heroes, enemies]);
+
+    const actionByActorId = useMemo(() => {
+        return new Map(activeActions.map(action => [action.actorId, action]));
+    }, [activeActions]);
+
+    // Track unit positions only while an attack arc is visible
     useEffect(() => {
         const container = battleRef.current;
         if (!container) return;
@@ -76,15 +83,21 @@ export const BattleView: React.FC<BattleViewProps> = ({ heroes: initialHeroes, e
             setArcSystem(newPosMap);
         };
 
-        let frameId: number;
+        if (activeActions.length === 0) {
+            setArcSystem(new Map());
+            return;
+        }
+
+        let frameId = 0;
         const loop = () => {
             updatePositions();
             frameId = requestAnimationFrame(loop);
         };
-        
+
+        updatePositions();
         frameId = requestAnimationFrame(loop);
         return () => cancelAnimationFrame(frameId);
-    }, [heroes, enemies, intents, activeActions]);
+    }, [heroes, enemies, activeActions.length]);
 
     useEffect(() => {
         if (winner === 'heros') {
@@ -112,6 +125,23 @@ export const BattleView: React.FC<BattleViewProps> = ({ heroes: initialHeroes, e
             case 'fang': return '#ef4444';
             default: return '#f59e0b';
         }
+    };
+
+    const renderCombatantCard = (unit: Combatant, party: Combatant[], isEnemy = false) => {
+        const action = actionByActorId.get(unit.id);
+
+        return (
+            <CombatantCard
+                key={unit.id}
+                unit={unit}
+                isEnemy={isEnemy}
+                party={party}
+                className="w-48 h-64 scale-75 origin-center -my-8"
+                activeIcon={action?.icon}
+                isSpecialAction={Boolean(action?.isSpecial)}
+                specialColor={getSpecialColor(action?.icon)}
+            />
+        );
     };
 
     const getPath = (p1: {x: number, y: number}, p2: {x: number, y: number}, geometry: 'melee' | 'range' | 'magic') => {
@@ -159,7 +189,7 @@ export const BattleView: React.FC<BattleViewProps> = ({ heroes: initialHeroes, e
                 {activeActions.map(action => {
                     const p1 = arcSystem.get(action.actorId);
                     if (!p1) return null;
-                    const actor = [...heroes, ...enemies].find(u => u.id === action.actorId);
+                    const actor = unitById.get(action.actorId);
                     
                     return action.targetIds.map(tid => {
                         const p2 = arcSystem.get(tid);
@@ -268,25 +298,13 @@ export const BattleView: React.FC<BattleViewProps> = ({ heroes: initialHeroes, e
                     <div className="flex flex-col gap-4 items-center">
                         <span className="text-[8px] font-black text-zinc-700 uppercase tracking-widest">REAR</span>
                         <div className="flex flex-col gap-2 min-w-[120px] min-h-[300px] items-center justify-center border-r border-zinc-900 pr-4">
-                            {enemies.filter(e => e.positionLine === 'REARGUARD').map(enemy => (
-                                <CombatantCard 
-                                    key={enemy.id} unit={enemy} isEnemy party={enemies} 
-                                    className="w-48 h-64 scale-75 origin-center -my-8" 
-                                    activeIcon={activeActions.find(a => a.actorId === enemy.id)?.icon}
-                                />
-                            ))}
+                            {enemies.filter(e => e.positionLine === 'REARGUARD').map(enemy => renderCombatantCard(enemy, enemies, true))}
                         </div>
                     </div>
                     <div className="flex flex-col gap-4 items-center">
                         <span className="text-[8px] font-black text-red-900 uppercase tracking-widest">FRONT</span>
                         <div className="flex flex-col gap-2 min-w-[120px] min-h-[300px] items-center justify-center">
-                            {enemies.filter(e => e.positionLine === 'VANGUARD').map(enemy => (
-                                <CombatantCard 
-                                    key={enemy.id} unit={enemy} isEnemy party={enemies} 
-                                    className="w-48 h-64 scale-75 origin-center -my-8" 
-                                    activeIcon={activeActions.find(a => a.actorId === enemy.id)?.icon}
-                                />
-                            ))}
+                            {enemies.filter(e => e.positionLine === 'VANGUARD').map(enemy => renderCombatantCard(enemy, enemies, true))}
                         </div>
                     </div>
                 </div>
@@ -328,33 +346,13 @@ export const BattleView: React.FC<BattleViewProps> = ({ heroes: initialHeroes, e
                     <div className="flex flex-col gap-4 items-center">
                         <span className="text-[8px] font-black text-cyan-900 uppercase tracking-widest">FRONT</span>
                         <div className="flex flex-col gap-2 min-w-[120px] min-h-[300px] items-center justify-center">
-                            {heroes.filter(h => h.positionLine === 'VANGUARD').map(hero => (
-                                <CombatantCard 
-                                    key={hero.id} 
-                                    unit={hero} 
-                                    party={heroes} 
-                                    className="w-48 h-64 scale-75 origin-center -my-8" 
-                                    activeIcon={activeActions.find(a => a.actorId === hero.id)?.icon}
-                                    isSpecialAction={Boolean(activeActions.find(a => a.actorId === hero.id && a.isSpecial))}
-                                    specialColor={getSpecialColor(activeActions.find(a => a.actorId === hero.id)?.icon)}
-                                />
-                            ))}
+                            {heroes.filter(h => h.positionLine === 'VANGUARD').map(hero => renderCombatantCard(hero, heroes))}
                         </div>
                     </div>
                     <div className="flex flex-col gap-4 items-center">
                         <span className="text-[8px] font-black text-zinc-700 uppercase tracking-widest">REAR</span>
                         <div className="flex flex-col gap-2 min-w-[120px] min-h-[300px] items-center justify-center border-l border-zinc-900 pl-4">
-                            {heroes.filter(h => h.positionLine === 'REARGUARD').map(hero => (
-                                <CombatantCard 
-                                    key={hero.id} 
-                                    unit={hero} 
-                                    party={heroes} 
-                                    className="w-48 h-64 scale-75 origin-center -my-8" 
-                                    activeIcon={activeActions.find(a => a.actorId === hero.id)?.icon}
-                                    isSpecialAction={Boolean(activeActions.find(a => a.actorId === hero.id && a.isSpecial))}
-                                    specialColor={getSpecialColor(activeActions.find(a => a.actorId === hero.id)?.icon)}
-                                />
-                            ))}
+                            {heroes.filter(h => h.positionLine === 'REARGUARD').map(hero => renderCombatantCard(hero, heroes))}
                         </div>
                     </div>
                 </div>

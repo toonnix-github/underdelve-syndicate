@@ -30,8 +30,23 @@ export const CombatantCard: React.FC<CombatantCardProps> = ({
     const getTranslateX = () => {
         if (unit.attackPhase === 'idle') return '0px';
         const direction = isEnemy ? 1 : -1;
-        const amount = unit.attackPhase === 'strike' ? 60 : 30;
+        const attackKind = activeIcon === 'bow' ? 'range' : (activeIcon === 'fire' || activeIcon === 'heart' || activeIcon === 'zap' ? 'magic' : 'melee');
+        const forwardDistance = attackKind === 'range' ? 20 : attackKind === 'magic' ? 42 : 72;
+        const overshoot = attackKind === 'range' ? 1 : attackKind === 'magic' ? 6 : 12;
+        const amount = unit.attackPhase === 'return'
+            ? -overshoot
+            : forwardDistance;
         return `${direction * amount}px`;
+    };
+
+    const getTransformTransition = () => {
+        if (unit.attackPhase === 'idle') {
+            return 'transform 210ms cubic-bezier(0.42, 0, 0.58, 1)';
+        }
+        if (unit.attackPhase === 'return') {
+            return 'transform 130ms cubic-bezier(0.16, 1, 0.3, 1)';
+        }
+        return 'transform 95ms cubic-bezier(0.18, 0.9, 0.28, 1)';
     };
 
     const specialStyle: React.CSSProperties | undefined = isSpecialAction
@@ -45,15 +60,19 @@ export const CombatantCard: React.FC<CombatantCardProps> = ({
     return (
         <div
             id={`unit-${unit.id}`}
-            className="relative"
+            className="relative will-change-transform transform-gpu"
             style={{
-                transform: `translateX(${getTranslateX()})`,
+                transform: `translate3d(${getTranslateX()}, 0, 0)`,
+                transition: getTransformTransition(),
+                transformOrigin: 'center center',
+                backfaceVisibility: 'hidden',
+                contain: 'layout paint style',
                 zIndex: unit.isActing ? 40 : unit.hitShake ? 35 : 10,
             }}
         >
             <div
                 className={cn(
-                    "relative rounded-xl border-2 transition-all duration-300 overflow-hidden",
+                    "relative rounded-xl border-2 overflow-hidden isolate",
                     isEnemy ? "border-zinc-800 bg-zinc-950/80" : "border-zinc-700 bg-zinc-900/90",
                     unit.isActing && !isSpecialAction && "scale-105 border-cyan-400 shadow-[0_0_20px_rgba(34,211,238,0.3)]",
                     unit.hp <= 0 && "grayscale opacity-50 translate-y-4 rotate-2",

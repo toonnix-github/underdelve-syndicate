@@ -118,7 +118,7 @@ export const useBattle = (initialHeroes: Combatant[], initialEnemies: Combatant[
         unit.attackPhase = 'advance';
         setHeroes([...heroes]); setEnemies([...enemies]);
         
-        await new Promise(r => setTimeout(r, 200));
+        await new Promise(r => setTimeout(r, 90));
         
         unit.attackPhase = 'strike';
         
@@ -142,11 +142,11 @@ export const useBattle = (initialHeroes: Combatant[], initialEnemies: Combatant[
         unit.atb = 0;
         setHeroes([...heroes]); setEnemies([...enemies]);
 
-        await new Promise(r => setTimeout(r, 400));
+        await new Promise(r => setTimeout(r, 190));
         unit.attackPhase = 'return';
         setHeroes([...heroes]); setEnemies([...enemies]);
 
-        await new Promise(r => setTimeout(r, 150));
+        await new Promise(r => setTimeout(r, 90));
         unit.attackPhase = 'idle';
         unit.isActing = false;
         setActiveActions(prev => prev.filter(a => a.id !== actionId));
