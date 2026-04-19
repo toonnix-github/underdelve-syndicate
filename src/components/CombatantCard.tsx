@@ -3,6 +3,7 @@ import { Combatant } from '../models/Combatant';
 import { ProgressBar, cn } from './UI';
 import { Shield, Sword, Zap, Heart, Flame, Target, Sparkles, Skull } from 'lucide-react';
 import { clsx } from 'clsx';
+import { getSkillActionType } from '../utils/combatMath';
 
 interface CombatantCardProps {
     unit: Combatant;
@@ -33,6 +34,8 @@ export const CombatantCard: React.FC<CombatantCardProps> = ({
     hideAtb = false,
     footer
 }) => {
+    const primaryActionType = getSkillActionType(unit.abilities[0]);
+
     const getTranslateX = () => {
         if (unit.attackPhase === 'idle') return '0px';
         const direction = isEnemy ? 1 : -1;
@@ -62,6 +65,14 @@ export const CombatantCard: React.FC<CombatantCardProps> = ({
             ['--special-color' as any]: specialColor,
         }
         : undefined;
+
+    const powerIcon = primaryActionType === 'support'
+        ? <Sparkles size={8} className="text-emerald-500" />
+        : primaryActionType === 'ranged'
+            ? <Target size={8} className="text-amber-400" />
+            : primaryActionType === 'magic'
+                ? <Flame size={8} className="text-fuchsia-400" />
+                : <Sword size={8} className="text-amber-500" />;
 
     return (
         <div
@@ -189,7 +200,7 @@ export const CombatantCard: React.FC<CombatantCardProps> = ({
                         <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-tighter mb-1">
                             <div className="flex items-center gap-1.5 text-zinc-400">
                                 <div className="flex items-center gap-0.5">
-                                    {unit.role === 'HEALER' ? <Sparkles size={8} className="text-emerald-500" /> : <Sword size={8} className="text-amber-500" />}
+                                    {powerIcon}
                                     <span>{unit.getATK(party)}</span>
                                 </div>
                                 <div className="flex items-center gap-0.5">

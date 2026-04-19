@@ -4,6 +4,7 @@ import { useBattle } from '../hooks/useBattle';
 import { CombatantCard } from './CombatantCard';
 import { Swords, Info, Play, Pause } from 'lucide-react';
 import { clsx } from 'clsx';
+import { getSkillActionType } from '../utils/combatMath';
 
 interface BattleViewProps {
     heroes: Combatant[];
@@ -75,6 +76,7 @@ export const BattleView: React.FC<BattleViewProps> = ({ heroes: initialHeroes, e
         const describeUnit = (unit: Combatant, allies: Combatant[]): BattleUnitNotes => {
             const stats: string[] = [];
             const leader = allies.find(member => member.isLeader);
+            const rowActionType = getSkillActionType(unit.abilities[0]);
             const pushStat = (delta: number, label: string, source: string) => {
                 if (delta !== 0) {
                     stats.push(`${delta > 0 ? '+' : ''}${delta} ${label} : ${source}`);
@@ -134,8 +136,20 @@ export const BattleView: React.FC<BattleViewProps> = ({ heroes: initialHeroes, e
 
             if (unit.positionLine === 'VANGUARD') {
                 stats.push('SCREENS BACKLINE');
+                if (rowActionType === 'melee') {
+                    stats.push('+10% MELEE : VANGUARD');
+                }
             } else {
                 stats.push('PROTECTED BY FRONT');
+                if (rowActionType === 'melee') {
+                    stats.push('-35% MELEE : REARGUARD');
+                } else if (rowActionType === 'ranged') {
+                    stats.push('+10% RANGED : REARGUARD');
+                } else if (rowActionType === 'magic') {
+                    stats.push('+10% MAGIC : REARGUARD');
+                } else if (rowActionType === 'support') {
+                    stats.push('+10% SUPPORT : REARGUARD');
+                }
             }
 
             return {

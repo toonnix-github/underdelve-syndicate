@@ -22,6 +22,7 @@ export interface Ability {
     description: string;
     val: number;
     type: 'damage' | 'heal';
+    actionType: 'melee' | 'ranged' | 'magic' | 'support';
     targetType: 'single' | 'row' | 'all';
     procChance?: number; 
 }

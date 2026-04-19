@@ -17,6 +17,167 @@ interface DungeonViewProps {
     onReward: (amount: number) => void;
 }
 
+const Minimap: React.FC<{ 
+    layout: number[][], 
+    playerPos: TilePos, 
+    explored: Set<string>,
+    scouted: Set<string>,
+    interactables: Interactable[],
+    floor: number
+}> = ({ layout, playerPos, explored, scouted, interactables, floor }) => {
+    return (
+        <div className="absolute top-8 left-8 z-[50] flex flex-col gap-1.5 p-1.5 bg-black/60 backdrop-blur-md border border-white/5 rounded-lg animate-in fade-in slide-in-from-top-4 duration-500 group transition-all hover:bg-black/90 hover:border-cyan-500/30">
+            <div className="flex items-center justify-between px-0.5 gap-4">
+                <div className="flex items-center gap-1.5">
+                    <div className="w-1 h-1 rounded-full bg-cyan-500 animate-pulse" />
+                    <span className="text-[7px] font-black text-zinc-500 uppercase tracking-[0.2em] group-hover:text-cyan-400 transition-colors">RDR // LVL-0{floor}</span>
+                </div>
+            </div>
+            
+            <div 
+                className="grid gap-[1px] bg-zinc-900/80 p-[1px] rounded-sm" 
+                style={{ 
+                    gridTemplateColumns: `repeat(${GRID_SIZE}, 1fr)`,
+                    width: 72,
+                    height: 72
+                }}
+            >
+                {Array.from({ length: GRID_SIZE * GRID_SIZE }).map((_, i) => {
+                    const x = i % GRID_SIZE;
+                    const y = Math.floor(i / GRID_SIZE);
+                    const tile = layout[y][x];
+                    const isExplored = explored.has(`${x},${y}`);
+                    const isScouted = scouted.has(`${x},${y}`);
+                    const isPlayer = playerPos.x === x && playerPos.y === y;
+                    
+                    // Base condition for empty/unrevealed space
+                    if (tile === 0 || (!isExplored && !isPlayer && !isScouted)) {
+                        return <div key={i} className="w-full aspect-square bg-black/20" />;
+                    }
+                    
+                    const interactable = interactables.find(i => i.x === x && i.y === y && i.status === 'ACTIVE');
+
+                    return (
+                        <div 
+                            key={i}
+                            className={clsx(
+                                "w-full aspect-square rounded-[0.5px] transition-all duration-300 flex items-center justify-center relative",
+                                isScouted && !isExplored && "bg-zinc-800/80",
+                                isExplored && !isPlayer && "bg-zinc-600/90",
+                                isPlayer && "bg-cyan-500 shadow-[0_0_8px_rgba(6,182,212,1)] z-10"
+                            )}
+                        >
+                            {!isExplored && isScouted && !isPlayer && (
+                                <span className="text-[5px] font-black text-zinc-500 leading-none">?</span>
+                            )}
+                            {isExplored && interactable && !isPlayer && (
+                                <div className={clsx(
+                                    "w-1.5 h-1.5 rounded-full",
+                                    interactable.type === 'ENEMY' && "bg-rose-500 shadow-[0_0_4px_rgba(244,63,94,0.4)]",
+                                    interactable.type === 'CHEST' && "bg-amber-500 shadow-[0_0_4px_rgba(245,158,11,0.4)]",
+                                    interactable.type === 'STAIRS' && "bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.4)]"
+                                )} />
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+};
+
+// --- Dungeon Detritus Assets & Logic ---
+const DETRITUS_SHEETS = [
+    { url: '/assets/detritus_sheet_1.png', rows: 3, cols: 3, count: 9 },
+    { url: '/assets/detritus_sheet_2.png', rows: 4, cols: 4, count: 16 },
+    { url: '/assets/detritus_sheet_3.png', rows: 4, cols: 4, count: 16 },
+    { url: '/assets/detritus_sheet_4.png', rows: 4, cols: 4, count: 16 }
+];
+
+const getDeterministicDetritus = (x: number, y: number, floor: number) => {
+    // Basic LCG / Hash for consistent randomness
+    const seed = (x * 1337 + y * 73 + floor * 31);
+    const seededRandom = (s: number) => {
+        const value = Math.sin(s) * 10000;
+        return value - Math.floor(value);
+    };
+
+    // Calculate count: 1 to 4 items per explored tile for more density
+    const count = 1 + Math.floor(seededRandom(seed) * 4); 
+    const items = [];
+    
+    for (let i = 0; i < count; i++) {
+        const itemSeed = seed + (i + 1) * 777;
+        const sheetIdx = Math.floor(seededRandom(itemSeed) * DETRITUS_SHEETS.length);
+        const sheet = DETRITUS_SHEETS[sheetIdx];
+        const spriteIdx = Math.floor(seededRandom(itemSeed + 1) * sheet.count);
+        
+        // Calculate background position based on sheet grid
+        const colIdx = spriteIdx % sheet.cols;
+        const rowIdx = Math.floor(spriteIdx / sheet.cols);
+        const bgPosX = sheet.cols > 1 ? (colIdx / (sheet.cols - 1)) * 100 : 0;
+        const bgPosY = sheet.rows > 1 ? (rowIdx / (sheet.rows - 1)) * 100 : 0;
+
+        // Visual Polish: Bias away from the exact center (40-60% range)
+        let offsetX = (seededRandom(itemSeed + 2) * 80) + 10; // 10% to 90%
+        let offsetY = (seededRandom(itemSeed + 3) * 80) + 10; // 10% to 90%
+        
+        // Push items out of the center if they land in the "dead zone"
+        if (offsetX > 40 && offsetX < 60) offsetX += (offsetX > 50 ? 15 : -15);
+        if (offsetY > 40 && offsetY < 60) offsetY += (offsetY > 50 ? 15 : -15);
+
+        items.push({
+            id: i,
+            url: sheet.url,
+            bgPos: `${bgPosX}% ${bgPosY}%`,
+            bgSize: `${sheet.cols * 100}%`,
+            offsetX,
+            offsetY,
+            rotate: seededRandom(itemSeed + 4) * 360,
+            scale: 0.2 + seededRandom(itemSeed + 5) * 0.4 // 0.2 to 0.6 scale (Smaller items)
+        });
+    }
+    return items;
+};
+
+const DetritusLayer: React.FC<{ x: number; y: number; floor: number }> = ({ x, y, floor }) => {
+    const items = React.useMemo(() => getDeterministicDetritus(x, y, floor), [x, y, floor]);
+    
+    return (
+        <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden select-none">
+            {items.map(item => (
+                <div 
+                    key={item.id}
+                    className="absolute w-24 h-24 bg-no-repeat transition-all duration-1000 pointer-events-none"
+                    style={{
+                        backgroundImage: `url(${item.url})`,
+                        backgroundPosition: item.bgPos,
+                        backgroundSize: item.bgSize,
+                        left: `${item.offsetX}%`,
+                        top: `${item.offsetY}%`,
+                        transform: `translate(-50%, -50%) rotate(${item.rotate}deg) scale(${item.scale})`,
+                        
+                        // Absolute Occlusion: Use high-contrast luminance mask to force opacity
+                        WebkitMaskImage: `url(${item.url})`,
+                        maskImage: `url(${item.url})`,
+                        WebkitMaskPosition: item.bgPos,
+                        maskPosition: item.bgPos,
+                        WebkitMaskSize: item.bgSize,
+                        maskSize: item.bgSize,
+                        maskMode: 'luminance' as any,
+                        WebkitMaskMode: 'luminance' as any,
+                        
+                        // Physical Density: Cranked contrast prevents floor patterns from showing through
+                        filter: 'contrast(2.5) brightness(1.4) drop-shadow(0 4px 6px rgba(0,0,0,0.8))',
+                        opacity: 1,
+                    } as React.CSSProperties}
+                />
+            ))}
+        </div>
+    );
+};
+// --- End Detritus Logic ---
+
 export const DungeonView: React.FC<DungeonViewProps> = ({ heroes, dungeonState, scrip, vault, onEncounter, onStairs, onTrap, onReward }) => {
     const { floor, playerPos, exploredCells, dungeonData, movePlayer, getScoutedCells } = dungeonState;
     const scoutedCells = getScoutedCells();
@@ -116,6 +277,14 @@ export const DungeonView: React.FC<DungeonViewProps> = ({ heroes, dungeonState, 
 
     return (
         <div className="w-full h-full flex flex-col relative overflow-hidden bg-zinc-900">
+            <Minimap 
+                layout={dungeonData.layout} 
+                playerPos={playerPos} 
+                explored={exploredCells}
+                scouted={scoutedCells}
+                interactables={dungeonData.interactables}
+                floor={floor}
+            />
             {/* Exploration Status Bar */}
             <div className="absolute top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-8 bg-black/60 backdrop-blur-md border border-zinc-800/50 px-6 py-3 rounded-2xl shadow-2xl">
                 <div className="flex items-center gap-3">
@@ -225,6 +394,11 @@ export const DungeonView: React.FC<DungeonViewProps> = ({ heroes, dungeonState, 
                                     />
                                     <div className="absolute inset-0 bg-black/20" />
                                 </div>
+
+                                {/* Detritus Layer (Environmental Clutter) */}
+                                {isExplored && !isWall && interactable?.type !== 'STAIRS' && interactable?.type !== 'PREV_FLOOR' && (
+                                    <DetritusLayer x={x} y={y} floor={floor} />
+                                )}
 
                                 {/* Unrevealed / Fog of War Art */}
                                 <div className={clsx(

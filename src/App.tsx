@@ -72,13 +72,13 @@ const App: React.FC = () => {
             const proto = ENEMY_POOL[Math.floor(Math.random() * ENEMY_POOL.length)];
             return new Combatant(
                 proto.name,
-                'DPS',
+                proto.role ?? 'DPS',
                 proto.hp,
                 proto.spd,
                 proto.pwr,
                 proto.def,
                 proto.img,
-                [{ id: 'e_strike', name: 'Strike', description: 'Basic physical attack.', val: 12, type: 'damage', targetType: 'single' }],
+                proto.skills,
                 i === 0 ? 'VANGUARD' : 'REARGUARD',
                 false
             );
