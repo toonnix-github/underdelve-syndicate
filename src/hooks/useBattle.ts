@@ -109,7 +109,7 @@ export const useBattle = (initialHeroes: Combatant[], initialEnemies: Combatant[
             if (selectedSkill.id === UMBRA_RELAY_ID) {
                 const buffCandidates = teammates.filter(t => t.hp > 0 && t.id !== unit.id);
                 const relayTarget = buffCandidates.length > 0
-                    ? buffCandidates[Math.floor(Math.random() * buffCandidates.length)]
+                    ? [...buffCandidates].sort((a, b) => a.getSPD(teammates) - b.getSPD(teammates))[0]
                     : unit;
                 targets = [relayTarget];
             } else if (selectedSkill.type === 'heal') {
@@ -209,7 +209,10 @@ export const useBattle = (initialHeroes: Combatant[], initialEnemies: Combatant[
             }
         } else if (selectedSkill.id === UMBRA_RELAY_ID) {
             const relayTargetName = targets[0]?.name ?? 'ally';
-            log(`${unit.name} uses ${selectedSkill.name}! ${relayTargetName} gains SPD and Umbra gains dodge.`);
+            const relayTarget = targets[0];
+            const relaySpdTotal = relayTarget ? Math.round(relayTarget.battleSpdBuffPct * 100) : 0;
+            const umbraEvasionTotal = unit.battleEvasionBonus;
+            log(`${unit.name} uses ${selectedSkill.name}! ${relayTargetName} +5% SPD (${relaySpdTotal}% total), Umbra +5 EVA (${umbraEvasionTotal} total).`);
         } else {
             log(`${unit.name} uses ${selectedSkill.name}!`);
         }

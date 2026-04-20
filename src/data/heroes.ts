@@ -90,7 +90,7 @@ export const HERO_ROSTER: HeroTemplate[] = [
         trait: { id: 'afterimage', name: 'Afterimage', description: 'While in Vanguard, enemy attacks are much more likely to miss her.' },
         skills: [
             { id: 'u_s1', name: 'Phantom Cut', description: 'A fast vanguard strike that keeps pressure on one foe.', val: 90, type: 'damage', actionType: 'melee', targetType: 'single' },
-            { id: 'u_s2', name: 'Afterimage Relay', description: 'Rare chance to grant +5% SPD to one random ally and +5% dodge to Umbra until battle ends.', val: 5, type: 'heal', actionType: 'support', targetType: 'single', procChance: 0.16 }
+            { id: 'u_s2', name: 'Afterimage Relay', description: 'Rare chance to grant +5% SPD to the lowest-SPD ally and +5% dodge to Umbra until battle ends.', val: 5, type: 'heal', actionType: 'support', targetType: 'single', procChance: 0.16 }
         ]
     },
     {

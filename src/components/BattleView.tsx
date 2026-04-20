@@ -4,6 +4,7 @@ import { useBattle } from '../hooks/useBattle';
 import { CombatantCard } from './CombatantCard';
 import { Swords, Info, Play, Pause } from 'lucide-react';
 import { clsx } from 'clsx';
+import { getCombatStatBreakdown } from '../utils/combatStats';
 import { getSkillActionType } from '../utils/combatMath';
 
 interface BattleViewProps {
@@ -74,65 +75,11 @@ export const BattleView: React.FC<BattleViewProps> = ({ heroes: initialHeroes, e
 
     const battleNotesById = useMemo(() => {
         const describeUnit = (unit: Combatant, allies: Combatant[]): BattleUnitNotes => {
-            const stats: string[] = [];
-            const leader = allies.find(member => member.isLeader);
+            const breakdown = getCombatStatBreakdown(unit, allies);
+            const stats = breakdown.contributions.map(
+                entry => `${entry.delta > 0 ? '+' : ''}${entry.delta} ${entry.stat} : ${entry.source}`
+            );
             const rowActionType = getSkillActionType(unit.abilities[0]);
-            const pushStat = (delta: number, label: string, source: string) => {
-                if (delta !== 0) {
-                    stats.push(`${delta > 0 ? '+' : ''}${delta} ${label} : ${source}`);
-                }
-            };
-
-            let atkRunning = unit.power;
-            let defRunning = unit.def;
-            let spdRunning = unit.speed;
-
-            Object.values(unit.equipment || {}).forEach((item: any) => {
-                if (!item?.statBoost) return;
-                const boost = item.statBoost as { atk?: number; def?: number; spd?: number };
-                if (boost.atk) {
-                    atkRunning += boost.atk;
-                    pushStat(boost.atk, 'ATK', 'Gear');
-                }
-                if (boost.def) {
-                    defRunning += boost.def;
-                    pushStat(boost.def, 'DEF', 'Gear');
-                }
-                if (boost.spd) {
-                    spdRunning += boost.spd;
-                    pushStat(boost.spd, 'SPD', 'Gear');
-                }
-            });
-
-            if (leader?.name === 'Valthea' && unit.positionLine === 'VANGUARD') {
-                const boosted = Math.floor(atkRunning * 1.15);
-                pushStat(boosted - atkRunning, 'ATK', 'Leader');
-                atkRunning = boosted;
-            }
-
-            if (leader?.name === 'Vex' && unit.hasEliteBonus) {
-                const boosted = Math.floor(atkRunning * 1.10);
-                pushStat(boosted - atkRunning, 'ATK', 'Leader');
-                atkRunning = boosted;
-            }
-
-            if (unit.trait?.id === 'vanguard_stance' && unit.positionLine === 'VANGUARD') {
-                const boosted = Math.floor(defRunning * 1.1);
-                pushStat(boosted - defRunning, 'DEF', 'Trait');
-                defRunning = boosted;
-            }
-
-            if (leader?.name === 'Valerius') {
-                const boosted = Math.floor(defRunning * 1.15);
-                pushStat(boosted - defRunning, 'DEF', 'Leader');
-                defRunning = boosted;
-            }
-
-            if (leader?.name === 'Lira') {
-                const boosted = Math.floor(spdRunning * 1.10);
-                pushStat(boosted - spdRunning, 'SPD', 'Leader');
-                spdRunning = boosted;
-            }
 
             if (unit.positionLine === 'VANGUARD') {
                 stats.push('SCREENS BACKLINE');

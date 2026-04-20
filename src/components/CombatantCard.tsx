@@ -5,6 +5,7 @@ import { Shield, Sword, Zap, Heart, Flame, Target, Sparkles, Skull } from 'lucid
 import { clsx } from 'clsx';
 import { getSkillActionType } from '../utils/combatMath';
 import { getHeroPortraitUrl } from '../utils/heroPortraits';
+import { getCombatStatBreakdown } from '../utils/combatStats';
 
 interface CombatantCardProps {
     unit: Combatant;
@@ -36,6 +37,7 @@ export const CombatantCard: React.FC<CombatantCardProps> = ({
     footer
 }) => {
     const primaryActionType = getSkillActionType(unit.abilities[0]);
+    const statBreakdown = getCombatStatBreakdown(unit, party);
 
     const getTranslateX = () => {
         if (unit.attackPhase === 'idle') return '0px';
@@ -74,6 +76,15 @@ export const CombatantCard: React.FC<CombatantCardProps> = ({
             : primaryActionType === 'magic'
                 ? <Flame size={8} className="text-fuchsia-400" />
                 : <Sword size={8} className="text-amber-500" />;
+
+    const renderDelta = (delta: number) => {
+        if (delta === 0) return null;
+        return (
+            <span className={clsx("text-[8px] leading-none", delta > 0 ? "text-emerald-300" : "text-rose-300")}>
+                {delta > 0 ? `+${delta}` : `${delta}`}
+            </span>
+        );
+    };
 
     return (
         <div
@@ -202,15 +213,18 @@ export const CombatantCard: React.FC<CombatantCardProps> = ({
                             <div className="flex items-center gap-1.5 text-zinc-400">
                                 <div className="flex items-center gap-0.5">
                                     {powerIcon}
-                                    <span>{unit.getATK(party)}</span>
+                                    <span>{statBreakdown.atk.final}</span>
+                                    {renderDelta(statBreakdown.atk.delta)}
                                 </div>
                                 <div className="flex items-center gap-0.5">
                                     <Shield size={8} className="text-blue-500" />
-                                    <span>{unit.getDEF(party)}</span>
+                                    <span>{statBreakdown.def.final}</span>
+                                    {renderDelta(statBreakdown.def.delta)}
                                 </div>
                                 <div className="flex items-center gap-0.5">
                                     <Zap size={8} className="text-cyan-500" />
-                                    <span>{unit.getSPD(party)}</span>
+                                    <span>{statBreakdown.spd.final}</span>
+                                    {renderDelta(statBreakdown.spd.delta)}
                                 </div>
                             </div>
                             <span className="text-zinc-100">{Math.floor(unit.hp)}/{unit.maxHp}</span>
@@ -231,6 +245,11 @@ export const CombatantCard: React.FC<CombatantCardProps> = ({
                                 label=""
                                 className="space-y-0 mt-1"
                             />
+                        )}
+                        {statBreakdown.eva.delta > 0 && (
+                            <div className="mt-1 text-[8px] font-black uppercase tracking-[0.14em] text-cyan-200">
+                                EVA +{statBreakdown.eva.delta}
+                            </div>
                         )}
                     </div>
                     {footer && (
