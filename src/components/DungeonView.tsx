@@ -124,8 +124,8 @@ const getDeterministicDetritus = (x: number, y: number, floor: number) => {
         let offsetY = (seededRandom(itemSeed + 3) * 90) + 5;
         
         // Push items out of the center if they land in the "dead zone"
-        if (offsetX > 15 && offsetX < 85) offsetX += (offsetX > 50 ? 35 : -35);
-        if (offsetY > 15 && offsetY < 85) offsetY += (offsetY > 50 ? 35 : -35);
+        if (offsetX > 30 && offsetX < 70) offsetX += (offsetX > 50 ? 25 : -25);
+        if (offsetY > 30 && offsetY < 70) offsetY += (offsetY > 50 ? 25 : -25);
 
         items.push({
             id: i,
@@ -135,7 +135,7 @@ const getDeterministicDetritus = (x: number, y: number, floor: number) => {
             offsetX,
             offsetY,
             rotate: seededRandom(itemSeed + 4) * 360,
-            scale: 0.1 + seededRandom(itemSeed + 5) * 0.15 // 0.1 to 0.25 scale (Micro-leftovers)
+            scale: 0.3 + seededRandom(itemSeed + 5) * 0.2 // 0.3 to 0.5 scale (Restored leftovers)
         });
     }
     return items;
@@ -145,11 +145,11 @@ const DetritusLayer: React.FC<{ x: number; y: number; floor: number }> = ({ x, y
     const items = React.useMemo(() => getDeterministicDetritus(x, y, floor), [x, y, floor]);
     
     return (
-        <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden select-none opacity-35">
+        <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden select-none opacity-65">
             {items.map(item => (
                 <div 
                     key={item.id}
-                    className="absolute w-16 h-16 bg-no-repeat transition-all duration-1000 pointer-events-none"
+                    className="absolute w-24 h-24 bg-no-repeat transition-all duration-1000 pointer-events-none"
                     style={{
                         backgroundImage: `url(${item.url})`,
                         backgroundPosition: item.bgPos,
@@ -367,6 +367,9 @@ export const DungeonView: React.FC<DungeonViewProps> = ({ heroes, dungeonState, 
                         let bgIndex = (dungeonData.bgs[cellKey] % 9) + 1;
                         if (bgIndex === 2) bgIndex = 1; 
 
+                        // Deterministic Rotation: Randomized orientations based on unique tile seed
+                        const tileRotation = (interactable?.type === 'STAIRS' || interactable?.type === 'PREV_FLOOR') ? 0 : (dungeonData.bgs[cellKey] % 4) * 90;
+
                         if (isWall) return <div key={i} className="w-full h-full" />;
 
                         return (
@@ -390,7 +393,8 @@ export const DungeonView: React.FC<DungeonViewProps> = ({ heroes, dungeonState, 
                                             interactable?.type === 'PREV_FLOOR' ? 'assets/tiles/tile_stairs_up.png' :
                                             `assets/tiles/tile_${bgIndex}.${bgIndex <= 4 ? 'png' : 'jpg'}`
                                         } 
-                                        className="w-full h-full object-cover scale-110"
+                                        className="w-full h-full object-cover"
+                                        style={{ transform: `rotate(${tileRotation}deg) scale(1.1)` }}
                                         alt=""
                                     />
                                     <div className="absolute inset-0 bg-black/20" />

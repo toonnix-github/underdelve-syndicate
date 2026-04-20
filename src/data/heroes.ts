@@ -34,7 +34,7 @@ export const HERO_ROSTER: HeroTemplate[] = [
         trait: { id: 'blood_pact', name: 'Blood Pact', description: 'Heals are 40% stronger, but she loses 5 HP per cast.' },
         skills: [
             { id: 'm_s1', name: 'Blood Mend', description: 'High-potency single target heal.', val: 18, type: 'heal', actionType: 'support', targetType: 'single' },
-            { id: 'm_s2', name: 'Sanguine Burst', description: 'Rare chance to mend all allies simultaneously.', val: 12, type: 'heal', actionType: 'support', targetType: 'all', procChance: 0.12 }
+            { id: 'm_s2', name: 'Sanguine Burst', description: 'Rare chance to heal all allies at once.', val: 12, type: 'heal', actionType: 'support', targetType: 'all', procChance: 0.12 }
         ]
     },
     {
@@ -90,7 +90,7 @@ export const HERO_ROSTER: HeroTemplate[] = [
         trait: { id: 'steady_aim', name: 'Steady Aim', description: 'Gains +25% damage bonus when targeting enemies in the Rearguard.' },
         skills: [
             { id: 'k_s1', name: 'Twin Arrow', description: 'Precision ranged strike.', val: 115, type: 'damage', actionType: 'ranged', targetType: 'single' },
-            { id: 'k_s2', name: 'Rain of Steel', description: 'Chance to loose a volley upon all opponents.', val: 75, type: 'damage', actionType: 'ranged', targetType: 'all', procChance: 0.15 }
+            { id: 'k_s2', name: 'Rain of Steel', description: 'Chance to unleash a volley on all opponents.', val: 75, type: 'damage', actionType: 'ranged', targetType: 'all', procChance: 0.15 }
         ]
     },
     {
@@ -106,7 +106,7 @@ export const HERO_ROSTER: HeroTemplate[] = [
         trait: { id: 'vanguard_stance', name: 'Vanguard Stance', description: 'Fights with greater stability while holding the frontline.' },
         skills: [
             { id: 'vt_s1', name: 'Vanguard Strike', description: 'A shield-led opening that punishes one enemy up close.', val: 100, type: 'damage', actionType: 'melee', targetType: 'single' },
-            { id: 'vt_s2', name: 'Bulwark', description: 'Rare chance to rally the full party behind her guard.', val: 11, type: 'heal', actionType: 'support', targetType: 'all', procChance: 0.11 }
+            { id: 'vt_s2', name: 'Bulwark', description: 'Rare chance to heal all allies while holding the line.', val: 11, type: 'heal', actionType: 'support', targetType: 'all', procChance: 0.11 }
         ]
     },
     {

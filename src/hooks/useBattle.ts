@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Combatant } from '../models/Combatant';
-import { calculateDamage, calculateHeal, getSkillActionType, RowActionType } from '../utils/combatMath';
+import { calculateDamage, calculateHeal, getSkillActionType, rollHitCheck, RowActionType } from '../utils/combatMath';
 
 export interface ActiveAction {
     id: string;
@@ -144,19 +144,38 @@ export const useBattle = (initialHeroes: Combatant[], initialEnemies: Combatant[
         unit.attackPhase = 'strike';
         
         // EXECUTE IMPACT ON ALL TARGETS
+        let landedHits = 0;
+        let missedHits = 0;
         targets.forEach(target => {
             if (selectedSkill.type === 'damage') {
+                const damageActionType: Exclude<RowActionType, 'support'> =
+                    skillActionType === 'support' ? 'magic' : skillActionType;
+                const hitResult = rollHitCheck(
+                    unit,
+                    target,
+                    isHero ? heroes : enemies,
+                    isHero ? enemies : heroes,
+                    damageActionType
+                );
+
+                if (!hitResult.hit) {
+                    missedHits += 1;
+                    target.addVfx('MISS', 'damage');
+                    return;
+                }
+
                 const dmg = calculateDamage(
                     unit,
                     target,
                     isHero ? heroes : enemies,
                     isHero ? enemies : heroes,
-                    skillActionType === 'support' ? 'magic' : skillActionType,
+                    damageActionType,
                     selectedSkill.val
                 );
                 target.hp = Math.max(0, target.hp - dmg);
                 target.addVfx(`-${dmg}`, 'damage');
                 target.triggerHit(hitType);
+                landedHits += 1;
             } else {
                 const heal = calculateHeal(unit, selectedSkill.val, isHero ? heroes : enemies);
                 target.hp = Math.min(target.maxHp, target.hp + heal);
@@ -164,8 +183,18 @@ export const useBattle = (initialHeroes: Combatant[], initialEnemies: Combatant[
                 target.triggerHeal();
             }
         });
-        
-        log(`${unit.name} uses ${selectedSkill.name}!`);
+
+        if (selectedSkill.type === 'damage') {
+            if (landedHits > 0 && missedHits > 0) {
+                log(`${unit.name} uses ${selectedSkill.name}! ${landedHits} hit, ${missedHits} missed.`);
+            } else if (landedHits === 0 && missedHits > 0) {
+                log(`${unit.name} uses ${selectedSkill.name}! All attacks missed.`);
+            } else {
+                log(`${unit.name} uses ${selectedSkill.name}!`);
+            }
+        } else {
+            log(`${unit.name} uses ${selectedSkill.name}!`);
+        }
 
         unit.atb = 0;
         setHeroes([...heroes]); setEnemies([...enemies]);
