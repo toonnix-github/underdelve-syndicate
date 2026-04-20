@@ -4,6 +4,7 @@ import { ProgressBar, cn } from './UI';
 import { Shield, Sword, Zap, Heart, Flame, Target, Sparkles, Skull } from 'lucide-react';
 import { clsx } from 'clsx';
 import { getSkillActionType } from '../utils/combatMath';
+import { getHeroPortraitUrl } from '../utils/heroPortraits';
 
 interface CombatantCardProps {
     unit: Combatant;
@@ -124,7 +125,7 @@ export const CombatantCard: React.FC<CombatantCardProps> = ({
 
                 <div className="absolute inset-0 z-0 opacity-80 brightness-110 contrast-110">
                     <img
-                        src={`/assets/${unit.imageId}.png`}
+                        src={getHeroPortraitUrl(unit.imageId)}
                         alt={unit.name}
                         className={clsx(
                             "w-full h-full object-cover transition-transform duration-300",

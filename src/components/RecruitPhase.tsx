@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Combatant } from '../models/Combatant';
 import { CombatantCard } from './CombatantCard';
 import { Button } from './UI';
-import { Brain, Sword, Zap, Heart, Crosshair, Bomb, Flame, Sparkles, Shield } from 'lucide-react';
+import { Brain, Sword, Target, Flame, Sparkles } from 'lucide-react';
 import { clsx } from 'clsx';
 
 interface RecruitPhaseProps {
@@ -15,6 +15,14 @@ const DraftCard: React.FC<{ hero: any; isSelected: boolean; onClick: () => void 
     const dummy = useMemo(() => new Combatant(
         hero.name, hero.role, hero.hp, hero.spd, hero.atk, hero.def, hero.imageId, hero.skills, 'VANGUARD', true, hero.trait
     ), [hero]);
+    const secondarySkill = hero.skills[1];
+    const secondarySkillIcon = secondarySkill.actionType === 'support'
+        ? <Sparkles size={9} className="text-emerald-500 mt-0.5 shrink-0" />
+        : secondarySkill.actionType === 'ranged'
+            ? <Target size={9} className="text-amber-400 mt-0.5 shrink-0" />
+            : secondarySkill.actionType === 'magic'
+                ? <Flame size={9} className="text-fuchsia-400 mt-0.5 shrink-0" />
+                : <Sword size={9} className="text-amber-500 mt-0.5 shrink-0" />;
 
     return (
         <div 
@@ -39,14 +47,14 @@ const DraftCard: React.FC<{ hero: any; isSelected: boolean; onClick: () => void 
                     <div className="space-y-2 mt-0.5">
                         {/* Skill (Ability[1]) */}
                         <div className="flex gap-2 items-start">
-                            <Sword size={9} className="text-amber-500 mt-0.5 shrink-0" />
+                            {secondarySkillIcon}
                             <div className="flex flex-col">
                                 <div className="flex items-center gap-1 leading-none mb-0.5">
-                                    <span className="text-[9px] font-black text-white uppercase tracking-tighter">{hero.skills[1].name}</span>
-                                    <span className="text-[8px] font-black text-amber-600">{Math.round((hero.skills[1].procChance || 0) * 100)}%</span>
+                                    <span className="text-[9px] font-black text-white uppercase tracking-tighter">{secondarySkill.name}</span>
+                                    <span className="text-[8px] font-black text-amber-600">{Math.round((secondarySkill.procChance || 0) * 100)}%</span>
                                 </div>
                                 <p className="text-[8px] text-zinc-500 leading-tight line-clamp-2">
-                                    {hero.skills[1].description}
+                                    {secondarySkill.description}
                                 </p>
                             </div>
                         </div>

@@ -5,6 +5,7 @@ import { Combatant } from '../models/Combatant';
 import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Compass, Crown, Sword, Shield, Zap, Coins, Package, X } from 'lucide-react';
 import { Button } from './UI';
 import { clsx } from 'clsx';
+import { getHeroPortraitUrl } from '../utils/heroPortraits';
 
 interface DungeonViewProps {
     heroes: Combatant[];
@@ -103,7 +104,7 @@ const getDeterministicDetritus = (x: number, y: number, floor: number) => {
     };
 
     // Calculate count: 1 to 4 items per explored tile for more density
-    const count = 1 + Math.floor(seededRandom(seed) * 4); 
+    const count = 1 + Math.floor(seededRandom(seed) * 2); 
     const items = [];
     
     for (let i = 0; i < count; i++) {
@@ -119,12 +120,12 @@ const getDeterministicDetritus = (x: number, y: number, floor: number) => {
         const bgPosY = sheet.rows > 1 ? (rowIdx / (sheet.rows - 1)) * 100 : 0;
 
         // Visual Polish: Bias away from the exact center (40-60% range)
-        let offsetX = (seededRandom(itemSeed + 2) * 80) + 10; // 10% to 90%
-        let offsetY = (seededRandom(itemSeed + 3) * 80) + 10; // 10% to 90%
+        let offsetX = (seededRandom(itemSeed + 2) * 90) + 5;
+        let offsetY = (seededRandom(itemSeed + 3) * 90) + 5;
         
         // Push items out of the center if they land in the "dead zone"
-        if (offsetX > 40 && offsetX < 60) offsetX += (offsetX > 50 ? 15 : -15);
-        if (offsetY > 40 && offsetY < 60) offsetY += (offsetY > 50 ? 15 : -15);
+        if (offsetX > 15 && offsetX < 85) offsetX += (offsetX > 50 ? 35 : -35);
+        if (offsetY > 15 && offsetY < 85) offsetY += (offsetY > 50 ? 35 : -35);
 
         items.push({
             id: i,
@@ -134,7 +135,7 @@ const getDeterministicDetritus = (x: number, y: number, floor: number) => {
             offsetX,
             offsetY,
             rotate: seededRandom(itemSeed + 4) * 360,
-            scale: 0.2 + seededRandom(itemSeed + 5) * 0.4 // 0.2 to 0.6 scale (Smaller items)
+            scale: 0.1 + seededRandom(itemSeed + 5) * 0.15 // 0.1 to 0.25 scale (Micro-leftovers)
         });
     }
     return items;
@@ -144,11 +145,11 @@ const DetritusLayer: React.FC<{ x: number; y: number; floor: number }> = ({ x, y
     const items = React.useMemo(() => getDeterministicDetritus(x, y, floor), [x, y, floor]);
     
     return (
-        <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden select-none">
+        <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden select-none opacity-35">
             {items.map(item => (
                 <div 
                     key={item.id}
-                    className="absolute w-24 h-24 bg-no-repeat transition-all duration-1000 pointer-events-none"
+                    className="absolute w-16 h-16 bg-no-repeat transition-all duration-1000 pointer-events-none"
                     style={{
                         backgroundImage: `url(${item.url})`,
                         backgroundPosition: item.bgPos,
@@ -693,7 +694,7 @@ const HeroStatusCard: React.FC<{ hero: Combatant }> = ({ hero }) => {
             {/* Minimal Portrait (Full Color) */}
             <div className="absolute inset-0 z-0 opacity-60 group-hover:opacity-100 transition-all duration-500">
                 <img 
-                    src={`/assets/${hero.imageId}.png`} 
+                    src={getHeroPortraitUrl(hero.imageId)} 
                     className="w-full h-full object-cover object-[center_10%]" 
                     alt={hero.name}
                 />

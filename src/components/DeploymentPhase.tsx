@@ -3,6 +3,7 @@ import { Combatant } from '../models/Combatant';
 import { Button } from './UI';
 import { ArrowRightLeft, Zap } from 'lucide-react';
 import { clsx } from 'clsx';
+import { getHeroPortraitUrl } from '../utils/heroPortraits';
 
 interface DeploymentPhaseProps {
     heroes: Combatant[];
@@ -114,7 +115,7 @@ const CompactCard = ({ hero, onClick, color }: { hero: Combatant, onClick: () =>
         )}
     >
         <img 
-            src={`/assets/${hero.imageId}.png`} 
+            src={getHeroPortraitUrl(hero.imageId)} 
             className="absolute inset-0 w-full h-full object-cover object-[center_20%] opacity-80 brightness-90 group-hover/item:scale-110 transition-all duration-700" 
             alt={hero.name}
         />
