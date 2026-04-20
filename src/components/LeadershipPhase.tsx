@@ -36,17 +36,18 @@ export const LeadershipPhase: React.FC<LeadershipPhaseProps> = ({ draftHeroes, o
 
             <div className="relative z-10 flex flex-wrap justify-center gap-14 max-w-5xl w-full px-4 mb-32">
                 {draftHeroes.map((hero) => {
-                    const perkInfo = LEADER_PERKS[hero.name] || { name: 'Unknown', perk: 'No perk available' };
-                    const isSelected = selected === hero.name;
+                    const heroName = String(hero.name || 'Hero');
+                    const perkInfo = LEADER_PERKS[heroName] || { name: 'Unknown', perk: 'No perk available' };
+                    const isSelected = selected === heroName;
 
                     return (
-                        <div key={hero.name} className="flex flex-col items-center select-none">
+                        <div key={heroName} className="flex flex-col items-center select-none">
                             <div 
                                 className={cn(
                                     "group relative cursor-pointer transition-all duration-500 ease-out",
                                     isSelected ? "scale-110 z-20 -translate-y-4 -rotate-1" : "scale-95 opacity-50 hover:opacity-100 hover:scale-100 hover:-translate-y-2"
                                 )}
-                                onClick={() => setSelected(hero.name)}
+                                onClick={() => setSelected(heroName)}
                             >
                                 {isSelected && (
                                     <div className="absolute -top-16 left-1/2 -translate-x-1/2 animate-bounce z-30">
@@ -74,9 +75,9 @@ export const LeadershipPhase: React.FC<LeadershipPhaseProps> = ({ draftHeroes, o
                                 isSelected ? 'bg-amber-950/40 border-amber-500 shadow-xl scale-105' : 'bg-zinc-900/40 border-zinc-800 opacity-40'
                             )}>
                                 <h4 className="text-amber-500 font-black italic text-[11px] tracking-widest uppercase mb-1 flex items-center justify-center gap-1">
-                                    {perkInfo.name} {isSelected && <Star size={10} fill="currentColor" />}
+                                    {String(perkInfo.name)} {isSelected && <Star size={10} fill="currentColor" />}
                                 </h4>
-                                <p className="text-[10px] text-zinc-300 font-bold uppercase tracking-tighter leading-tight">{perkInfo.perk}</p>
+                                <p className="text-[10px] text-zinc-300 font-bold uppercase tracking-tighter leading-tight">{String(perkInfo.perk)}</p>
                             </div>
                         </div>
                     );

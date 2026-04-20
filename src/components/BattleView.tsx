@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Combatant } from '../models/Combatant';
-import { useBattle } from '../hooks/useBattle';
+import { BattleLogEntry, useBattle } from '../hooks/useBattle';
 import { CombatantCard } from './CombatantCard';
 import { Swords, Info, Play, Pause } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -25,13 +25,20 @@ interface HoverPanelPosition {
     left: number;
 }
 
+interface BattleFeedEntry extends BattleLogEntry {
+    phase: 'enter' | 'steady' | 'exit';
+}
+
 export const BattleView: React.FC<BattleViewProps> = ({ heroes: initialHeroes, enemies: initialEnemies, onVictory, onDefeat }) => {
     const battleRef = useRef<HTMLDivElement>(null);
     const hoverCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const feedTimers = useRef<Map<string, ReturnType<typeof setTimeout>[]>>(new Map());
+    const seenFeedIds = useRef<Set<string>>(new Set());
     const [arcSystem, setArcSystem] = useState<Map<string, { x: number; y: number }>>(new Map());
     const [countdown, setCountdown] = useState<number | null>(3);
     const [hoveredUnitId, setHoveredUnitId] = useState<string | null>(null);
     const [hoverPanelPosition, setHoverPanelPosition] = useState<HoverPanelPosition | null>(null);
+    const [battleFeed, setBattleFeed] = useState<BattleFeedEntry[]>([]);
 
     const {
         heroes,
@@ -156,8 +163,40 @@ export const BattleView: React.FC<BattleViewProps> = ({ heroes: initialHeroes, e
             if (hoverCloseTimer.current) {
                 clearTimeout(hoverCloseTimer.current);
             }
+            feedTimers.current.forEach(timers => timers.forEach(timer => clearTimeout(timer)));
+            feedTimers.current.clear();
+            seenFeedIds.current.clear();
         };
     }, []);
+
+    useEffect(() => {
+        battleLog.forEach(entry => {
+            if (seenFeedIds.current.has(entry.id)) return;
+            seenFeedIds.current.add(entry.id);
+
+            setBattleFeed(prev => [{ ...entry, phase: 'enter' as const }, ...prev].slice(0, 8));
+
+            const settleTimer = setTimeout(() => {
+                setBattleFeed(prev => prev.map(feedEntry => feedEntry.id === entry.id ? { ...feedEntry, phase: 'steady' } : feedEntry));
+            }, 70);
+
+            const exitTimer = setTimeout(() => {
+                setBattleFeed(prev => prev.map(feedEntry => feedEntry.id === entry.id ? { ...feedEntry, phase: 'exit' } : feedEntry));
+            }, 5200);
+
+            const removeTimer = setTimeout(() => {
+                setBattleFeed(prev => prev.filter(feedEntry => feedEntry.id !== entry.id));
+                const timers = feedTimers.current.get(entry.id);
+                if (timers) {
+                    timers.forEach(timer => clearTimeout(timer));
+                    feedTimers.current.delete(entry.id);
+                }
+                seenFeedIds.current.delete(entry.id);
+            }, 5600);
+
+            feedTimers.current.set(entry.id, [settleTimer, exitTimer, removeTimer]);
+        });
+    }, [battleLog]);
 
     const updateHoverPanelPosition = (cardRect: DOMRect) => {
         const panelWidth = 200;
@@ -553,8 +592,9 @@ export const BattleView: React.FC<BattleViewProps> = ({ heroes: initialHeroes, e
                         <div className="flex items-center gap-1.5 text-[7px] font-black uppercase tracking-[0.22em] text-zinc-400">
                             <Info size={9} /> Params
                         </div>
-                        <div className="mt-1 text-[12px] font-black uppercase tracking-tight text-zinc-100">
+                        <div className="mt-1 text-[12px] font-black uppercase tracking-tight text-zinc-100 flex items-baseline gap-2">
                             {hoveredUnit.name}
+                            <span className="text-[7px] text-zinc-500 font-bold tracking-widest">{hoveredUnit.race} {hoveredUnit.job}</span>
                         </div>
                     </div>
 
@@ -570,20 +610,44 @@ export const BattleView: React.FC<BattleViewProps> = ({ heroes: initialHeroes, e
                 </div>
             )}
 
-            <div className="mt-4 bg-black/40 border border-zinc-800/50 rounded-xl p-4 backdrop-blur-sm relative z-10 mx-4">
-                <div className="flex items-center gap-2 mb-2 text-[8px] font-black text-zinc-500 uppercase tracking-[0.2em]">
-                    <Info size={10} /> Data Stream
+            <div className="mt-4 bg-black/40 border border-zinc-800/50 rounded-xl p-4 backdrop-blur-sm relative z-10 mx-4 overflow-hidden">
+                <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_top,rgba(56,189,248,0.12),transparent_55%)]" />
+                <div className="flex items-center justify-between mb-2 text-[8px] font-black uppercase tracking-[0.2em] relative">
+                    <div className="flex items-center gap-2 text-zinc-500">
+                        <Info size={10} /> Data Stream
+                    </div>
+                    <span className={clsx("text-[7px] tracking-[0.25em]", isPaused ? "text-amber-400/80" : "text-cyan-400/80")}>
+                        {isPaused ? 'PAUSED' : 'LIVE'}
+                    </span>
                 </div>
-                <div className="h-20 overflow-y-auto space-y-0.5 font-mono text-[10px]">
-                    {battleLog.map((log, i) => (
-                        <div key={i} className={clsx(
-                            "py-0.5 border-b border-zinc-900/50 last:border-0",
-                            i === 0 ? "text-zinc-100 font-black italic" : "text-zinc-600"
-                        )}>
-                            {log}
+                <div className="h-20 overflow-hidden space-y-1 font-mono text-[10px] relative">
+                    {battleFeed.map((entry, i) => (
+                        <div
+                            key={entry.id}
+                            className={clsx(
+                                "rounded px-2 py-1 border transition-all duration-300 ease-out battle-feed-entry",
+                                entry.phase === 'enter' && "battle-feed-enter",
+                                entry.phase === 'steady' && "battle-feed-steady",
+                                entry.phase === 'exit' && "battle-feed-exit",
+                                entry.tone === 'special' && "border-amber-500/45 text-amber-200 bg-amber-500/10",
+                                entry.tone === 'support' && "border-emerald-500/40 text-emerald-200 bg-emerald-500/10",
+                                entry.tone === 'miss' && "border-cyan-500/40 text-cyan-200 bg-cyan-500/10",
+                                entry.tone === 'combat' && (i === 0
+                                    ? "border-zinc-500/40 text-zinc-100 bg-zinc-900/40"
+                                    : "border-zinc-800/60 text-zinc-400 bg-zinc-900/20")
+                            )}
+                        >
+                            {entry.message}
                         </div>
                     ))}
-                    {battleLog.length === 0 && <div className="text-zinc-800 italic">Standby for combat data...</div>}
+                    {battleFeed.length === 0 && (
+                        <div className={clsx(
+                            "text-[10px] italic transition-opacity duration-500",
+                            isPaused ? "text-zinc-500 opacity-100" : "text-zinc-700 opacity-80"
+                        )}>
+                            {isPaused ? 'Awaiting first clash...' : 'Tracking battlefield events...'}
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

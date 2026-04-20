@@ -205,6 +205,10 @@ export const CombatantCard: React.FC<CombatantCardProps> = ({
                         </div>
                         <div className="text-left">
                             <h3 className="text-[11px] font-black uppercase tracking-tight text-white leading-none">{unit.name}</h3>
+                            <div className="flex gap-1 mt-0.5">
+                                <span className="text-[6px] font-black px-1 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700 uppercase tracking-widest">{unit.race}</span>
+                                <span className="text-[6px] font-black px-1 py-0.5 rounded bg-cyan-950/40 text-cyan-400 border border-cyan-800/50 uppercase tracking-widest">{unit.job}</span>
+                            </div>
                         </div>
                     </div>
 

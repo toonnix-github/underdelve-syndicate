@@ -56,17 +56,24 @@ export interface UnitIntent {
     geometry: 'melee' | 'range' | 'magic';
 }
 
+export interface BattleLogEntry {
+    id: string;
+    message: string;
+    tone: 'special' | 'support' | 'miss' | 'combat';
+}
+
 export const useBattle = (initialHeroes: Combatant[], initialEnemies: Combatant[]) => {
     const [heroes, setHeroes] = useState<Combatant[]>(initialHeroes.map(h => h.clone()));
     const [enemies, setEnemies] = useState<Combatant[]>(initialEnemies.map(e => e.clone()));
     const [isPaused, setIsPaused] = useState(true);
-    const [battleLog, setBattleLog] = useState<string[]>([]);
+    const [battleLog, setBattleLog] = useState<BattleLogEntry[]>([]);
     const [winner, setWinner] = useState<'heros' | 'enemies' | null>(null);
     const [activeActions, setActiveActions] = useState<ActiveAction[]>([]);
     const [intents, setIntents] = useState<UnitIntent[]>([]);
 
-    const log = useCallback((msg: string) => {
-        setBattleLog(prev => [msg, ...prev].slice(0, 5));
+    const log = useCallback((message: string, tone: BattleLogEntry['tone'] = 'combat') => {
+        const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        setBattleLog(prev => [{ id, message, tone }, ...prev].slice(0, 8));
     }, []);
 
     const processAction = useCallback(async (unitId: string) => {
@@ -82,7 +89,7 @@ export const useBattle = (initialHeroes: Combatant[], initialEnemies: Combatant[
         if (unit.abilities[1] && Math.random() < (unit.abilities[1].procChance || 0)) {
             selectedSkill = unit.abilities[1]; 
             unit.triggerChant(selectedSkill.name);
-            log(`!!! ${unit.name} triggers ${selectedSkill.name.toUpperCase()} !!!`);
+            log(`!!! ${unit.name} triggers ${selectedSkill.name.toUpperCase()} !!!`, 'special');
         }
         
         // --- MULTI-TARGET RESOLUTION ---
@@ -201,20 +208,20 @@ export const useBattle = (initialHeroes: Combatant[], initialEnemies: Combatant[
 
         if (selectedSkill.type === 'damage') {
             if (landedHits > 0 && missedHits > 0) {
-                log(`${unit.name} uses ${selectedSkill.name}! ${landedHits} hit, ${missedHits} missed.`);
+                log(`${unit.name} uses ${selectedSkill.name}! ${landedHits} hit, ${missedHits} missed.`, 'miss');
             } else if (landedHits === 0 && missedHits > 0) {
-                log(`${unit.name} uses ${selectedSkill.name}! All attacks missed.`);
+                log(`${unit.name} uses ${selectedSkill.name}! All attacks missed.`, 'miss');
             } else {
-                log(`${unit.name} uses ${selectedSkill.name}!`);
+                log(`${unit.name} uses ${selectedSkill.name}!`, 'combat');
             }
         } else if (selectedSkill.id === UMBRA_RELAY_ID) {
             const relayTargetName = targets[0]?.name ?? 'ally';
             const relayTarget = targets[0];
             const relaySpdTotal = relayTarget ? Math.round(relayTarget.battleSpdBuffPct * 100) : 0;
             const umbraEvasionTotal = unit.battleEvasionBonus;
-            log(`${unit.name} uses ${selectedSkill.name}! ${relayTargetName} +5% SPD (${relaySpdTotal}% total), Umbra +5 EVA (${umbraEvasionTotal} total).`);
+            log(`${unit.name} uses ${selectedSkill.name}! ${relayTargetName} +5% SPD (${relaySpdTotal}% total), Umbra +5 EVA (${umbraEvasionTotal} total).`, 'support');
         } else {
-            log(`${unit.name} uses ${selectedSkill.name}!`);
+            log(`${unit.name} uses ${selectedSkill.name}!`, selectedSkill.type === 'heal' ? 'support' : 'combat');
         }
 
         unit.atb = 0;

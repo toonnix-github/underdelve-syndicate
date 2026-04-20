@@ -14,11 +14,16 @@ export const DeploymentPhase: React.FC<DeploymentPhaseProps> = ({ heroes: initia
     const [heroes, setHeroes] = useState([...initialHeroes]);
 
     const togglePosition = (name: string) => {
+        console.log(`[DeploymentPhase] Toggling position for ${name}`);
         setHeroes(prev => prev.map(h => {
             if (h.name === name) {
                 const next = h.clone();
-                const newPos = h.positionLine === 'VANGUARD' ? 'REARGUARD' : 'VANGUARD';
+                // Defensive primitive casting
+                const oldPos = String(h.positionLine || 'VANGUARD');
+                const newPos = oldPos === 'VANGUARD' ? 'REARGUARD' : 'VANGUARD';
                 next.positionLine = newPos;
+                next.name = String(h.name);
+                console.log(`[DeploymentPhase] Next position for ${next.name}: ${next.positionLine}`);
                 return next;
             }
             return h;
@@ -115,15 +120,15 @@ const CompactCard = ({ hero, onClick, color }: { hero: Combatant, onClick: () =>
         )}
     >
         <img 
-            src={getHeroPortraitUrl(hero.imageId)} 
+            src={getHeroPortraitUrl(String(hero.imageId || 'unknown'))} 
             className="absolute inset-0 w-full h-full object-cover object-[center_20%] opacity-80 brightness-90 group-hover/item:scale-110 transition-all duration-700" 
-            alt={hero.name}
+            alt={String(hero.name || 'Hero')}
         />
         <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black via-black/60 to-transparent">
-            <p className="text-[10px] font-black uppercase leading-tight text-white mb-0.5">{hero.name}</p>
+            <p className="text-[10px] font-black uppercase leading-tight text-white mb-0.5">{String(hero.name || 'N/A')}</p>
             <div className="flex justify-between items-center">
-                <p className="text-[8px] text-zinc-400 font-bold uppercase tracking-tighter">{hero.role}</p>
-                {hero.isLeader && <span className="text-[7px] bg-amber-500 text-black px-1 rounded-sm font-black shadow-sm">LEAD</span>}
+                <p className="text-[8px] text-zinc-400 font-bold uppercase tracking-tighter">{String(hero.role || 'MERCENARY')}</p>
+                {hero.isLeader === true && <span className="text-[7px] bg-amber-500 text-black px-1 rounded-sm font-black shadow-sm">LEAD</span>}
             </div>
         </div>
         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/item:opacity-100 bg-black/40 backdrop-blur-[2px] transition-all duration-300">

@@ -37,8 +37,24 @@ export class Combatant {
     activeChant: string | null;
     battleSpdBuffPct: number;
     battleEvasionBonus: number;
+    job: string;
+    race: string;
 
-    constructor(name: string, role: Role, maxHp: number, speed: number, power: number, def: number, imageId: string, abilities: Ability[], positionLine?: Position, isHero = true, trait: Trait | null = null) {
+    constructor(
+        name: string, 
+        role: Role, 
+        maxHp: number, 
+        speed: number, 
+        power: number, 
+        def: number, 
+        imageId: string, 
+        abilities: Ability[], 
+        positionLine?: Position, 
+        isHero = true, 
+        trait: Trait | null = null, 
+        job = 'N/A', 
+        race = 'N/A'
+    ) {
         this.id = Math.random().toString(36).substr(2, 9);
         this.name = name;
         this.role = role;
@@ -81,23 +97,23 @@ export class Combatant {
         this.activeChant = null;
         this.battleSpdBuffPct = 0;
         this.battleEvasionBonus = 0;
+        this.job = job;
+        this.race = race;
     }
 
     clone(): Combatant {
         const copy = Object.assign(Object.create(Object.getPrototypeOf(this)), this);
+        // Deep copy nested objects/arrays
         copy.equipment = { ...this.equipment };
         copy.abilities = [...this.abilities];
         copy.vfx = [...this.vfx];
-        copy.isCharging = this.isCharging;
-        copy.chargeColor = this.chargeColor;
-        copy.activeSigil = this.activeSigil;
-        copy.isPopping = this.isPopping;
-        copy.hitType = this.hitType;
-        copy.hitShake = this.hitShake;
-        copy.healSparkle = this.healSparkle;
-        copy.activeChant = this.activeChant;
-        copy.battleSpdBuffPct = this.battleSpdBuffPct;
-        copy.battleEvasionBonus = this.battleEvasionBonus;
+        copy.trait = this.trait ? { ...this.trait } : null;
+        
+        // Ensure primitives didn't somehow get corrupted into objects
+        copy.name = String(this.name);
+        copy.hp = Number(this.hp);
+        copy.isLeader = Boolean(this.isLeader);
+        
         return copy;
     }
 
@@ -113,7 +129,16 @@ export class Combatant {
 
     getATK(party: Combatant[] = []): number {
         let total = this.power;
+        
+        // --- Innate Race Bonuses ---
+        if (this.race === 'Orc') total += 3;
+        if (this.race === 'Undead') total += 2;
+        
+        // --- Equipment ---
         Object.values(this.equipment).forEach(item => { if (item?.statBoost?.atk) total += item.statBoost.atk; });
+
+        // --- Innate Job Bonuses ---
+        if (this.job === 'Berserker') total = Math.floor(total * 1.15);
         
         const leader = party.find(h => h.isLeader);
         if (leader?.name === 'Valthea' && this.positionLine === 'VANGUARD') {
@@ -129,7 +154,17 @@ export class Combatant {
 
     getDEF(party: Combatant[] = []): number {
         let total = this.def;
+
+        // --- Innate Race Bonuses ---
+        if (this.race === 'Construct') total += 5;
+        if (this.race === 'Dwarf') total += 4;
+
+        // --- Equipment ---
         Object.values(this.equipment).forEach(item => { if (item?.statBoost?.def) total += item.statBoost.def; });
+
+        // --- Innate Job Bonuses ---
+        if (this.job === 'Knight') total = Math.floor(total * 1.15);
+
         if (this.trait?.id === 'vanguard_stance' && this.positionLine === 'VANGUARD') {
             total = Math.floor(total * 1.1);
         }
@@ -144,8 +179,18 @@ export class Combatant {
 
     getSPD(party: Combatant[] = []): number {
         let total = this.speed;
+
+        // --- Innate Race Bonuses ---
+        if (this.race === 'Elf') total += 3;
+        if (this.race === 'Undead') total -= 1;
+        if (this.race === 'Construct') total -= 2;
+
+        // --- Equipment ---
         Object.values(this.equipment).forEach(item => { if (item?.statBoost?.spd) total += item.statBoost.spd; });
         
+        // --- Innate Job Bonuses ---
+        if (this.job === 'Slayer' || this.job === 'Rogue') total = Math.floor(total * 1.15);
+
         const leader = party.find(h => h.isLeader);
         if (leader?.name === 'Lira') {
             total = Math.floor(total * 1.10);
@@ -211,5 +256,60 @@ export class Combatant {
         setTimeout(() => {
             this.activeChant = null;
         }, 1500);
+    }
+
+    // --- Static Factory ---
+    static fromTemplate(template: any, isHero: boolean, position: Position = 'VANGUARD'): Combatant {
+        return new Combatant(
+            template.name,
+            template.role,
+            template.hp || template.maxHp,
+            template.spd || template.speed,
+            template.atk || template.power || template.pwr,
+            template.def || template.defense,
+            template.imageId || template.img,
+            template.skills || template.abilities,
+            position,
+            isHero,
+            template.trait,
+            template.job,
+            template.race
+        );
+    }
+
+    // --- Inventory System ---
+    equip(item: any, slot: string) {
+        // Handle two-handed weapons
+        if (item.slots === 2) {
+            this.equipment['weapon1'] = item;
+            this.equipment['weapon2'] = { ...item, isPlaceholder: true, parentSlot: 'weapon1' };
+        } else {
+            this.equipment[slot] = item;
+        }
+    }
+
+    unequip(slot: string) {
+        const item = this.equipment[slot];
+        if (!item) return;
+
+        if (item.slots === 2) {
+            delete this.equipment['weapon1'];
+            delete this.equipment['weapon2'];
+        } else if (item.isPlaceholder) {
+            const parent = this.equipment[item.parentSlot];
+            if (parent && parent.slots === 2) {
+                delete this.equipment['weapon1'];
+                delete this.equipment['weapon2'];
+            }
+        } else {
+            delete this.equipment[slot];
+        }
+    }
+
+    consume(item: any) {
+        if (!item.statBoost) return;
+        const boost = item.statBoost;
+        if (boost.hp) this.hp = Math.min(this.maxHp, this.hp + boost.hp);
+        // Temporary battle buffs could be handled here if needed
     }
 }

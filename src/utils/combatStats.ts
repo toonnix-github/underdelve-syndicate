@@ -30,6 +30,29 @@ export const getCombatStatBreakdown = (unit: Combatant, allies: Combatant[]): Co
     let defFinal = unit.def;
     let spdFinal = unit.speed;
 
+    // --- Race Bonuses ---
+    if (unit.race === 'Orc') {
+        atkFinal += 3;
+        push('ATK', 3, 'Race (Orc)');
+    } else if (unit.race === 'Undead') {
+        atkFinal += 2;
+        push('ATK', 2, 'Race (Undead)');
+        spdFinal -= 1;
+        push('SPD', -1, 'Race (Undead)');
+    } else if (unit.race === 'Elf') {
+        spdFinal += 3;
+        push('SPD', 3, 'Race (Elf)');
+    } else if (unit.race === 'Construct') {
+        defFinal += 5;
+        push('DEF', 5, 'Race (Construct)');
+        spdFinal -= 2;
+        push('SPD', -2, 'Race (Construct)');
+    } else if (unit.race === 'Dwarf') {
+        defFinal += 4;
+        push('DEF', 4, 'Race (Dwarf)');
+    }
+
+    // --- Equipment ---
     Object.values(unit.equipment || {}).forEach((item: any) => {
         if (!item?.statBoost) return;
         const boost = item.statBoost as { atk?: number; def?: number; spd?: number };
@@ -47,6 +70,24 @@ export const getCombatStatBreakdown = (unit: Combatant, allies: Combatant[]): Co
         }
     });
 
+    // --- Job Bonuses (Multiplicative on current total) ---
+    if (unit.job === 'Berserker') {
+        const boosted = Math.floor(atkFinal * 1.15);
+        push('ATK', boosted - atkFinal, 'Job (Berserker)');
+        atkFinal = boosted;
+    }
+    if (unit.job === 'Knight') {
+        const boosted = Math.floor(defFinal * 1.15);
+        push('DEF', boosted - defFinal, 'Job (Knight)');
+        defFinal = boosted;
+    }
+    if (unit.job === 'Slayer' || unit.job === 'Rogue') {
+        const boosted = Math.floor(spdFinal * 1.15);
+        push('SPD', boosted - spdFinal, `Job (${unit.job})`);
+        spdFinal = boosted;
+    }
+
+    // --- Leader Perks & Traits ---
     if (leader?.name === 'Valthea' && unit.positionLine === 'VANGUARD') {
         const boosted = Math.floor(atkFinal * 1.15);
         push('ATK', boosted - atkFinal, 'Leader');

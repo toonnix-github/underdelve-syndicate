@@ -16,6 +16,26 @@ export interface Passive {
     description: string;
 }
 
+export interface Item {
+    id: string;
+    name: string;
+    type: ItemType;
+    rarity: Rarity;
+    description: string;
+    imagePath?: string;
+    statBoost?: StatBoost;
+    passives?: Passive[];
+    value: number;
+    isTwoHanded?: boolean;
+    allowedJobs?: string[];
+    allowedRaces?: string[];
+}
+
+export interface VaultItem {
+    item: Item;
+    quantity: number;
+}
+
 export interface Ability {
     id: string;
     name: string;
@@ -32,6 +52,21 @@ export interface Trait {
     name: string;
     description: string;
     icon?: string;
+}
+
+export interface HeroTemplate {
+    name: string;
+    hp: number;
+    atk: number;
+    def: number;
+    spd: number;
+    role: Role;
+    job: string;
+    race: string;
+    imageId: string;
+    trait: Trait;
+    skills: Ability[];
+    initialEquipment?: string[]; // Item IDs
 }
 
 export interface CombatantState {
@@ -51,4 +86,6 @@ export interface CombatantState {
     isHero: boolean;
     trait: Trait | null;
     isLeader: boolean;
+    job: string;
+    race: string;
 }

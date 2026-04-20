@@ -13,7 +13,7 @@ interface RecruitPhaseProps {
 
 const DraftCard: React.FC<{ hero: any; isSelected: boolean; onClick: () => void }> = ({ hero, isSelected, onClick }) => {
     const dummy = useMemo(() => new Combatant(
-        hero.name, hero.role, hero.hp, hero.spd, hero.atk, hero.def, hero.imageId, hero.skills, 'VANGUARD', true, hero.trait
+        hero.name, hero.role, hero.hp, hero.spd, hero.atk, hero.def, hero.imageId, hero.skills, 'VANGUARD', true, hero.trait, hero.job, hero.race
     ), [hero]);
     const secondarySkill = hero.skills[1];
     const secondarySkillIcon = secondarySkill.actionType === 'support'

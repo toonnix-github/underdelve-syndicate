@@ -191,3 +191,51 @@
 .animate-crt-flicker {
   animation: crt-flicker 0.15s infinite;
 }
+
+@keyframes battle-feed-in {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+    filter: blur(2px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes battle-feed-steady {
+  0% { box-shadow: 0 0 0 rgba(56, 189, 248, 0); }
+  50% { box-shadow: 0 0 12px rgba(56, 189, 248, 0.16); }
+  100% { box-shadow: 0 0 0 rgba(56, 189, 248, 0); }
+}
+
+@keyframes battle-feed-out {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.98);
+    filter: blur(2px);
+  }
+}
+
+.battle-feed-entry {
+  will-change: transform, opacity, filter;
+}
+
+.battle-feed-enter {
+  animation: battle-feed-in 240ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.battle-feed-steady {
+  animation: battle-feed-steady 2.2s ease-in-out infinite;
+}
+
+.battle-feed-exit {
+  animation: battle-feed-out 320ms cubic-bezier(0.4, 0, 1, 1) forwards;
+}
