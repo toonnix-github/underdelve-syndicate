@@ -86,6 +86,14 @@ export const HERO_ROSTER: HeroTemplate[] = [
         ]
     },
     {
+        name: 'Umbra', hp: 98, atk: 8, def: 8, spd: 30, role: 'TANK', imageId: 'hero_umbra',
+        trait: { id: 'afterimage', name: 'Afterimage', description: 'While in Vanguard, enemy attacks are much more likely to miss her.' },
+        skills: [
+            { id: 'u_s1', name: 'Phantom Cut', description: 'A fast vanguard strike that keeps pressure on one foe.', val: 96, type: 'damage', actionType: 'melee', targetType: 'single' },
+            { id: 'u_s2', name: 'Blurstep Flurry', description: 'Rare chance to cut across the enemy front with a mirage rush.', val: 74, type: 'damage', actionType: 'melee', targetType: 'row', procChance: 0.16 }
+        ]
+    },
+    {
         name: 'Kael', hp: 82, atk: 16, def: 10, spd: 16, role: 'DPS', imageId: 'hero_kael',
         trait: { id: 'steady_aim', name: 'Steady Aim', description: 'Gains +25% damage bonus when targeting enemies in the Rearguard.' },
         skills: [

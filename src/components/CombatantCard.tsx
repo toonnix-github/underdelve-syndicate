@@ -246,7 +246,9 @@ export const CombatantCard: React.FC<CombatantCardProps> = ({
                             key={v.id}
                             className={clsx(
                                 "absolute top-1/2 left-1/2 font-black text-4xl animate-damage-float-ro tabular-nums",
-                                v.type === 'damage' ? "text-white outline-text" : "text-green-400 outline-text"
+                                v.type === 'damage' && "text-white outline-text",
+                                v.type === 'heal' && "text-green-400 outline-text",
+                                v.type === 'miss' && "text-cyan-300 outline-text drop-shadow-[0_0_12px_rgba(34,211,238,0.85)]"
                             )}
                             style={{
                                 marginLeft: `${(i % 3 - 1) * 20}px`,

@@ -55,21 +55,21 @@
   }
   15% { 
     opacity: 1; 
-    transform: translate(-50%, -120%) scale(1.3); 
+    transform: translate(-50%, -150%) scale(1.3); 
     filter: brightness(1.5);
   }
   40% { 
-    transform: translate(-20%, -150%) scale(1);
+    transform: translate(-18%, -190%) scale(1);
     filter: brightness(1);
   }
   100% { 
     opacity: 0; 
-    transform: translate(20%, -20%) scale(0.8); 
+    transform: translate(22%, -250%) scale(0.85); 
     filter: brightness(0.8);
   }
 }
 .animate-damage-float-ro {
-  animation: damage-float-ro 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  animation: damage-float-ro 1.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
 }
 
 @keyframes trait-pulse {

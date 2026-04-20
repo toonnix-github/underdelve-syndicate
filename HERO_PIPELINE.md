@@ -64,7 +64,7 @@
 [ ] hero#64 Rowan : wild druid swapping between damage and healing stances.
 [ ] hero#65 Cato : gladiator bruiser with crowd-cleaving row attacks.
 [ ] hero#66 Miren : light singer with burst heal and morale buff.
-[ ] hero#67 Umbra : night stalker who crits harder from rearguard.
+[x] hero#67 Umbra : frontline speed tank using afterimages to evade hits.
 [ ] hero#68 Hilda : iron matron protecting lowest-health ally.
 [ ] hero#69 Senna : spirit medium summoning protective ward circles.
 [ ] hero#70 Garruk : axe raider with armor-breaking heavy swings.

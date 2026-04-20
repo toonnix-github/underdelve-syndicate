@@ -1,12 +1,13 @@
 import { useState, useCallback } from 'react';
-import { generateFloor, GRID_SIZE, TilePos, Interactable } from '../utils/dungeonGenerator';
+import { generateFloor, GRID_SIZE, TilePos, Interactable, FloorSpawnRates } from '../utils/dungeonGenerator';
 import { Combatant } from '../models/Combatant';
 
-export const useDungeon = (initialFloor: number, heroes: Combatant[]) => {
+export const useDungeon = (initialFloor: number, heroes: Combatant[], spawnRates: FloorSpawnRates) => {
     const [floor, setFloor] = useState(initialFloor);
     const [playerPos, setPlayerPos] = useState<TilePos>({ x: 4, y: 4 });
     const [exploredCells, setExploredCells] = useState<Set<string>>(new Set(['4,4']));
-    const [dungeonData, setDungeonData] = useState(() => generateFloor(initialFloor));
+    const [dungeonData, setDungeonData] = useState(() => generateFloor(initialFloor, GRID_SIZE, spawnRates));
+    const [floorCache, setFloorCache] = useState<Record<number, { dungeonData: any, exploredCells: Set<string> }>>({});
 
     const movePlayer = useCallback((dx: number, dy: number) => {
         const newX = playerPos.x + dx;
@@ -49,13 +50,35 @@ export const useDungeon = (initialFloor: number, heroes: Combatant[]) => {
         return scouted;
     }, [exploredCells, dungeonData]);
 
-    const nextFloor = useCallback(() => {
-        const nf = floor + 1;
+    const changeFloor = useCallback((direction: 'UP' | 'DOWN') => {
+        // Persistence: Cache current floor before transition
+        setFloorCache(prev => ({
+            ...prev,
+            [floor]: { dungeonData, exploredCells }
+        }));
+
+        const nf = direction === 'UP' ? Math.max(1, floor - 1) : floor + 1;
         setFloor(nf);
-        setDungeonData(generateFloor(nf));
+
+        // Restore from cache or generate fresh
+        if (floorCache[nf]) {
+            setDungeonData(floorCache[nf].dungeonData);
+            setExploredCells(floorCache[nf].exploredCells);
+        } else {
+            setDungeonData(generateFloor(nf, GRID_SIZE, spawnRates));
+            setExploredCells(new Set(['4,4']));
+        }
+        
+        setPlayerPos({ x: 4, y: 4 });
+    }, [floor, dungeonData, exploredCells, floorCache, spawnRates]);
+
+    const resetDungeon = useCallback((newFloor = 1) => {
+        setFloor(newFloor);
         setPlayerPos({ x: 4, y: 4 });
         setExploredCells(new Set(['4,4']));
-    }, [floor]);
+        setDungeonData(generateFloor(newFloor, GRID_SIZE, spawnRates));
+        setFloorCache({});
+    }, [spawnRates]);
 
     const updateInteractable = useCallback((id: string, updates: Partial<Interactable>) => {
         setDungeonData(prev => ({
@@ -71,7 +94,8 @@ export const useDungeon = (initialFloor: number, heroes: Combatant[]) => {
         dungeonData,
         movePlayer,
         getScoutedCells,
-        nextFloor,
-        updateInteractable
+        changeFloor,
+        updateInteractable,
+        resetDungeon
     };
 };

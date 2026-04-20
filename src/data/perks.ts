@@ -7,6 +7,7 @@ export const LEADER_PERKS: Record<string, { id: string; name: string; perk: stri
     'Vex': { id: 'soul_harvester', name: 'Soul Harvester', perk: '+10% ATK for floor after Elites' },
     'Leora': { id: 'scout', name: 'Scout', perk: 'Advanced Scouting (2-tile radius)' },
     'Lira': { id: 'bard', name: 'Bard', perk: '+10% Party Speed' },
+    'Umbra': { id: 'phantom_captain', name: 'Phantom Captain', perk: '+8% Party Speed' },
     'Borum': { id: 'quartermaster', name: 'Quartermaster', perk: '+25% Rare+ Loot chance' },
     'Valthea': { id: 'commander', name: 'Commander', perk: '+15% Vanguard ATK' },
     'Elara': { id: 'oracle', name: 'Oracle', perk: 'Reveals Boss location on floor start' },

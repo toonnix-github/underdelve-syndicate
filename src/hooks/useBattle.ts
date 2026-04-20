@@ -160,7 +160,7 @@ export const useBattle = (initialHeroes: Combatant[], initialEnemies: Combatant[
 
                 if (!hitResult.hit) {
                     missedHits += 1;
-                    target.addVfx('MISS', 'damage');
+                    target.addVfx('MISS', 'miss');
                     return;
                 }
 

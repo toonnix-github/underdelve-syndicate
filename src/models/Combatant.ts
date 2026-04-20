@@ -160,7 +160,7 @@ export class Combatant {
         this.vfx.push({ id, text, type });
         setTimeout(() => {
             this.vfx = this.vfx.filter(v => v.id !== id);
-        }, 1000);
+        }, 1300);
     }
 
     triggerHit(type: 'slash' | 'broken' | 'burn') {

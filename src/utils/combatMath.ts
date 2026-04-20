@@ -49,6 +49,11 @@ export const calculateHitChance = (
         chance -= 3;
     }
 
+    // Umbra trait: especially evasive while anchoring the frontline.
+    if (target.trait?.id === 'afterimage' && target.positionLine === 'VANGUARD') {
+        chance -= 8;
+    }
+
     return clamp(Math.floor(chance), 60, 98);
 };
 

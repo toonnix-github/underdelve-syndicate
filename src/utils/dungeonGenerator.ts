@@ -23,7 +23,23 @@ export interface Interactable extends TilePos {
     };
 }
 
-export const generateFloor = (floor: number, size = GRID_SIZE) => {
+export interface FloorSpawnRates {
+    enemyRate: number;
+    trapRate: number;
+    lootRate: number;
+}
+
+export const DEFAULT_FLOOR_SPAWN_RATES: FloorSpawnRates = {
+    enemyRate: 16,
+    trapRate: 10,
+    lootRate: 8
+};
+
+export const generateFloor = (
+    floor: number,
+    size = GRID_SIZE,
+    spawnRates: FloorSpawnRates = DEFAULT_FLOOR_SPAWN_RATES
+) => {
     let layout = Array(size).fill(0).map(() => Array(size).fill(0));
     let validTiles: TilePos[] = [];
 
@@ -86,9 +102,9 @@ export const generateFloor = (floor: number, size = GRID_SIZE) => {
     const getLoc = () => validTiles.length > 0 ? validTiles.pop()! : { x: centerX, y: centerY };
 
     const TRAP_TYPES = ['SPIKES', 'ACID', 'BLADES'] as const;
-    const getTrap = (id: string, floorLevel: number): Interactable => ({
+    const createTrap = (id: string, floorLevel: number, loc: TilePos): Interactable => ({
         id,
-        ...getLoc(),
+        ...loc,
         type: 'TRAP',
         trapType: TRAP_TYPES[Math.floor(Math.random() * TRAP_TYPES.length)],
         status: 'ACTIVE',
@@ -101,24 +117,43 @@ export const generateFloor = (floor: number, size = GRID_SIZE) => {
         }
     });
 
-    let interactables: Interactable[] = [];
-    if (floor === 1) {
-        interactables = [
-            getTrap('t1', floor),
-            { id: 'e1', ...getLoc(), type: 'ENEMY', status: 'ACTIVE' },
-            { id: 'c1', ...getLoc(), type: 'CHEST', status: 'ACTIVE' },
-            { id: 's1', ...getLoc(), type: 'STAIRS', status: 'ACTIVE' }
-        ];
-    } else {
-        interactables = [
-            getTrap(`t${floor}`, floor),
-            { id: `e${floor}_1`, ...getLoc(), type: 'ENEMY', status: 'ACTIVE' },
-            { id: `e${floor}_2`, ...getLoc(), type: 'ENEMY', status: 'ACTIVE' },
-            { id: `c${floor}`, ...getLoc(), type: 'CHEST', status: 'ACTIVE' },
-            { id: `s${floor}`, ...getLoc(), type: 'STAIRS', status: 'ACTIVE' },
-            { id: `p${floor}`, x: centerX, y: centerY, type: 'PREV_FLOOR', status: 'ACTIVE' }
-        ];
+    const interactables: Interactable[] = [];
+
+    if (floor > 1) {
+        interactables.push({ id: `p${floor}`, x: centerX, y: centerY, type: 'PREV_FLOOR', status: 'ACTIVE' });
     }
+
+    interactables.push({ id: `s${floor}`, ...getLoc(), type: 'STAIRS', status: 'ACTIVE' });
+
+    const enemyRate = Math.max(0, Math.min(100, spawnRates.enemyRate));
+    const trapRate = Math.max(0, Math.min(100, spawnRates.trapRate));
+    const lootRate = Math.max(0, Math.min(100, spawnRates.lootRate));
+    const totalRate = enemyRate + trapRate + lootRate;
+    const spawnChance = Math.min(100, totalRate);
+
+    let enemyIndex = 0;
+    let trapIndex = 0;
+    let chestIndex = 0;
+
+    [...validTiles].forEach(loc => {
+        if (Math.random() * 100 >= spawnChance) return;
+
+        const typeRoll = Math.random() * (totalRate || 1);
+        if (typeRoll < enemyRate) {
+            enemyIndex += 1;
+            interactables.push({ id: `e${floor}_${enemyIndex}`, ...loc, type: 'ENEMY', status: 'ACTIVE' });
+            return;
+        }
+
+        if (typeRoll < enemyRate + trapRate) {
+            trapIndex += 1;
+            interactables.push(createTrap(`t${floor}_${trapIndex}`, floor, loc));
+            return;
+        }
+
+        chestIndex += 1;
+        interactables.push({ id: `c${floor}_${chestIndex}`, ...loc, type: 'CHEST', status: 'ACTIVE' });
+    });
 
     return {
         layout,
