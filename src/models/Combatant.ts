@@ -35,6 +35,8 @@ export class Combatant {
     activeSigil: string | null;
     isPopping: boolean;
     activeChant: string | null;
+    battleSpdBuffPct: number;
+    battleEvasionBonus: number;
 
     constructor(name: string, role: Role, maxHp: number, speed: number, power: number, def: number, imageId: string, abilities: Ability[], positionLine?: Position, isHero = true, trait: Trait | null = null) {
         this.id = Math.random().toString(36).substr(2, 9);
@@ -77,6 +79,8 @@ export class Combatant {
         this.activeSigil = null;
         this.isPopping = false;
         this.activeChant = null;
+        this.battleSpdBuffPct = 0;
+        this.battleEvasionBonus = 0;
     }
 
     clone(): Combatant {
@@ -92,6 +96,8 @@ export class Combatant {
         copy.hitShake = this.hitShake;
         copy.healSparkle = this.healSparkle;
         copy.activeChant = this.activeChant;
+        copy.battleSpdBuffPct = this.battleSpdBuffPct;
+        copy.battleEvasionBonus = this.battleEvasionBonus;
         return copy;
     }
 
@@ -145,7 +151,28 @@ export class Combatant {
             total = Math.floor(total * 1.10);
         }
 
+        if (this.battleSpdBuffPct > 0) {
+            total = Math.floor(total * (1 + this.battleSpdBuffPct));
+        }
+
         return total;
+    }
+
+    getActiveEvasionBonus(): number {
+        return this.battleEvasionBonus;
+    }
+
+    addBattleSpdBuff(percent: number, maxTotalPct = 0.3) {
+        this.battleSpdBuffPct = Math.min(maxTotalPct, this.battleSpdBuffPct + Math.max(0, percent));
+    }
+
+    addBattleEvasionBuff(bonus: number, maxTotal = 20) {
+        this.battleEvasionBonus = Math.min(maxTotal, this.battleEvasionBonus + Math.max(0, bonus));
+    }
+
+    clearBattleBuffs() {
+        this.battleSpdBuffPct = 0;
+        this.battleEvasionBonus = 0;
     }
 
     updateAtb(dt: number, partySpeedMult = 1.0) {

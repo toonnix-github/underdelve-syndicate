@@ -54,6 +54,8 @@ export const calculateHitChance = (
         chance -= 8;
     }
 
+    chance -= target.getActiveEvasionBonus();
+
     return clamp(Math.floor(chance), 60, 98);
 };
 

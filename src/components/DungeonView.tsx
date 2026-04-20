@@ -277,7 +277,19 @@ export const DungeonView: React.FC<DungeonViewProps> = ({ heroes, dungeonState, 
     const activeInteractable = dungeonData.interactables.find(i => i.x === playerPos.x && i.y === playerPos.y);
 
     return (
-        <div className="w-full h-full flex flex-col relative overflow-hidden bg-zinc-900">
+        <div className="w-full h-full flex flex-col relative overflow-hidden bg-black selection:bg-cyan-500/30">
+            {/* Cinematic Ambient Backdrop */}
+            <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+                <img 
+                    src="assets/dungeon_main_backdrop.png" 
+                    className="w-full h-full object-cover opacity-45 blur-[2px] scale-105" 
+                    alt=""
+                />
+                {/* Tactical Vignette & Depth Mask */}
+                <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/60" />
+                <div className="absolute inset-0 shadow-[inset_0_0_120px_rgba(0,0,0,0.85)]" />
+            </div>
+
             <Minimap 
                 layout={dungeonData.layout} 
                 playerPos={playerPos} 

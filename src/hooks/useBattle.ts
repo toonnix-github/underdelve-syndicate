@@ -75,6 +75,7 @@ export const useBattle = (initialHeroes: Combatant[], initialEnemies: Combatant[
         if (!unit || unit.hp <= 0 || unit.isActing) return;
 
         const isHero = unit.isHero;
+        const UMBRA_RELAY_ID = 'u_s2';
         
         // --- SIGNATURE MOVE SELECTION ---
         let selectedSkill = unit.abilities[0]; // Normal
@@ -105,7 +106,13 @@ export const useBattle = (initialHeroes: Combatant[], initialEnemies: Combatant[
             targets = frontlineOpponents.length > 0 ? frontlineOpponents : opponents.filter(o => o.hp > 0);
         } else {
             // Single target
-            if (selectedSkill.type === 'heal') {
+            if (selectedSkill.id === UMBRA_RELAY_ID) {
+                const buffCandidates = teammates.filter(t => t.hp > 0 && t.id !== unit.id);
+                const relayTarget = buffCandidates.length > 0
+                    ? buffCandidates[Math.floor(Math.random() * buffCandidates.length)]
+                    : unit;
+                targets = [relayTarget];
+            } else if (selectedSkill.type === 'heal') {
                 const healT = teammates.filter(t => t.hp > 0).sort((a,b) => (a.hp/a.maxHp) - (b.hp/b.maxHp))[0];
                 if (healT) targets = [healT];
             } else {
@@ -177,10 +184,18 @@ export const useBattle = (initialHeroes: Combatant[], initialEnemies: Combatant[
                 target.triggerHit(hitType);
                 landedHits += 1;
             } else {
-                const heal = calculateHeal(unit, selectedSkill.val, isHero ? heroes : enemies);
-                target.hp = Math.min(target.maxHp, target.hp + heal);
-                target.addVfx(`+${heal}`, 'heal');
-                target.triggerHeal();
+                if (selectedSkill.id === UMBRA_RELAY_ID) {
+                    target.addBattleSpdBuff(0.05);
+                    unit.addBattleEvasionBuff(5);
+                    target.addVfx('+5% SPD', 'heal');
+                    unit.addVfx('EVADE +5%', 'miss');
+                    target.triggerHeal();
+                } else {
+                    const heal = calculateHeal(unit, selectedSkill.val, isHero ? heroes : enemies);
+                    target.hp = Math.min(target.maxHp, target.hp + heal);
+                    target.addVfx(`+${heal}`, 'heal');
+                    target.triggerHeal();
+                }
             }
         });
 
@@ -192,6 +207,9 @@ export const useBattle = (initialHeroes: Combatant[], initialEnemies: Combatant[
             } else {
                 log(`${unit.name} uses ${selectedSkill.name}!`);
             }
+        } else if (selectedSkill.id === UMBRA_RELAY_ID) {
+            const relayTargetName = targets[0]?.name ?? 'ally';
+            log(`${unit.name} uses ${selectedSkill.name}! ${relayTargetName} gains SPD and Umbra gains dodge.`);
         } else {
             log(`${unit.name} uses ${selectedSkill.name}!`);
         }
@@ -210,8 +228,14 @@ export const useBattle = (initialHeroes: Combatant[], initialEnemies: Combatant[
 
         setHeroes([...heroes]); setEnemies([...enemies]);
 
-        if (enemies.every(e => e.hp <= 0)) setWinner('heros');
-        if (heroes.every(h => h.hp <= 0)) setWinner('enemies');
+        const heroWin = enemies.every(e => e.hp <= 0);
+        const enemyWin = heroes.every(h => h.hp <= 0);
+        if (heroWin || enemyWin) {
+            [...heroes, ...enemies].forEach(combatant => combatant.clearBattleBuffs());
+            setHeroes([...heroes]);
+            setEnemies([...enemies]);
+            setWinner(heroWin ? 'heros' : 'enemies');
+        }
     }, [heroes, enemies, log]);
 
     useEffect(() => {
