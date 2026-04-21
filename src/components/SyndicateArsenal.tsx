@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { Combatant } from '../models/Combatant';
 import { Item } from '../types';
-import { X, Sword, Shield, Zap, Heart, Package, Crown, Shirt, HardHat, Footprints, AlertTriangle } from 'lucide-react';
+import { StatLine } from './UI';
+import { X, Sword, Shield, Zap, Heart, Package, Crown, Shirt, HardHat, Footprints, AlertTriangle, Wind, Music } from 'lucide-react';
 import { clsx } from 'clsx';
 import { getHeroPortraitUrl } from '../utils/heroPortraits';
 
@@ -202,10 +203,21 @@ export const SyndicateArsenal: React.FC<SyndicateArsenalProps> = ({
                                                 <div className="mt-1 text-[9px] font-bold uppercase text-cyan-300">
                                                     {formatBoosts(selectedInventoryItem)}
                                                 </div>
-                                                <div className="mt-1 text-[9px] text-zinc-300 normal-case leading-snug">
+                                                {selectedInventoryItem.skillName && (
+                                                    <div className="mt-1.5 p-1.5 rounded border border-cyan-500/30 bg-cyan-950/40">
+                                                        <div className="text-[9px] font-black uppercase text-cyan-200 leading-none mb-1 flex items-center gap-1">
+                                                            <Zap className="w-2.5 h-2.5" /> {selectedInventoryItem.skillName}
+                                                        </div>
+                                                        <div className="text-[8px] font-bold text-cyan-100/80 leading-tight normal-case">
+                                                            {selectedInventoryItem.skillDesc}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                <div className="mt-1.5 text-[9px] text-zinc-300 normal-case leading-snug">
                                                     {selectedInventoryItem.description}
                                                 </div>
-                                                <div className="mt-2 text-[9px] font-bold text-zinc-300 normal-case">
+                                                <div className="mt-2 text-[8px] font-black uppercase text-zinc-500">Requirements</div>
+                                                <div className="text-[9px] font-bold text-zinc-300 normal-case">
                                                     Jobs: {selectedInventoryItem.allowedJobs?.join(', ') ?? 'Any'}
                                                 </div>
                                                 <div className="text-[9px] font-bold text-zinc-300 normal-case">
@@ -231,16 +243,21 @@ export const SyndicateArsenal: React.FC<SyndicateArsenalProps> = ({
 
                                 return (
                                     <div key={hero.id} className="space-y-1.5">
-                                        <div className="flex items-center gap-2 px-1">
-                                            <div className="w-5 h-5 rounded bg-zinc-900 border border-zinc-800 overflow-hidden shrink-0">
+                                        <div className="flex items-start gap-2 px-1">
+                                            <div className="w-5 h-5 rounded bg-zinc-900 border border-zinc-800 overflow-hidden shrink-0 mt-0.5">
                                                 <img
                                                     src={`/assets/icon_${hero.role.toLowerCase()}.png`}
                                                     className="w-full h-full object-cover grayscale brightness-125"
                                                     alt={hero.role}
                                                 />
                                             </div>
-                                            <h3 className="text-[11px] font-black uppercase tracking-tight text-white leading-none">{hero.name}</h3>
-                                            {hero.isLeader && <Crown className="w-3 h-3 text-amber-400" fill="currentColor" />}
+                                            <div className="flex flex-col">
+                                                <div className="flex items-center gap-2">
+                                                    <h3 className="text-[11px] font-black uppercase tracking-tight text-white leading-none">{hero.name}</h3>
+                                                    {hero.isLeader && <Crown className="w-3 h-3 text-amber-400" fill="currentColor" />}
+                                                </div>
+                                                <p className="text-[7px] font-bold text-zinc-500 uppercase tracking-[0.2em]">{hero.race} • {hero.job}</p>
+                                            </div>
                                         </div>
                                         <div className={clsx(
                                             'h-[312px] w-full rounded-xl border text-left overflow-hidden transition relative',
@@ -253,7 +270,7 @@ export const SyndicateArsenal: React.FC<SyndicateArsenalProps> = ({
                                                 alt={hero.name}
                                                 className="absolute inset-0 w-full h-full object-cover object-top"
                                             />
-                                            <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/20" />
+                                            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
 
                                             <div className="absolute inset-0 pointer-events-none">
                                                 {[
@@ -352,20 +369,36 @@ export const SyndicateArsenal: React.FC<SyndicateArsenalProps> = ({
                                                 );
                                             })()}
                                         </div>
-                                        <div className="px-1 py-1.5">
-                                            <div className="space-y-1 text-[10px] font-black uppercase tracking-wide text-zinc-200">
-                                                <div>Atk: <span className="text-white">{hero.getATK(heroes)}</span></div>
-                                                <div>Def: <span className="text-white">{hero.getDEF(heroes)}</span></div>
-                                                <div>Spd: <span className="text-white">{hero.getSPD(heroes)}</span></div>
-                                            </div>
+                                        <div className="px-1 py-1.5 space-y-1">
+                                            <StatLine 
+                                                label="Atk" 
+                                                current={hero.getATK(heroes)} 
+                                                base={hero.power} 
+                                                icon={hero.job === 'Bard' ? <Music className="w-3 h-3 text-pink-500" /> : <Sword className="w-3 h-3 text-emerald-500" />}
+                                                breakdown={hero.getStatBreakdown?.('ATK', heroes)}
+                                            />
+                                            <StatLine 
+                                                label="Def" 
+                                                current={hero.getDEF(heroes)} 
+                                                base={hero.def} 
+                                                icon={<Shield className="w-3 h-3 text-blue-500" />}
+                                                breakdown={hero.getStatBreakdown?.('DEF', heroes)}
+                                            />
+                                            <StatLine 
+                                                label="Spd" 
+                                                current={hero.getSPD(heroes)} 
+                                                base={hero.speed} 
+                                                icon={<Wind className="w-3 h-3 text-cyan-500" />}
+                                                breakdown={hero.getStatBreakdown?.('SPD', heroes)}
+                                            />
                                             <div className="mt-2">
                                                 <div className="text-[9px] font-black uppercase tracking-widest text-zinc-500 mb-1">Skills</div>
                                                 <div className="text-[9px] font-bold text-zinc-300 leading-tight flex flex-wrap gap-x-1.5 gap-y-1">
-                                                    {hero.abilities.length > 0 ? (
-                                                        hero.abilities.map((ability, index) => (
+                                                    {hero.abilities.length > 1 ? (
+                                                        hero.abilities.slice(1).map((ability, index, arr) => (
                                                             <span key={`${hero.id}-${ability.id}`} className="relative group">
                                                                 <span className="cursor-help underline decoration-dotted decoration-zinc-500/70 hover:text-cyan-300 transition-colors">
-                                                                    {ability.name}{index < hero.abilities.length - 1 ? ',' : ''}
+                                                                    {ability.name}{index < arr.length - 1 ? ',' : ''}
                                                                 </span>
                                                                 <span className="pointer-events-none absolute left-0 bottom-full mb-1 z-30 w-48 rounded-md border border-zinc-700 bg-zinc-950/95 px-2 py-1 text-[8px] font-semibold normal-case text-zinc-200 opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 transition">
                                                                     {ability.description}
@@ -373,7 +406,7 @@ export const SyndicateArsenal: React.FC<SyndicateArsenalProps> = ({
                                                             </span>
                                                         ))
                                                     ) : (
-                                                        <span>No skills</span>
+                                                        <span>No special skills</span>
                                                     )}
                                                 </div>
                                             </div>

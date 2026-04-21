@@ -77,3 +77,76 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
     </div>
   );
 };
+
+interface StatLineProps {
+    label: string;
+    current: number;
+    base: number;
+    icon?: React.ReactNode;
+    breakdown?: { source: string, value: string, isNegative: boolean }[];
+}
+
+export const StatLine: React.FC<StatLineProps> = ({ label, current, base, icon, breakdown }) => {
+    const diff = current - base;
+    const isModified = diff !== 0;
+
+    const renderTooltip = () => {
+        if (!breakdown || breakdown.length === 0) return null;
+        return (
+            <div className="absolute left-0 bottom-full mb-2 z-[100] w-52 p-2.5 bg-black/95 backdrop-blur-xl border border-zinc-800 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 transition-all pointer-events-none">
+                <div className="text-[9px] font-black uppercase tracking-widest text-zinc-500 border-b border-zinc-800/50 pb-1.5 mb-1.5">
+                    {label} Breakdown
+                </div>
+                <div className="space-y-1">
+                    <div className="flex justify-between items-center text-[9px] font-bold text-zinc-400">
+                        <span>Original Base</span>
+                        <span>{base}</span>
+                    </div>
+                    {breakdown.map((mod, i) => (
+                        <div key={i} className="flex justify-between items-center text-[9px] font-bold">
+                            <span className="text-zinc-500">{mod.source}</span>
+                            <span className={mod.isNegative ? 'text-rose-500' : 'text-emerald-400'}>{mod.value}</span>
+                        </div>
+                    ))}
+                    <div className="flex justify-between items-center pt-1.5 border-t border-zinc-800/50 text-[10px] font-black">
+                        <span className="text-zinc-200">Final {label}</span>
+                        <span className={isModified ? (current > base ? 'text-emerald-400' : 'text-rose-500') : 'text-white'}>{current}</span>
+                    </div>
+                </div>
+                <div className="absolute top-full left-4 -translate-y-1 w-2 h-2 bg-black border-r border-b border-zinc-800 rotate-45" />
+            </div>
+        );
+    };
+
+    if (!isModified) {
+        return (
+            <div className="group relative flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wide text-zinc-400 cursor-help">
+                {icon && <span className="opacity-60">{icon}</span>}
+                <span>{label}:</span>
+                <span className="text-white font-bold">{current}</span>
+                {renderTooltip()}
+            </div>
+        );
+    }
+
+    const currentTextColor = current > base ? 'text-emerald-400' : 'text-rose-500';
+    const modTextColor = diff > 0 ? 'text-emerald-400' : 'text-rose-500';
+    const sign = diff > 0 ? '+' : '';
+
+    return (
+        <div className="group relative flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wide text-zinc-400 cursor-help">
+            {icon && <span className="opacity-60">{icon}</span>}
+            <span>{label}:</span>
+            <span className={cn("text-lg leading-none font-black drop-shadow-[0_0_8px_rgba(0,0,0,0.5)]", currentTextColor)}>
+                {current}
+            </span>
+            <span className="text-[9px] font-bold opacity-90 flex items-center gap-0.5 whitespace-nowrap bg-black/40 px-1 rounded border border-white/5">
+                {base} 
+                <span className={cn("ml-0.5", modTextColor)}>
+                   {sign}{diff}
+                </span>
+            </span>
+            {renderTooltip()}
+        </div>
+    );
+};

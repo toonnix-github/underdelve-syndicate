@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Combatant } from '../models/Combatant';
 import { BattleLogEntry, useBattle } from '../hooks/useBattle';
 import { CombatantCard } from './CombatantCard';
-import { Swords, Info, Play, Pause } from 'lucide-react';
+import { Swords, Info, Play, Pause, Music } from 'lucide-react';
 import { clsx } from 'clsx';
 import { getCombatStatBreakdown } from '../utils/combatStats';
 import { getSkillActionType } from '../utils/combatMath';
@@ -380,6 +380,9 @@ export const BattleView: React.FC<BattleViewProps> = ({ heroes: initialHeroes, e
                     <marker id="arrow-solid-villain" markerWidth="6" markerHeight="4" refX="5" refY="2" orient="auto">
                         <path d="M 0 0 L 6 2 L 0 4 Z" fill="#ef4444" />
                     </marker>
+                    <marker id="arrow-solid-support" markerWidth="6" markerHeight="4" refX="5" refY="2" orient="auto">
+                        <path d="M 0 0 L 6 2 L 0 4 Z" fill="#06b6d4" />
+                    </marker>
                     <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
                         <feGaussianBlur stdDeviation="3" result="blur" />
                         <feComposite in="SourceGraphic" in2="blur" operator="over" />
@@ -398,8 +401,10 @@ export const BattleView: React.FC<BattleViewProps> = ({ heroes: initialHeroes, e
                         const isHero = actor?.isHero ?? true;
                         const color = getArcColor(action.type, isHero);
                         const markerEnd = isHero
-                            ? (action.type === 'heal'
-                                ? 'url(#arrow-solid-heal)'
+                            ? (action.icon === 'note'
+                                ? 'url(#arrow-solid-support)'
+                                : action.type === 'heal'
+                                    ? 'url(#arrow-solid-heal)'
                                 : action.type === 'magic'
                                     ? 'url(#arrow-solid-magic)'
                                     : 'url(#arrow-solid-amber)')
@@ -475,6 +480,19 @@ export const BattleView: React.FC<BattleViewProps> = ({ heroes: initialHeroes, e
                                 >
                                     <animate attributeName="stroke-dashoffset" from="100" to="0" dur={action.isSpecial ? '0.55s' : '1s'} repeatCount="indefinite" />
                                 </path>
+                                {action.icon === 'note' && (
+                                    <g transform={`translate(${p1.x - 8}, ${p1.y - 8})`}>
+                                        <Music size={16} className="text-pink-400 opacity-80" />
+                                        <animateTransform
+                                            attributeName="transform"
+                                            type="translate"
+                                            from={`${p1.x - 8} ${p1.y - 8}`}
+                                            to={`${p2.x - 8} ${p2.y - 8}`}
+                                            dur="0.5s"
+                                            repeatCount="indefinite"
+                                        />
+                                    </g>
+                                )}
                             </g>
                         );
                     });

@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Combatant } from '../models/Combatant';
 import { CombatantCard } from './CombatantCard';
 import { Button } from './UI';
-import { Brain, Sword, Target, Flame, Sparkles } from 'lucide-react';
+import { Brain, Sword, Target, Flame, Sparkles, Music, Skull } from 'lucide-react';
 import { clsx } from 'clsx';
 
 interface RecruitPhaseProps {
@@ -15,14 +15,7 @@ const DraftCard: React.FC<{ hero: any; isSelected: boolean; onClick: () => void 
     const dummy = useMemo(() => new Combatant(
         hero.name, hero.role, hero.hp, hero.spd, hero.atk, hero.def, hero.imageId, hero.skills, 'VANGUARD', true, hero.trait, hero.job, hero.race
     ), [hero]);
-    const secondarySkill = hero.skills[1];
-    const secondarySkillIcon = secondarySkill.actionType === 'support'
-        ? <Sparkles size={9} className="text-emerald-500 mt-0.5 shrink-0" />
-        : secondarySkill.actionType === 'ranged'
-            ? <Target size={9} className="text-amber-400 mt-0.5 shrink-0" />
-            : secondarySkill.actionType === 'magic'
-                ? <Flame size={9} className="text-fuchsia-400 mt-0.5 shrink-0" />
-                : <Sword size={9} className="text-amber-500 mt-0.5 shrink-0" />;
+    // Removed manual secondarySkill extraction, mapping through all hero.skills now
 
     return (
         <div 
@@ -45,19 +38,35 @@ const DraftCard: React.FC<{ hero: any; isSelected: boolean; onClick: () => void 
                 )}
                 footer={
                     <div className="space-y-2 mt-0.5">
-                        {/* Skill (Ability[1]) */}
-                        <div className="flex gap-2 items-start">
-                            {secondarySkillIcon}
-                            <div className="flex flex-col">
-                                <div className="flex items-center gap-1 leading-none mb-0.5">
-                                    <span className="text-[9px] font-black text-white uppercase tracking-tighter">{secondarySkill.name}</span>
-                                    <span className="text-[8px] font-black text-amber-600">{Math.round((secondarySkill.procChance || 0) * 100)}%</span>
+                        {hero.skills.slice(1).map((skill: any, sIdx: number) => {
+                            const isBard = hero.job === 'Bard';
+                            const skillIcon = (isBard && (skill.actionType === 'support' || skill.actionType === 'ranged'))
+                                ? <Music size={9} className="text-pink-500 mt-0.5 shrink-0" />
+                                : skill.type === 'debuff'
+                                    ? <Skull size={9} className="text-rose-500 mt-0.5 shrink-0" />
+                                    : skill.actionType === 'support'
+                                        ? <Sparkles size={9} className="text-emerald-500 mt-0.5 shrink-0" />
+                                        : skill.actionType === 'ranged'
+                                            ? <Target size={9} className="text-amber-400 mt-0.5 shrink-0" />
+                                            : skill.actionType === 'magic'
+                                                ? <Flame size={9} className="text-fuchsia-400 mt-0.5 shrink-0" />
+                                                : <Sword size={9} className="text-amber-500 mt-0.5 shrink-0" />;
+                            
+                            return (
+                                <div key={`draft-skill-${sIdx}`} className="flex gap-2 items-start">
+                                    {skillIcon}
+                                    <div className="flex flex-col">
+                                        <div className="flex items-center gap-1 leading-none mb-0.5">
+                                            <span className="text-[9px] font-black text-white uppercase tracking-tighter">{skill.name}</span>
+                                            {skill.procChance && <span className="text-[8px] font-black text-amber-600">{Math.round(skill.procChance * 100)}%</span>}
+                                        </div>
+                                        <p className="text-[8px] text-zinc-500 leading-tight line-clamp-1">
+                                            {skill.description}
+                                        </p>
+                                    </div>
                                 </div>
-                                <p className="text-[8px] text-zinc-500 leading-tight line-clamp-2">
-                                    {secondarySkill.description}
-                                </p>
-                            </div>
-                        </div>
+                            );
+                        })}
 
                         {/* Trait */}
                         <div className="flex gap-2 items-start">

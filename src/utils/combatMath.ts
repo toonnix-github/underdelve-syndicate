@@ -38,21 +38,11 @@ export const calculateHitChance = (
     const speedDelta = attackerSpd - targetSpd;
     const baseAccuracy = getBaseAccuracyByActionType(actionType);
 
-    // Accuracy is primarily driven by speed tempo; tiny role bias for ranged.
     let chance = baseAccuracy + speedDelta * 1.2;
 
-    if (actionType === 'ranged' && attacker.positionLine === 'REARGUARD') {
-        chance += 2;
-    }
-
-    if (target.trait?.id === 'infiltrator') {
-        chance -= 3;
-    }
-
-    // Umbra trait: especially evasive while anchoring the frontline.
-    if (target.trait?.id === 'afterimage' && target.positionLine === 'VANGUARD') {
-        chance -= 8;
-    }
+    if (actionType === 'ranged' && attacker.positionLine === 'REARGUARD') chance += 2;
+    if (target.trait?.id === 'infiltrator') chance -= 3;
+    if (target.trait?.id === 'afterimage' && target.positionLine === 'VANGUARD') chance -= 8;
 
     chance -= target.getActiveEvasionBonus();
 
@@ -82,33 +72,49 @@ export const calculateDamage = (
     const atk = attacker.getATK(attackerParty);
     const scaledAtk = Math.max(1, Math.floor(atk * (potency / 100)));
     const def = target.getDEF(targetParty);
-    let dmg = Math.max(1, scaledAtk - def);
+    
+    // CRIT CALCULATION
+    let critChance = 5; // Base 5%
+    if (attacker.job === 'Thief') critChance += 5;
+    const roll = Math.random() * 100;
+    const isCrit = roll < critChance;
+    
+    let dmg = isCrit ? scaledAtk * 1.5 : Math.max(1, scaledAtk - def);
+    
+    // Skill: Deadly Reflex (+15% Crit DMG)
+    if (isCrit && Object.values(attacker.equipment).some(i => i?.skillName === 'Deadly Reflex')) {
+        dmg = Math.floor(dmg * 1.15);
+    }
 
     // Kael Leader Perk: Ignore 15% DEF vs Rearguard
     const attackerLeader = attackerParty.find(u => u.isLeader);
     if (attackerLeader?.name === 'Kael' && target.positionLine === 'REARGUARD') {
         const rawDef = target.getDEF(targetParty);
         const ignoredDef = Math.floor(rawDef * 0.15);
-        dmg = Math.max(1, scaledAtk - (rawDef - ignoredDef));
+        dmg = Math.max(1, (isCrit ? scaledAtk * 1.5 : scaledAtk) - (rawDef - ignoredDef));
     }
 
     dmg = applyRowModifier(dmg, attacker.positionLine, actionType);
 
     // Trait Buffs: Iron Aura (10% DR)
     const targetHasIronAura = targetParty.some(u => u.trait?.id === 'iron_aura' && u.hp > 0);
-    if (targetHasIronAura) {
-        dmg = Math.floor(dmg * 0.9);
+    if (targetHasIronAura) dmg = Math.floor(dmg * 0.9);
+
+    // Skill: Immovable (-10 flat damage reduction)
+    if (Object.values(target.equipment).some(i => i?.skillName === 'Immovable')) {
+        dmg = Math.max(1, dmg - 10);
     }
 
-    return dmg;
+    return Math.floor(dmg);
 };
 
 export const calculateHeal = (caster: Combatant, baseVal: number, party: Combatant[]): number => {
-    let heal = baseVal;
+    let heal = baseVal * caster.getHealPower(party);
+    
     // Morgra Trait: +40% Heal power
     if (caster.trait?.id === 'blood_pact') {
         heal = Math.floor(heal * 1.4);
     }
 
-    return applyRowModifier(heal, caster.positionLine, 'support');
+    return applyRowModifier(Math.floor(heal), caster.positionLine, 'support');
 };

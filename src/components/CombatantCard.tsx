@@ -1,7 +1,7 @@
 import React from 'react';
 import { Combatant } from '../models/Combatant';
 import { ProgressBar, cn } from './UI';
-import { Shield, Sword, Zap, Heart, Flame, Target, Sparkles, Skull } from 'lucide-react';
+import { Shield, Sword, Zap, Heart, Flame, Target, Sparkles, Skull, Music } from 'lucide-react';
 import { clsx } from 'clsx';
 import { getSkillActionType } from '../utils/combatMath';
 import { getHeroPortraitUrl } from '../utils/heroPortraits';
@@ -69,13 +69,15 @@ export const CombatantCard: React.FC<CombatantCardProps> = ({
         }
         : undefined;
 
-    const powerIcon = primaryActionType === 'support'
-        ? <Sparkles size={8} className="text-emerald-500" />
-        : primaryActionType === 'ranged'
-            ? <Target size={8} className="text-amber-400" />
-            : primaryActionType === 'magic'
-                ? <Flame size={8} className="text-fuchsia-400" />
-                : <Sword size={8} className="text-amber-500" />;
+    const powerIcon = unit.job === 'Bard'
+        ? <Music size={8} className="text-pink-500" />
+        : primaryActionType === 'support'
+            ? <Sparkles size={8} className="text-emerald-500" />
+            : primaryActionType === 'ranged'
+                ? <Target size={8} className="text-amber-400" />
+                : primaryActionType === 'magic'
+                    ? <Flame size={8} className="text-fuchsia-400" />
+                    : <Sword size={8} className="text-amber-500" />;
 
     const renderDelta = (delta: number) => {
         if (delta === 0) return null;
@@ -166,6 +168,8 @@ export const CombatantCard: React.FC<CombatantCardProps> = ({
                             {activeIcon === 'heart' && <Heart size={84} className="text-emerald-500 opacity-90" />}
                             {activeIcon === 'zap' && <Zap size={84} className="text-blue-400 opacity-90" />}
                             {activeIcon === 'bow' && <Target size={84} className="text-zinc-300 opacity-90" />}
+                            {activeIcon === 'skull' && <Skull size={84} className="text-rose-600 opacity-90 filter drop-shadow-[0_0_15px_rgba(225,29,72,0.6)]" />}
+                            {activeIcon === 'note' && <Music size={84} className="text-pink-400 opacity-90" />}
                             {activeIcon === 'fang' && <div className="text-4xl font-black italic tracking-tight opacity-90 text-red-300 filter brightness-150">FANG</div>}
                         </div>
                     </div>
@@ -194,7 +198,7 @@ export const CombatantCard: React.FC<CombatantCardProps> = ({
                     )}
                 </div>
 
-                <div className="relative z-10 p-2 flex flex-col h-full bg-gradient-to-t from-zinc-950 via-zinc-950/20 to-transparent">
+                <div className="relative z-10 p-2 flex flex-col h-full bg-gradient-to-t from-black via-black/40 to-transparent">
                     <div className="flex items-center gap-2 mb-1.5">
                         <div className="w-6 h-6 rounded bg-zinc-900 border border-zinc-800 overflow-hidden shrink-0">
                             <img

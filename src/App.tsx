@@ -171,8 +171,8 @@ const App: React.FC = () => {
         // Ensure all rendered fields are primitives
         hero.name = String(hero.name || 'Unknown');
         const normalizedRole = String(hero.role || '').toUpperCase();
-        hero.role = (normalizedRole === 'TANK' || normalizedRole === 'HEALER' || normalizedRole === 'DPS')
-            ? normalizedRole
+        hero.role = (normalizedRole === 'TANK' || normalizedRole === 'HEALER' || normalizedRole === 'DPS' || normalizedRole === 'SUPPORT')
+            ? (normalizedRole as any)
             : 'DPS';
         hero.imageId = String(hero.imageId || 'unknown');
         hero.job = String(hero.job || 'N/A');

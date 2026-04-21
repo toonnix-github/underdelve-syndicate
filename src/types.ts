@@ -1,12 +1,38 @@
-export type Role = 'TANK' | 'HEALER' | 'DPS';
+export type Role = 'TANK' | 'HEALER' | 'DPS' | 'SUPPORT';
 export type Position = 'VANGUARD' | 'REARGUARD';
 export type Rarity = 'Common' | 'Uncommon' | 'Rare' | 'Epic' | 'Legendary';
 export type ItemType = 'WEAPON' | 'HAT' | 'CHEST' | 'SHOES' | 'CONSUMABLE';
+
+export type Race = 
+    | 'Human' 
+    | 'Elf' 
+    | 'Night-Elf' 
+    | 'Dwarf' 
+    | 'Orc' 
+    | 'Undead' 
+    | 'Beastman' 
+    | 'Demon' 
+    | 'Dragon' 
+    | 'Titan';
+
+export type Job = 
+    | 'Swordsman' 
+    | 'Archer' 
+    | 'Priest' 
+    | 'Knight' 
+    | 'Thief' 
+    | 'Mage' 
+    | 'Berserker' 
+    | 'Guardian' 
+    | 'Scout' 
+    | 'Paladin'
+    | 'Bard';
 
 export interface StatBoost {
     atk?: number;
     def?: number;
     spd?: number;
+    hp?: number;
     heal?: number;
 }
 
@@ -27,8 +53,8 @@ export interface Item {
     passives?: Passive[];
     value: number;
     isTwoHanded?: boolean;
-    allowedJobs?: string[];
-    allowedRaces?: string[];
+    allowedJobs?: Job[] | null;
+    allowedRaces?: Race[] | null;
 }
 
 export interface VaultItem {
@@ -41,10 +67,15 @@ export interface Ability {
     name: string;
     description: string;
     val: number;
-    type: 'damage' | 'heal';
+    type: 'damage' | 'heal' | 'buff' | 'debuff';
     actionType: 'melee' | 'ranged' | 'magic' | 'support';
     targetType: 'single' | 'row' | 'all';
+    stat?: 'ATK' | 'DEF' | 'SPD';
     procChance?: number; 
+}
+
+export interface AbilityWithVisuals extends Ability {
+    vfx?: string;
 }
 
 export interface Trait {
@@ -61,8 +92,8 @@ export interface HeroTemplate {
     def: number;
     spd: number;
     role: Role;
-    job: string;
-    race: string;
+    job: Job;
+    race: Race;
     imageId: string;
     trait: Trait;
     skills: Ability[];
@@ -86,6 +117,6 @@ export interface CombatantState {
     isHero: boolean;
     trait: Trait | null;
     isLeader: boolean;
-    job: string;
-    race: string;
+    job: Job;
+    race: Race;
 }

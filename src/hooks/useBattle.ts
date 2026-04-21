@@ -5,9 +5,9 @@ import { calculateDamage, calculateHeal, getSkillActionType, rollHitCheck, RowAc
 export interface ActiveAction {
     id: string;
     actorId: string;
-    targetIds: string[]; // UPDATED TO ARRAY FOR AOE
+    targetIds: string[];
     type: 'damage' | 'heal' | 'magic';
-    icon: 'sword' | 'bow' | 'fang' | 'fire' | 'heart' | 'zap';
+    icon: 'sword' | 'bow' | 'fang' | 'fire' | 'heart' | 'zap' | 'note' | 'skull';
     geometry: 'melee' | 'range' | 'magic';
     isSpecial?: boolean;
     skillName?: string;
@@ -20,22 +20,22 @@ const getActionVisuals = (
     targetType: 'single' | 'row' | 'all',
     isHero: boolean
 ) => {
-    let icon: 'sword' | 'bow' | 'fang' | 'fire' | 'heart' | 'zap' = 'sword';
+    let icon: 'sword' | 'bow' | 'fang' | 'fire' | 'heart' | 'zap' | 'note' = 'sword';
     let geometry: 'melee' | 'range' | 'magic' = 'melee';
     let hitType: 'slash' | 'broken' | 'burn' = 'slash';
 
-    if (skillActionType === 'support' || selectedSkillType === 'heal') {
-        icon = 'heart';
+    if (skillActionType === 'support' || selectedSkillType === 'heal' || selectedSkillType === 'buff' || selectedSkillType === 'debuff') {
+        icon = (selectedSkillType === 'debuff') ? 'skull' : (unit.job === 'Bard') ? 'note' : (unit.name === 'Thok' || unit.name === 'Zarek') ? 'zap' : 'heart';
         geometry = 'magic';
-        hitType = 'slash';
+        hitType = (selectedSkillType === 'debuff') ? 'broken' : 'slash';
     } else if (skillActionType === 'ranged') {
         icon = 'bow';
         geometry = 'range';
         hitType = 'slash';
     } else if (skillActionType === 'magic') {
-        icon = 'fire';
+        icon = (unit.name === 'Zarek') ? 'zap' : 'fire';
         geometry = 'magic';
-        hitType = 'burn';
+        hitType = (unit.name === 'Zarek') ? 'broken' : 'burn';
     } else if (unit.role === 'TANK') {
         icon = isHero ? 'sword' : 'fang';
         geometry = 'melee';
@@ -63,7 +63,14 @@ export interface BattleLogEntry {
 }
 
 export const useBattle = (initialHeroes: Combatant[], initialEnemies: Combatant[]) => {
-    const [heroes, setHeroes] = useState<Combatant[]>(initialHeroes.map(h => h.clone()));
+    const [heroes, setHeroes] = useState<Combatant[]>(initialHeroes.map(h => {
+        const copy = h.clone();
+        // Skill: Quick Start (+20% ATB at start)
+        if (Object.values(copy.equipment).some(i => i?.skillName === 'Quick Start')) {
+            copy.atb = 20;
+        }
+        return copy;
+    }));
     const [enemies, setEnemies] = useState<Combatant[]>(initialEnemies.map(e => e.clone()));
     const [isPaused, setIsPaused] = useState(true);
     const [battleLog, setBattleLog] = useState<BattleLogEntry[]>([]);
@@ -82,14 +89,24 @@ export const useBattle = (initialHeroes: Combatant[], initialEnemies: Combatant[
         if (!unit || unit.hp <= 0 || unit.isActing) return;
 
         const isHero = unit.isHero;
-        const UMBRA_RELAY_ID = 'u_s2';
         
         // --- SIGNATURE MOVE SELECTION ---
-        let selectedSkill = unit.abilities[0]; // Normal
+        let selectedSkill = unit.abilities[0]; 
         if (unit.abilities[1] && Math.random() < (unit.abilities[1].procChance || 0)) {
             selectedSkill = unit.abilities[1]; 
             unit.triggerChant(selectedSkill.name);
             log(`!!! ${unit.name} triggers ${selectedSkill.name.toUpperCase()} !!!`, 'special');
+        }
+
+        // Skill: Chain Lightning (15% proc to make single-target magic hit row)
+        let isChainLightningProc = false;
+        if (selectedSkill.actionType === 'magic' && selectedSkill.targetType === 'single') {
+            if (Object.values(unit.equipment).some(i => i?.skillName === 'Chain Lightning')) {
+                if (Math.random() < 0.15) {
+                    isChainLightningProc = true;
+                    log(`${unit.name}'S CHAIN LIGHTNING PROCS!`, 'special');
+                }
+            }
         }
         
         // --- MULTI-TARGET RESOLUTION ---
@@ -97,34 +114,45 @@ export const useBattle = (initialHeroes: Combatant[], initialEnemies: Combatant[
         const opponents = isHero ? enemies : heroes;
         const teammates = isHero ? heroes : enemies;
         const frontlineOpponents = opponents.filter(o => o.positionLine === 'VANGUARD' && o.hp > 0);
+        
         const canBypassFrontline =
             unit.trait?.id === 'infiltrator' ||
-            unit.imageId === 'hero_kael' ||
-            unit.imageId === 'hero_slyn';
-        const selectableOpponents = frontlineOpponents.length > 0 && !canBypassFrontline
+            unit.job === 'Archer' ||
+            unit.job === 'Thief' ||
+            selectedSkill.actionType === 'ranged' ||
+            selectedSkill.actionType === 'magic';
+
+        // Filter selectable opponents - handle "Shadow Walk" (ignores single-target magic)
+        const selectableOpponents = (frontlineOpponents.length > 0 && !canBypassFrontline
             ? frontlineOpponents
-            : opponents.filter(o => o.hp > 0);
+            : opponents.filter(o => o.hp > 0)
+        ).filter(o => {
+            // Shadow Walk ignore check
+            if (selectedSkill.actionType === 'magic' && selectedSkill.targetType === 'single' && !isChainLightningProc) {
+                if (Object.values(o.equipment).some(i => i?.skillName === 'Shadow Walk')) {
+                    return false; // Can't be targeted by single spells
+                }
+            }
+            return true;
+        });
+
+        const fallbackOpponents = opponents.filter(o => o.hp > 0);
+        const finalSelectionList = selectableOpponents.length > 0 ? selectableOpponents : fallbackOpponents;
 
         if (selectedSkill.targetType === 'all') {
             targets = selectedSkill.type === 'heal' 
                 ? teammates.filter(t => t.hp > 0)
                 : opponents.filter(o => o.hp > 0);
-        } else if (selectedSkill.targetType === 'row') {
+        } else if (selectedSkill.targetType === 'row' || isChainLightningProc) {
             targets = frontlineOpponents.length > 0 ? frontlineOpponents : opponents.filter(o => o.hp > 0);
         } else {
             // Single target
-            if (selectedSkill.id === UMBRA_RELAY_ID) {
-                const buffCandidates = teammates.filter(t => t.hp > 0 && t.id !== unit.id);
-                const relayTarget = buffCandidates.length > 0
-                    ? [...buffCandidates].sort((a, b) => a.getSPD(teammates) - b.getSPD(teammates))[0]
-                    : unit;
-                targets = [relayTarget];
-            } else if (selectedSkill.type === 'heal') {
+            if (selectedSkill.type === 'heal') {
                 const healT = teammates.filter(t => t.hp > 0).sort((a,b) => (a.hp/a.maxHp) - (b.hp/b.maxHp))[0];
                 if (healT) targets = [healT];
             } else {
-                if (selectableOpponents.length > 0) {
-                    targets = [selectableOpponents[Math.floor(Math.random() * selectableOpponents.length)]];
+                if (finalSelectionList.length > 0) {
+                    targets = [finalSelectionList[Math.floor(Math.random() * finalSelectionList.length)]];
                 }
             }
         }
@@ -190,41 +218,39 @@ export const useBattle = (initialHeroes: Combatant[], initialEnemies: Combatant[
                 target.addVfx(`-${dmg}`, 'damage');
                 target.triggerHit(hitType);
                 landedHits += 1;
-            } else {
-                if (selectedSkill.id === UMBRA_RELAY_ID) {
-                    target.addBattleSpdBuff(0.05);
-                    unit.addBattleEvasionBuff(5);
-                    target.addVfx('+5% SPD', 'heal');
-                    unit.addVfx('EVADE +5%', 'miss');
-                    target.triggerHeal();
-                } else {
-                    const heal = calculateHeal(unit, selectedSkill.val, isHero ? heroes : enemies);
-                    target.hp = Math.min(target.maxHp, target.hp + heal);
-                    target.addVfx(`+${heal}`, 'heal');
-                    target.triggerHeal();
+
+                // Skill: Soul Feast (Heals 5 HP on every killing blow)
+                if (target.hp <= 0 && Object.values(unit.equipment).some(i => i?.skillName === 'Soul Feast')) {
+                    unit.hp = Math.min(unit.maxHp, unit.hp + 5);
+                    unit.addVfx('+5 SOUL', 'heal');
                 }
+            } else if (selectedSkill.type === 'heal') {
+                const heal = calculateHeal(unit, selectedSkill.val, isHero ? heroes : enemies);
+                target.hp = Math.min(target.maxHp, target.hp + heal);
+                target.addVfx(`+${heal}`, 'heal');
+                target.triggerHeal();
+            } else if (selectedSkill.type === 'buff' || selectedSkill.type === 'debuff') {
+                const statName = selectedSkill.stat || 'ATK';
+                target.addBattleBuff(statName, selectedSkill.val);
+                target.addVfx(`${selectedSkill.val > 0 ? '+' : ''}${selectedSkill.val}% ${statName}`, selectedSkill.val > 0 ? 'heal' : 'miss');
+                if (selectedSkill.val > 0) target.triggerHeal();
+                else target.triggerHit('burn');
             }
         });
 
-        if (selectedSkill.type === 'damage') {
-            if (landedHits > 0 && missedHits > 0) {
-                log(`${unit.name} uses ${selectedSkill.name}! ${landedHits} hit, ${missedHits} missed.`, 'miss');
-            } else if (landedHits === 0 && missedHits > 0) {
-                log(`${unit.name} uses ${selectedSkill.name}! All attacks missed.`, 'miss');
-            } else {
-                log(`${unit.name} uses ${selectedSkill.name}!`, 'combat');
-            }
-        } else if (selectedSkill.id === UMBRA_RELAY_ID) {
-            const relayTargetName = targets[0]?.name ?? 'ally';
-            const relayTarget = targets[0];
-            const relaySpdTotal = relayTarget ? Math.round(relayTarget.battleSpdBuffPct * 100) : 0;
-            const umbraEvasionTotal = unit.battleEvasionBonus;
-            log(`${unit.name} uses ${selectedSkill.name}! ${relayTargetName} +5% SPD (${relaySpdTotal}% total), Umbra +5 EVA (${umbraEvasionTotal} total).`, 'support');
-        } else {
-            log(`${unit.name} uses ${selectedSkill.name}!`, selectedSkill.type === 'heal' ? 'support' : 'combat');
-        }
+        // Logging
+        log(`${unit.name} uses ${selectedSkill.name.toUpperCase()}!`, selectedSkill.type === 'heal' ? 'support' : 'combat');
 
         unit.atb = 0;
+        
+        // Skill: Time Warp (10% chance to act immediately after their turn ends)
+        if (Object.values(unit.equipment).some(i => i?.skillName === 'Time Warp')) {
+            if (Math.random() < 0.10) {
+                unit.atb = 100;
+                log(`${unit.name} WARPS TIME!`, 'special');
+            }
+        }
+
         setHeroes([...heroes]); setEnemies([...enemies]);
 
         await new Promise(r => setTimeout(r, 190));
@@ -269,7 +295,7 @@ export const useBattle = (initialHeroes: Combatant[], initialEnemies: Combatant[
                 } else {
                     const opponents = u.isHero ? enemies : heroes;
                     const front = opponents.filter(t => t.positionLine === 'VANGUARD' && t.hp > 0);
-                    const canBypassFront = u.trait?.id === 'infiltrator' || primaryActionType === 'ranged' || primaryActionType === 'magic';
+                    const canBypassFront = u.trait?.id === 'infiltrator' || u.job === 'Archer' || primaryActionType === 'ranged' || primaryActionType === 'magic';
                     const validTargets = front.length > 0 && !canBypassFront ? front : opponents.filter(t => t.hp > 0);
                     tid = validTargets[0]?.id || "";
                     geom = primaryActionType === 'ranged' ? 'range' : primaryActionType === 'magic' || primaryActionType === 'support' ? 'magic' : 'melee';

@@ -2,8 +2,8 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { TilePos, Interactable, GRID_SIZE } from '../utils/dungeonGenerator';
 import { useDungeon } from '../hooks/useDungeon';
 import { Combatant } from '../models/Combatant';
-import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Compass, Crown, Sword, Shield, Zap, Coins, Package, X } from 'lucide-react';
-import { Button } from './UI';
+import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Compass, Crown, Sword, Shield, Zap, Coins, Package, X, Wind, Music } from 'lucide-react';
+import { Button, StatLine } from './UI';
 import { clsx } from 'clsx';
 import { getHeroPortraitUrl } from '../utils/heroPortraits';
 import { ITEM_DATABASE } from '../data/items';
@@ -479,8 +479,8 @@ export const DungeonView: React.FC<DungeonViewProps> = ({ heroes, dungeonState, 
             <div className="absolute right-0 top-0 bottom-0 w-56 bg-gradient-to-l from-black/80 via-black/40 to-transparent backdrop-blur-md border-l border-zinc-800/30 p-4 flex flex-col gap-6 z-40">
                 <div className="flex flex-col gap-1 px-1"><h2 className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.3em]">Syndicate</h2><div className="h-0.5 w-8 bg-cyan-600/50" /></div>
                 <div className="flex-1 flex flex-col gap-8 overflow-y-auto custom-scrollbar pr-1">
-                    <div className="flex flex-col gap-2"><div className="flex items-center gap-2 px-1"><div className="w-1 h-1 rounded-full bg-cyan-500 shadow-[0_0_8px_rgba(6,182,212,0.4)]" /><h3 className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Vanguard</h3></div><div className="flex flex-col gap-2">{heroes.filter(h => h.positionLine === 'VANGUARD').map(hero => ( <HeroStatusCard key={hero.name} hero={hero} /> ))}</div></div>
-                    <div className="flex flex-col gap-2"><div className="flex items-center gap-2 px-1"><div className="w-1 h-1 rounded-full bg-indigo-500/50" /><h3 className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Rearguard</h3></div><div className="flex flex-col gap-2">{heroes.filter(h => h.positionLine === 'REARGUARD').map(hero => ( <HeroStatusCard key={hero.name} hero={hero} /> ))}</div></div>
+                    <div className="flex flex-col gap-2"><div className="flex items-center gap-2 px-1"><div className="w-1 h-1 rounded-full bg-cyan-500 shadow-[0_0_8px_rgba(6,182,212,0.4)]" /><h3 className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Vanguard</h3></div><div className="flex flex-col gap-2">{heroes.filter(h => h.positionLine === 'VANGUARD').map(hero => ( <HeroStatusCard key={hero.name} hero={hero} party={heroes} /> ))}</div></div>
+                    <div className="flex flex-col gap-2"><div className="flex items-center gap-2 px-1"><div className="w-1 h-1 rounded-full bg-indigo-500/50" /><h3 className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Rearguard</h3></div><div className="flex flex-col gap-2">{heroes.filter(h => h.positionLine === 'REARGUARD').map(hero => ( <HeroStatusCard key={hero.name} hero={hero} party={heroes} /> ))}</div></div>
                 </div>
                 <div className="flex flex-col gap-3 mt-auto pt-4 border-t border-zinc-800/20">
                     <div className="space-y-4">
@@ -532,7 +532,7 @@ export const DungeonView: React.FC<DungeonViewProps> = ({ heroes, dungeonState, 
     );
 };
 
-const HeroStatusCard: React.FC<{ hero: Combatant }> = ({ hero }) => {
+export const HeroStatusCard: React.FC<{ hero: Combatant, party: Combatant[] }> = ({ hero, party }) => {
     const [isHit, setIsHit] = useState(false);
     const prevHp = useRef(hero.hp);
     const hpPercent = (hero.hp / hero.maxHp) * 100;
@@ -547,15 +547,37 @@ const HeroStatusCard: React.FC<{ hero: Combatant }> = ({ hero }) => {
     }, [hero.hp]);
     
     return (
-        <div className={clsx("group relative w-full h-16 rounded-xl border overflow-hidden bg-zinc-950/20 transition-all duration-300 hover:bg-zinc-900/40 hover:border-zinc-700/50", isHit ? "border-rose-500 bg-rose-950/40 shadow-[0_0_15px_rgba(244,63,94,0.4)] animate-hit-shake" : "border-zinc-800/50")}>
-            <div className="absolute inset-0 z-0 opacity-60 group-hover:opacity-100 transition-all duration-500"><img src={getHeroPortraitUrl(hero.imageId)} className="w-full h-full object-cover object-[center_10%]" alt={hero.name} /></div>
-            <div className="absolute inset-0 z-10 p-2 bg-gradient-to-r from-zinc-950 via-zinc-950/70 to-transparent flex flex-col justify-center">
-                <div className="flex justify-between items-center mb-0.5"><div className="flex items-center gap-2"><p className="text-[11px] font-black uppercase tracking-tight text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">{hero.name}</p>{hero.isLeader && ( <Crown className="text-amber-500 drop-shadow-[0_0_8px_rgba(245,158,11,0.6)]" size={9} fill="currentColor" /> )}</div><div className="w-3.5 h-3.5 opacity-80"><img src={`/assets/icon_${hero.role.toLowerCase()}.png`} className="w-full h-full object-contain brightness-125" alt={hero.role} /></div></div>
-                <div className="space-y-1">
+        <div className={clsx("group relative w-full h-24 rounded-xl border overflow-hidden bg-zinc-950/20 transition-all duration-300 hover:bg-zinc-900/40 hover:border-zinc-700/50", isHit ? "border-rose-500 bg-rose-950/40 shadow-[0_0_15px_rgba(244,63,94,0.4)] animate-hit-shake" : "border-zinc-800/50")}>
+            <div className="absolute inset-0 z-0 opacity-40 group-hover:opacity-60 transition-all duration-500"><img src={getHeroPortraitUrl(hero.imageId)} className="w-full h-full object-cover object-[center_10%]" alt={hero.name} /></div>
+            <div className="absolute inset-0 z-10 p-2 bg-gradient-to-r from-zinc-950 via-zinc-950/70 to-zinc-950/20 flex flex-col justify-center">
+                <div className="flex justify-between items-start mb-1">
+                    <div className="flex flex-col">
+                        <div className="flex items-center gap-2">
+                            <p className="text-[11px] font-black uppercase tracking-tight text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">{hero.name}</p>
+                            {hero.isLeader && ( <Crown className="text-amber-500 drop-shadow-[0_0_8px_rgba(245,158,11,0.6)]" size={9} fill="currentColor" /> )}
+                        </div>
+                        <p className="text-[7px] font-bold text-zinc-400/80 uppercase tracking-[0.2em] -mt-0.5">{hero.race} • {hero.job}</p>
+                    </div>
+                    <div className="w-3.5 h-3.5 opacity-80 pt-0.5">
+                        <img src={`/assets/icon_${hero.role.toLowerCase()}.png`} className="w-full h-full object-contain brightness-125" alt={hero.role} />
+                    </div>
+                </div>
+                <div className="space-y-1.5 px-0.5">
                     <div className="h-1 w-full bg-black/40 rounded-full overflow-hidden border border-white/5"><div className={clsx("h-full transition-all duration-1000 bg-rose-600 shadow-[0_0_8px_rgba(225,29,72,0.4)]", hpPercent < 25 && "animate-pulse brightness-125")} style={{ width: `${hpPercent}%` }} /></div>
-                    <div className="flex justify-between items-center text-[7px] font-bold tracking-tight"><div className="flex gap-1.5 tabular-nums text-zinc-400"><span className="flex items-center gap-0.5"><Sword size={6} className="text-amber-500" /> {hero.getATK()}</span><span className="flex items-center gap-0.5"><Shield size={6} className="text-blue-500" /> {hero.getDEF()}</span><span className="flex items-center gap-0.5"><Zap size={6} className="text-cyan-500" /> {hero.getSPD()}</span></div><span className="text-white font-black drop-shadow-md">{Math.floor(hero.hp)}<span className="opacity-40 ml-0.5">/ {hero.maxHp}</span></span></div>
+                    <div className="flex flex-col gap-1">
+                        <StatLine 
+                            label="Atk" 
+                            current={hero.getATK(party)} 
+                            base={hero.power} 
+                            icon={hero.job === 'Bard' ? <Music size={8} className="text-pink-500" /> : <Sword size={8} className="text-amber-500" />} 
+                            breakdown={hero.getStatBreakdown?.('ATK', party)} 
+                        />
+                        <StatLine label="Def" current={hero.getDEF(party)} base={hero.def} icon={<Shield size={8} className="text-blue-500" />} breakdown={hero.getStatBreakdown?.('DEF', party)} />
+                        <StatLine label="Spd" current={hero.getSPD(party)} base={hero.speed} icon={<Wind size={8} className="text-cyan-500" />} breakdown={hero.getStatBreakdown?.('SPD', party)} />
+                    </div>
                 </div>
             </div>
+            <div className="absolute right-2 bottom-2 text-[10px] font-black text-white drop-shadow-md z-20">{Math.floor(hero.hp)}<span className="opacity-40 text-[8px] ml-0.5">/ {hero.maxHp}</span></div>
         </div>
     );
 };
