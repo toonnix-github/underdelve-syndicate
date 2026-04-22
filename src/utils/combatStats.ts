@@ -100,6 +100,12 @@ export const getCombatStatBreakdown = (unit: Combatant, allies: Combatant[]): Co
         atkFinal = boosted;
     }
 
+    if (unit.battleAtkBuffPct !== 0) {
+        const boosted = Math.floor(atkFinal * (1 + unit.battleAtkBuffPct / 100));
+        push('ATK', boosted - atkFinal, 'Battle Buff');
+        atkFinal = boosted;
+    }
+
     if (unit.trait?.id === 'vanguard_stance' && unit.positionLine === 'VANGUARD') {
         const boosted = Math.floor(defFinal * 1.1);
         push('DEF', boosted - defFinal, 'Trait');
@@ -112,14 +118,20 @@ export const getCombatStatBreakdown = (unit: Combatant, allies: Combatant[]): Co
         defFinal = boosted;
     }
 
+    if (unit.battleDefBuffPct !== 0) {
+        const boosted = Math.floor(defFinal * (1 + unit.battleDefBuffPct / 100));
+        push('DEF', boosted - defFinal, 'Battle Buff');
+        defFinal = boosted;
+    }
+
     if (leader?.name === 'Lira') {
         const boosted = Math.floor(spdFinal * 1.10);
         push('SPD', boosted - spdFinal, 'Leader');
         spdFinal = boosted;
     }
 
-    if (unit.battleSpdBuffPct > 0) {
-        const boosted = Math.floor(spdFinal * (1 + unit.battleSpdBuffPct));
+    if (unit.battleSpdBuffPct !== 0) {
+        const boosted = Math.floor(spdFinal * (1 + unit.battleSpdBuffPct / 100));
         push('SPD', boosted - spdFinal, 'Battle Buff');
         spdFinal = boosted;
     }

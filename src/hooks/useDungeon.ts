@@ -1,13 +1,39 @@
 import { useState, useCallback } from 'react';
-import { generateFloor, GRID_SIZE, TilePos, Interactable, FloorSpawnRates } from '../utils/dungeonGenerator';
+import {
+    generateFloor,
+    GRID_SIZE,
+    TilePos,
+    Interactable,
+    FloorSpawnRates,
+    DungeonFloorData,
+    findLootChestSpawnTile,
+    getNextLootKillThreshold
+} from '../utils/dungeonGenerator';
 import { Combatant } from '../models/Combatant';
+
+interface LootProgress {
+    killsSinceLastLoot: number;
+    nextLootKillThreshold: number;
+}
+
+interface FloorCacheEntry {
+    dungeonData: DungeonFloorData;
+    exploredCells: Set<string>;
+    lootProgress: LootProgress;
+}
+
+const getInitialLootProgress = (lootRate: number): LootProgress => ({
+    killsSinceLastLoot: 0,
+    nextLootKillThreshold: getNextLootKillThreshold(lootRate)
+});
 
 export const useDungeon = (initialFloor: number, heroes: Combatant[], spawnRates: FloorSpawnRates) => {
     const [floor, setFloor] = useState(initialFloor);
     const [playerPos, setPlayerPos] = useState<TilePos>({ x: 4, y: 4 });
     const [exploredCells, setExploredCells] = useState<Set<string>>(new Set(['4,4']));
     const [dungeonData, setDungeonData] = useState(() => generateFloor(initialFloor, GRID_SIZE, spawnRates));
-    const [floorCache, setFloorCache] = useState<Record<number, { dungeonData: any, exploredCells: Set<string> }>>({});
+    const [lootProgress, setLootProgress] = useState<LootProgress>(() => getInitialLootProgress(spawnRates.lootRate));
+    const [floorCache, setFloorCache] = useState<Record<number, FloorCacheEntry>>({});
 
     const movePlayer = useCallback((dx: number, dy: number) => {
         const newX = playerPos.x + dx;
@@ -54,7 +80,7 @@ export const useDungeon = (initialFloor: number, heroes: Combatant[], spawnRates
         // Persistence: Cache current floor before transition
         setFloorCache(prev => ({
             ...prev,
-            [floor]: { dungeonData, exploredCells }
+            [floor]: { dungeonData, exploredCells, lootProgress }
         }));
 
         const nf = direction === 'UP' ? Math.max(1, floor - 1) : floor + 1;
@@ -64,19 +90,22 @@ export const useDungeon = (initialFloor: number, heroes: Combatant[], spawnRates
         if (floorCache[nf]) {
             setDungeonData(floorCache[nf].dungeonData);
             setExploredCells(floorCache[nf].exploredCells);
+            setLootProgress(floorCache[nf].lootProgress);
         } else {
             setDungeonData(generateFloor(nf, GRID_SIZE, spawnRates));
             setExploredCells(new Set(['4,4']));
+            setLootProgress(getInitialLootProgress(spawnRates.lootRate));
         }
         
         setPlayerPos({ x: 4, y: 4 });
-    }, [floor, dungeonData, exploredCells, floorCache, spawnRates]);
+    }, [floor, dungeonData, exploredCells, floorCache, lootProgress, spawnRates]);
 
     const resetDungeon = useCallback((newFloor = 1) => {
         setFloor(newFloor);
         setPlayerPos({ x: 4, y: 4 });
         setExploredCells(new Set(['4,4']));
         setDungeonData(generateFloor(newFloor, GRID_SIZE, spawnRates));
+        setLootProgress(getInitialLootProgress(spawnRates.lootRate));
         setFloorCache({});
     }, [spawnRates]);
 
@@ -87,6 +116,67 @@ export const useDungeon = (initialFloor: number, heroes: Combatant[], spawnRates
         }));
     }, []);
 
+    const registerEnemyDefeat = useCallback((defeatedPos: TilePos) => {
+        let nextLootProgress: LootProgress | null = null;
+
+        setDungeonData(prev => {
+            let defeatedEnemyFound = false;
+            const updatedInteractables = prev.interactables.map(interactable => {
+                const isDefeatedEnemy =
+                    interactable.type === 'ENEMY' &&
+                    interactable.x === defeatedPos.x &&
+                    interactable.y === defeatedPos.y &&
+                    interactable.status === 'ACTIVE';
+
+                if (isDefeatedEnemy) {
+                    defeatedEnemyFound = true;
+                    return { ...interactable, status: 'DISARMED' as const };
+                }
+
+                return interactable;
+            });
+
+            if (!defeatedEnemyFound) {
+                return prev;
+            }
+
+            const killCount = lootProgress.killsSinceLastLoot + 1;
+            if (killCount < lootProgress.nextLootKillThreshold) {
+                nextLootProgress = { ...lootProgress, killsSinceLastLoot: killCount };
+                return { ...prev, interactables: updatedInteractables };
+            }
+
+            const spawnTile = findLootChestSpawnTile(prev.layout, updatedInteractables, playerPos);
+            if (!spawnTile) {
+                nextLootProgress = { ...lootProgress, killsSinceLastLoot: killCount };
+                return { ...prev, interactables: updatedInteractables };
+            }
+
+            nextLootProgress = {
+                killsSinceLastLoot: 0,
+                nextLootKillThreshold: getNextLootKillThreshold(spawnRates.lootRate)
+            };
+
+            return {
+                ...prev,
+                interactables: [
+                    ...updatedInteractables,
+                    {
+                        id: `c${floor}_${Date.now()}_${Math.floor(Math.random() * 10000)}`,
+                        x: spawnTile.x,
+                        y: spawnTile.y,
+                        type: 'CHEST',
+                        status: 'ACTIVE'
+                    }
+                ]
+            };
+        });
+
+        if (nextLootProgress) {
+            setLootProgress(nextLootProgress);
+        }
+    }, [floor, lootProgress, playerPos, spawnRates.lootRate]);
+
     return {
         floor,
         playerPos,
@@ -96,6 +186,7 @@ export const useDungeon = (initialFloor: number, heroes: Combatant[], spawnRates
         getScoutedCells,
         changeFloor,
         updateInteractable,
+        registerEnemyDefeat,
         resetDungeon
     };
 };

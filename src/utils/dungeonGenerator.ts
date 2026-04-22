@@ -29,17 +29,63 @@ export interface FloorSpawnRates {
     lootRate: number;
 }
 
+export interface DungeonFloorData {
+    layout: number[][];
+    bgs: Record<string, number>;
+    interactables: Interactable[];
+    validTiles: TilePos[];
+}
+
 export const DEFAULT_FLOOR_SPAWN_RATES: FloorSpawnRates = {
     enemyRate: 16,
     trapRate: 10,
     lootRate: 8
 };
 
+const clampRate = (rate: number) => Math.max(0, Math.min(100, Math.floor(rate)));
+
+const randomIntInclusive = (min: number, max: number) => {
+    if (max <= min) return min;
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+};
+
+export const getNextLootKillThreshold = (lootRate = DEFAULT_FLOOR_SPAWN_RATES.lootRate): number => {
+    const clampedLootRate = clampRate(lootRate);
+    const maxThreshold = Math.max(2, Math.round(6 - (clampedLootRate / 100) * 4));
+    const minThreshold = Math.max(1, maxThreshold - 2);
+    return randomIntInclusive(minThreshold, maxThreshold);
+};
+
+export const findLootChestSpawnTile = (
+    layout: number[][],
+    interactables: Interactable[],
+    playerPos?: TilePos
+): TilePos | null => {
+    const blockedTiles = new Set(
+        interactables
+            .filter(interactable => interactable.status !== 'DISARMED')
+            .map(interactable => `${interactable.x},${interactable.y}`)
+    );
+    const candidates: TilePos[] = [];
+
+    for (let y = 0; y < layout.length; y++) {
+        for (let x = 0; x < layout[y].length; x++) {
+            if (layout[y][x] !== 1) continue;
+            if (playerPos && playerPos.x === x && playerPos.y === y) continue;
+            if (blockedTiles.has(`${x},${y}`)) continue;
+            candidates.push({ x, y });
+        }
+    }
+
+    if (candidates.length === 0) return null;
+    return candidates[Math.floor(Math.random() * candidates.length)];
+};
+
 export const generateFloor = (
     floor: number,
     size = GRID_SIZE,
     spawnRates: FloorSpawnRates = DEFAULT_FLOOR_SPAWN_RATES
-) => {
+): DungeonFloorData => {
     let layout = Array(size).fill(0).map(() => Array(size).fill(0));
     let validTiles: TilePos[] = [];
 
@@ -125,34 +171,27 @@ export const generateFloor = (
 
     interactables.push({ id: `s${floor}`, ...getLoc(), type: 'STAIRS', status: 'ACTIVE' });
 
-    const enemyRate = Math.max(0, Math.min(100, spawnRates.enemyRate));
-    const trapRate = Math.max(0, Math.min(100, spawnRates.trapRate));
-    const lootRate = Math.max(0, Math.min(100, spawnRates.lootRate));
-    const totalRate = enemyRate + trapRate + lootRate;
-    const spawnChance = Math.min(100, totalRate);
+    const enemyRate = clampRate(spawnRates.enemyRate);
+    const trapRate = clampRate(spawnRates.trapRate);
+    const totalHostileRate = enemyRate + trapRate;
+    const spawnChance = Math.min(100, totalHostileRate);
 
     let enemyIndex = 0;
     let trapIndex = 0;
-    let chestIndex = 0;
 
     [...validTiles].forEach(loc => {
+        if (totalHostileRate <= 0) return;
         if (Math.random() * 100 >= spawnChance) return;
 
-        const typeRoll = Math.random() * (totalRate || 1);
+        const typeRoll = Math.random() * totalHostileRate;
         if (typeRoll < enemyRate) {
             enemyIndex += 1;
             interactables.push({ id: `e${floor}_${enemyIndex}`, ...loc, type: 'ENEMY', status: 'ACTIVE' });
             return;
         }
 
-        if (typeRoll < enemyRate + trapRate) {
-            trapIndex += 1;
-            interactables.push(createTrap(`t${floor}_${trapIndex}`, floor, loc));
-            return;
-        }
-
-        chestIndex += 1;
-        interactables.push({ id: `c${floor}_${chestIndex}`, ...loc, type: 'CHEST', status: 'ACTIVE' });
+        trapIndex += 1;
+        interactables.push(createTrap(`t${floor}_${trapIndex}`, floor, loc));
     });
 
     return {

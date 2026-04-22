@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { Combatant } from '../models/Combatant';
 import { calculateDamage, calculateHeal, getSkillActionType, rollHitCheck, RowActionType } from '../utils/combatMath';
+import { Ability } from '../types';
 
 export interface ActiveAction {
     id: string;
@@ -62,6 +63,68 @@ export interface BattleLogEntry {
     tone: 'special' | 'support' | 'miss' | 'combat';
 }
 
+interface TargetSelectionParams {
+    currentUnit: Combatant;
+    isHero: boolean;
+    selectedSkill: Ability;
+    currentHeroes: Combatant[];
+    currentEnemies: Combatant[];
+}
+
+export const selectTargetsForSkill = ({
+    currentUnit,
+    isHero,
+    selectedSkill,
+    currentHeroes,
+    currentEnemies
+}: TargetSelectionParams): Combatant[] => {
+    const opponents = isHero ? currentEnemies : currentHeroes;
+    const teammates = isHero ? currentHeroes : currentEnemies;
+    const aliveOpponents = opponents.filter(o => o.hp > 0);
+    const aliveTeammates = teammates.filter(t => t.hp > 0);
+    const frontlineOpponents = aliveOpponents.filter(o => o.positionLine === 'VANGUARD');
+    const canBypassFrontline =
+        currentUnit.trait?.id === 'infiltrator' ||
+        currentUnit.job === 'Archer' ||
+        currentUnit.job === 'Thief' ||
+        selectedSkill.actionType === 'ranged' ||
+        selectedSkill.actionType === 'magic';
+
+    const selectableOpponents =
+        frontlineOpponents.length > 0 && !canBypassFrontline
+            ? frontlineOpponents
+            : aliveOpponents;
+
+    const allyTargeting = selectedSkill.type === 'heal' || selectedSkill.type === 'buff';
+
+    if (selectedSkill.targetType === 'all') {
+        return allyTargeting ? aliveTeammates : aliveOpponents;
+    }
+
+    if (selectedSkill.targetType === 'row') {
+        if (allyTargeting) {
+            const frontlineTeammates = aliveTeammates.filter(t => t.positionLine === 'VANGUARD');
+            return frontlineTeammates.length > 0 ? frontlineTeammates : aliveTeammates;
+        }
+        return frontlineOpponents.length > 0 ? frontlineOpponents : aliveOpponents;
+    }
+
+    if (selectedSkill.type === 'heal') {
+        const lowestHpTarget = aliveTeammates
+            .slice()
+            .sort((a, b) => (a.hp / a.maxHp) - (b.hp / b.maxHp))[0];
+        return lowestHpTarget ? [lowestHpTarget] : [];
+    }
+
+    if (selectedSkill.type === 'buff') {
+        const ally = aliveTeammates[Math.floor(Math.random() * aliveTeammates.length)];
+        return ally ? [ally] : [];
+    }
+
+    const target = selectableOpponents[Math.floor(Math.random() * selectableOpponents.length)];
+    return target ? [target] : [];
+};
+
 const prepareForBattle = (unit: Combatant): Combatant => {
     const copy = unit.clone();
     copy.vfx = [];
@@ -115,34 +178,13 @@ export const useBattle = (initialHeroes: Combatant[], initialEnemies: Combatant[
             log(`!!! ${unit.name} triggers ${selectedSkill.name.toUpperCase()} !!!`, 'special');
         }
 
-        // Logic check: Targets
-        const getTargets = (currentHeroes: Combatant[], currentEnemies: Combatant[]) => {
-            const currentUnit = [...currentHeroes, ...currentEnemies].find(u => u.id === unitId);
-            if (!currentUnit) return [];
-
-            const opponents = isHero ? currentEnemies : currentHeroes;
-            const teammates = isHero ? currentHeroes : currentEnemies;
-            const frontlineOpponents = opponents.filter(o => o.positionLine === 'VANGUARD' && o.hp > 0);
-            const canBypassFrontline = currentUnit.trait?.id === 'infiltrator' || currentUnit.job === 'Archer' || currentUnit.job === 'Thief' || selectedSkill.actionType === 'ranged' || selectedSkill.actionType === 'magic';
-
-            const selectableOpponents = (frontlineOpponents.length > 0 && !canBypassFrontline ? frontlineOpponents : opponents.filter(o => o.hp > 0));
-            const finalSelectionList = selectableOpponents.length > 0 ? selectableOpponents : opponents.filter(o => o.hp > 0);
-
-            if (selectedSkill.targetType === 'all') {
-                return selectedSkill.type === 'heal' ? teammates.filter(t => t.hp > 0) : opponents.filter(o => o.hp > 0);
-            } else if (selectedSkill.targetType === 'row') {
-                return frontlineOpponents.length > 0 ? frontlineOpponents : opponents.filter(o => o.hp > 0);
-            } else {
-                if (selectedSkill.type === 'heal') {
-                    const hT = teammates.filter(t => t.hp > 0).sort((a,b) => (a.hp/a.maxHp) - (b.hp/b.maxHp))[0];
-                    return hT ? [hT] : [];
-                }
-                const target = finalSelectionList[Math.floor(Math.random() * finalSelectionList.length)];
-                return target ? [target] : [];
-            }
-        };
-
-        const initialTargets = getTargets(heroesRef.current, enemiesRef.current);
+        const initialTargets = selectTargetsForSkill({
+            currentUnit: unit,
+            isHero,
+            selectedSkill,
+            currentHeroes: heroesRef.current,
+            currentEnemies: enemiesRef.current
+        });
         if (initialTargets.length === 0) {
             setHeroes(prev => prev.map(u => u.id === unitId ? (u.atb = 0, u.isActing = false, u) : u));
             setEnemies(prev => prev.map(u => u.id === unitId ? (u.atb = 0, u.isActing = false, u) : u));

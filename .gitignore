@@ -6,6 +6,7 @@ output/screenshots/
 Thumbs.db
 node_modules/
 dist/
+coverage/
 .env
 .ipynb_checkpoints/
 __pycache__/

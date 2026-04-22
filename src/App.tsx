@@ -12,7 +12,7 @@ import { CombatantCard } from './components/CombatantCard';
 import { useDungeon } from './hooks/useDungeon';
 import { Combatant } from './models/Combatant';
 import { Settings, X as XIcon, Users, Brain, Sword, Target, Flame, Sparkles, Music, Skull } from 'lucide-react';
-import { DEFAULT_FLOOR_SPAWN_RATES } from './utils/dungeonGenerator';
+import { DEFAULT_FLOOR_SPAWN_RATES, TilePos } from './utils/dungeonGenerator';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { clsx } from 'clsx';
 import { getHeroPortraitUrl } from './utils/heroPortraits';
@@ -122,7 +122,7 @@ const App: React.FC = () => {
     const [draftBg, setDraftBg] = useState<string | null>(null);
     const [scrip, setScrip] = useState(2500);
     const [vault, setVault] = useState<Item[]>([]);
-    const [lastEncounterId, setLastEncounterId] = useState<string | null>(null);
+    const [lastEncounterPos, setLastEncounterPos] = useState<TilePos | null>(null);
     const [showAdminTools, setShowAdminTools] = useState(false);
     const [showHeroArchive, setShowHeroArchive] = useState(false);
     const [selectedArchiveHero, setSelectedArchiveHero] = useState<HeroTemplate | null>(null);
@@ -233,7 +233,7 @@ const App: React.FC = () => {
             return enemy;
         });
         setEnemies(encounterEnemies);
-        setLastEncounterId(`${pos.x},${pos.y}`);
+        setLastEncounterPos(pos);
         setPhase('BATTLE');
     };
 
@@ -291,11 +291,13 @@ const App: React.FC = () => {
                 });
                 setParty(updatedParty);
             }
-            if (lastEncounterId) {
-                dungeon.updateInteractable(lastEncounterId, { status: 'DISARMED' });
+            if (lastEncounterPos) {
+                dungeon.registerEnemyDefeat(lastEncounterPos);
             }
+            setLastEncounterPos(null);
             setPhase('EXPLORATION');
         } else {
+            setLastEncounterPos(null);
             setPhase('GAME_OVER');
         }
     };
