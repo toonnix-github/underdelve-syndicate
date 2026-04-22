@@ -14,8 +14,13 @@ The current `BattlePhase` arena is a dark void with floating cards. To maintain 
 - **Developer Instruction**: The Lead Developer is responsible for generating the background image asset (e.g., using AI prompting) and integrating it into the React component.
 
 ## Acceptance Criteria
-- [ ] **Combat Arena Assets**: The `BattlePhase` displays a dark fantasy combat background image.
-- [ ] **Line Separation**: There is a clear, visible gap/stagger between Vanguard and Rearguard units on both the Hero and Enemy sides.
-- [ ] **Positional Logic**: The `BattlePhase` layout correctly maps the `positionLine` property to these new visual coordinates.
-- [ ] **Animation Alignment**: Current attack animations (Advance/Strike/Return) are updated to originate and terminate at the correct new positional offsets.
-- [ ] **Scaling**: The layout remains responsive on various screen sizes without the lines overlapping.
+- [x] **Combat Arena Assets**: The `BattlePhase` displays a dark fantasy combat background image.
+- [x] **Line Separation**: There is a clear, visible gap/stagger between Vanguard and Rearguard units on both the Hero and Enemy sides.
+- [x] **Positional Logic**: The `BattlePhase` layout correctly maps the `positionLine` property to these new visual coordinates.
+- [x] **Animation Alignment**: Current attack animations (Advance/Strike/Return) are updated to originate and terminate at the correct new positional offsets.
+- [x] **Scaling**: The layout remains responsive on various screen sizes without the lines overlapping.
+
+## Implementation Notes
+- `BattleView` uses randomized dungeon battle backgrounds from `assets/battle-bgs/`.
+- Vanguard/Rearguard units are rendered in distinct columns with clear stagger and spacing on both sides.
+- Attack arc origin/target positions are continuously sampled from live card DOM bounds so visual action alignment follows the current layout.
