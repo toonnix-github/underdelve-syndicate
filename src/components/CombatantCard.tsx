@@ -170,7 +170,13 @@ export const CombatantCard: React.FC<CombatantCardProps> = ({
                             {activeIcon === 'bow' && <Target size={84} className="text-zinc-300 opacity-90" />}
                             {activeIcon === 'skull' && <Skull size={84} className="text-rose-600 opacity-90 filter drop-shadow-[0_0_15px_rgba(225,29,72,0.6)]" />}
                             {activeIcon === 'note' && <Music size={84} className="text-pink-400 opacity-90" />}
-                            {activeIcon === 'fang' && <div className="text-4xl font-black italic tracking-tight opacity-90 text-red-300 filter brightness-150">FANG</div>}
+                            {activeIcon === 'fang' && (
+                                <img
+                                    src="/assets/icon_fang.svg"
+                                    alt="Fang attack"
+                                    className="w-[92px] h-[92px] object-contain opacity-95 drop-shadow-[0_0_16px_rgba(239,68,68,0.65)]"
+                                />
+                            )}
                         </div>
                     </div>
                 )}
@@ -269,22 +275,30 @@ export const CombatantCard: React.FC<CombatantCardProps> = ({
 
                 <div className="absolute inset-0 pointer-events-none z-[100] overflow-visible">
                     {unit.vfx.map((v, i) => (
-                        <div
-                            key={v.id}
-                            className={clsx(
-                                "absolute top-1/2 left-1/2 font-black text-4xl animate-damage-float-ro tabular-nums",
-                                v.type === 'damage' && "text-white outline-text",
-                                v.type === 'heal' && "text-green-400 outline-text",
-                                v.type === 'miss' && "text-cyan-300 outline-text drop-shadow-[0_0_12px_rgba(34,211,238,0.85)]"
-                            )}
-                            style={{
-                                marginLeft: `${(i % 3 - 1) * 20}px`,
-                                animationDelay: `${i * 0.05}s`,
-                                textShadow: '2px 2px 0px rgba(0,0,0,1), -2px -2px 0px rgba(0,0,0,1), 2px -2px 0px rgba(0,0,0,1), -2px 2px 0px rgba(0,0,0,1)'
-                            }}
-                        >
-                            {v.text}
-                        </div>
+                        (() => {
+                            const vfxTone = (v.tone ?? v.type ?? 'damage') as 'damage' | 'heal' | 'miss' | 'special';
+                            return (
+                                <div
+                                    key={v.id}
+                                    className={clsx(
+                                        "absolute top-1/2 left-1/2 font-black text-4xl animate-damage-float-ro tabular-nums",
+                                        vfxTone === 'damage' && (isEnemy
+                                            ? "text-white outline-text"
+                                            : "text-rose-400 outline-text drop-shadow-[0_0_12px_rgba(244,63,94,0.85)]"),
+                                        vfxTone === 'heal' && "text-green-400 outline-text",
+                                        vfxTone === 'miss' && "text-cyan-300 outline-text drop-shadow-[0_0_12px_rgba(34,211,238,0.85)]",
+                                        vfxTone === 'special' && "text-amber-300 outline-text drop-shadow-[0_0_12px_rgba(245,158,11,0.9)]"
+                                    )}
+                                    style={{
+                                        marginLeft: `${(i % 3 - 1) * 20}px`,
+                                        animationDelay: `${i * 0.05}s`,
+                                        textShadow: '2px 2px 0px rgba(0,0,0,1), -2px -2px 0px rgba(0,0,0,1), 2px -2px 0px rgba(0,0,0,1), -2px 2px 0px rgba(0,0,0,1)'
+                                    }}
+                                >
+                                    {v.text}
+                                </div>
+                            );
+                        })()
                     ))}
                 </div>
             </div>

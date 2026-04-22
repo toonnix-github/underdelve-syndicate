@@ -8,12 +8,14 @@ import { LeadershipPhase } from './components/LeadershipPhase';
 import { DeploymentPhase } from './components/DeploymentPhase';
 import { DungeonView } from './components/DungeonView';
 import { BattleView } from './components/BattleView';
+import { CombatantCard } from './components/CombatantCard';
 import { useDungeon } from './hooks/useDungeon';
 import { Combatant } from './models/Combatant';
-import { Settings } from 'lucide-react';
+import { Settings, X as XIcon, Users, Brain, Sword, Target, Flame, Sparkles, Music, Skull } from 'lucide-react';
 import { DEFAULT_FLOOR_SPAWN_RATES } from './utils/dungeonGenerator';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { clsx } from 'clsx';
+import { getHeroPortraitUrl } from './utils/heroPortraits';
 
 type GamePhase = 'MAIN_MENU' | 'RECRUIT' | 'LEADERSHIP' | 'DEPLOYMENT' | 'EXPLORATION' | 'BATTLE' | 'GAME_OVER';
 
@@ -35,6 +37,83 @@ const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
 
 const clampRate = (value: number) => Math.max(0, Math.min(100, Math.floor(value)));
 
+const HeroArchiveCard: React.FC<{ hero: HeroTemplate; className?: string; interactive?: boolean }> = ({ hero, className, interactive = false }) => {
+    const dummy = useMemo(
+        () => new Combatant(
+            hero.name,
+            hero.role,
+            hero.hp,
+            hero.spd,
+            hero.atk,
+            hero.def,
+            hero.imageId,
+            hero.skills,
+            'VANGUARD',
+            true,
+            hero.trait,
+            hero.job,
+            hero.race
+        ),
+        [hero]
+    );
+
+    return (
+        <div className={clsx(
+            "relative select-none",
+            interactive && "group cursor-pointer transition-all duration-500 ease-out scale-95 hover:scale-100 hover:-translate-y-2"
+        )}>
+            <CombatantCard
+                unit={dummy}
+                hideAtb
+                className={clsx("transition-all duration-500 border-zinc-800", className ?? "w-48 h-[340px]")}
+                footer={
+                    <div className="space-y-2 mt-0.5">
+                        {hero.skills.slice(1).map((skill, sIdx) => {
+                            const isBard = hero.job === 'Bard';
+                            const skillIcon = (isBard && (skill.actionType === 'support' || skill.actionType === 'ranged'))
+                                ? <Music size={9} className="text-pink-500 mt-0.5 shrink-0" />
+                                : skill.type === 'debuff'
+                                    ? <Skull size={9} className="text-rose-500 mt-0.5 shrink-0" />
+                                    : skill.actionType === 'support'
+                                        ? <Sparkles size={9} className="text-emerald-500 mt-0.5 shrink-0" />
+                                        : skill.actionType === 'ranged'
+                                            ? <Target size={9} className="text-amber-400 mt-0.5 shrink-0" />
+                                            : skill.actionType === 'magic'
+                                                ? <Flame size={9} className="text-fuchsia-400 mt-0.5 shrink-0" />
+                                                : <Sword size={9} className="text-amber-500 mt-0.5 shrink-0" />;
+
+                            return (
+                                <div key={`archive-skill-${hero.name}-${sIdx}`} className="flex gap-2 items-start">
+                                    {skillIcon}
+                                    <div className="flex flex-col">
+                                        <div className="flex items-center gap-1 leading-none mb-0.5">
+                                            <span className="text-[9px] font-black text-white uppercase tracking-tighter">{skill.name}</span>
+                                            {skill.procChance && <span className="text-[8px] font-black text-amber-600">{Math.round(skill.procChance * 100)}%</span>}
+                                        </div>
+                                        <p className="text-[8px] text-zinc-500 leading-tight line-clamp-1">
+                                            {skill.description}
+                                        </p>
+                                    </div>
+                                </div>
+                            );
+                        })}
+
+                        <div className="flex gap-2 items-start">
+                            <Brain size={9} className="text-cyan-500 mt-0.5 shrink-0" />
+                            <div className="flex flex-col">
+                                <span className="text-[9px] font-black text-white uppercase tracking-tighter leading-none mb-0.5">{hero.trait.name}</span>
+                                <p className="text-[8px] text-zinc-500 leading-tight italic line-clamp-2">
+                                    {hero.trait.description}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                }
+            />
+        </div>
+    );
+};
+
 const App: React.FC = () => {
     const [phase, setPhase] = useState<GamePhase>('MAIN_MENU');
     const [party, setParty] = useState<Combatant[]>([]);
@@ -45,6 +124,8 @@ const App: React.FC = () => {
     const [vault, setVault] = useState<Item[]>([]);
     const [lastEncounterId, setLastEncounterId] = useState<string | null>(null);
     const [showAdminTools, setShowAdminTools] = useState(false);
+    const [showHeroArchive, setShowHeroArchive] = useState(false);
+    const [selectedArchiveHero, setSelectedArchiveHero] = useState<HeroTemplate | null>(null);
     const [heroSearch, setHeroSearch] = useState('');
     const [showHeroDropdown, setShowHeroDropdown] = useState(false);
     const [adminSettings, setAdminSettings] = useState<AdminSettings>(() => {
@@ -184,10 +265,29 @@ const App: React.FC = () => {
     const handleBattleComplete = (victory: boolean, remainingHeroes?: Combatant[]) => {
         if (victory) {
             if (remainingHeroes) {
+                const stripBattleVisualState = (hero: Combatant): Combatant => {
+                    const clean = hero.clone();
+                    clean.vfx = [];
+                    clean.atb = 0;
+                    clean.isActing = false;
+                    clean.attackPhase = 'idle';
+                    clean.impactPulse = false;
+                    clean.hitShake = false;
+                    clean.hitType = null;
+                    clean.showImpact = false;
+                    clean.healSparkle = false;
+                    clean.traitGlow = false;
+                    clean.isCharging = false;
+                    clean.activeSigil = null;
+                    clean.isPopping = false;
+                    clean.activeChant = null;
+                    return clean;
+                };
+
                 // Sync HP and state from battle back to party
                 const updatedParty = party.map(hp => {
                     const matched = remainingHeroes.find(rh => rh.name === hp.name);
-                    return matched ? matched : hp;
+                    return matched ? stripBattleVisualState(matched) : stripBattleVisualState(hp);
                 });
                 setParty(updatedParty);
             }
@@ -242,7 +342,92 @@ const App: React.FC = () => {
                                     <div className="absolute inset-0 bg-gradient-to-r from-cyan-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                                     <span className="relative z-10 tracking-widest italic font-black">INITIALIZE EXPEDITION</span>
                                 </Button>
+                                <Button
+                                    variant="secondary"
+                                    size="lg"
+                                    className="w-full border-zinc-700/80 bg-black/45 backdrop-blur-md hover:border-cyan-500/60 hover:bg-zinc-950/70"
+                                    onClick={() => {
+                                        setShowHeroArchive(true);
+                                        setSelectedArchiveHero(null);
+                                    }}
+                                >
+                                    <Users className="w-4 h-4 mr-2" />
+                                    <span className="tracking-widest italic font-black">HERO ARCHIVE</span>
+                                </Button>
                             </div>
+                        </div>
+                    </div>
+                )}
+
+                {showHeroArchive && phase === 'MAIN_MENU' && (
+                    <div className="fixed inset-0 z-[1100] flex items-center justify-center p-6 bg-black/65 backdrop-blur-md animate-in fade-in duration-300">
+                        <div className="relative w-full max-w-6xl h-[82vh] rounded-2xl border border-zinc-700 bg-zinc-950/88 overflow-hidden shadow-[0_0_80px_rgba(0,0,0,0.8)]">
+                            <div className="absolute inset-0 pointer-events-none">
+                                <img src="/assets/bg_draft_2.png" alt="" className="w-full h-full object-cover opacity-15 blur-sm brightness-10 grayscale" />
+                                <div className="absolute inset-x-0 bottom-0 h-64 bg-gradient-to-t from-black to-transparent" />
+                            </div>
+                            <div className="relative z-10 h-full flex flex-col">
+                                <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800">
+                                    <div>
+                                        <h3 className="text-lg font-black italic uppercase tracking-tight text-white">Hero Archive</h3>
+                                        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">{HERO_ROSTER.length} Registered Heroes</p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setShowHeroArchive(false);
+                                            setSelectedArchiveHero(null);
+                                        }}
+                                        className="w-8 h-8 rounded-md border border-zinc-700 bg-zinc-900/80 text-zinc-300 hover:text-rose-400 hover:border-rose-500/40 transition"
+                                        aria-label="Close hero archive"
+                                    >
+                                        <XIcon className="w-4 h-4 mx-auto" />
+                                    </button>
+                                </div>
+                                <div className="flex-1 overflow-y-auto custom-scrollbar p-4">
+                                    <div className="grid grid-cols-10 gap-2">
+                                        {HERO_ROSTER.map(hero => (
+                                            <button
+                                                key={hero.name}
+                                                type="button"
+                                                onClick={() => setSelectedArchiveHero(hero)}
+                                                className={clsx(
+                                                    "relative aspect-[3/4] rounded-md overflow-hidden border border-zinc-700/70 text-left transition",
+                                                    selectedArchiveHero?.name === hero.name
+                                                        ? "border-cyan-400 shadow-[0_0_16px_rgba(34,211,238,0.35)]"
+                                                        : "hover:border-cyan-400/70"
+                                                )}
+                                                aria-label={`Open ${hero.name} details`}
+                                            >
+                                                <img
+                                                    src={getHeroPortraitUrl(hero.imageId)}
+                                                    alt={hero.name}
+                                                    className="absolute inset-0 w-full h-full object-cover object-top"
+                                                />
+                                                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/35 to-transparent" />
+                                                <div className="absolute left-1.5 right-1.5 bottom-1.5">
+                                                    <div className="text-[9px] font-black uppercase tracking-tight text-white truncate">{hero.name}</div>
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                            {selectedArchiveHero && (
+                                <div
+                                    className="absolute inset-0 z-30 bg-black/55 backdrop-blur-md flex items-center justify-center p-6 archive-focus-overlay"
+                                    onClick={() => setSelectedArchiveHero(null)}
+                                >
+                                    <div
+                                        key={selectedArchiveHero.name}
+                                        className="relative drop-shadow-[0_22px_44px_rgba(0,0,0,0.7)] archive-card-pickup"
+                                        onClick={(event) => event.stopPropagation()}
+                                    >
+                                        <div className="pointer-events-none absolute -inset-4 rounded-2xl border border-cyan-300/20 blur-[1px] archive-card-sheen" />
+                                        <HeroArchiveCard hero={selectedArchiveHero} className="w-56 h-[390px]" />
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}

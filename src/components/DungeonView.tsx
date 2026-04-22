@@ -278,6 +278,7 @@ export const DungeonView: React.FC<DungeonViewProps> = ({ heroes, dungeonState, 
     }, [centerOnPlayer]);
 
     const activeInteractable = dungeonData.interactables.find(i => i.x === playerPos.x && i.y === playerPos.y);
+    const isMovementLocked = activeEvent === "ROLL FOR INITIATIVE!" || activeEvent === "A DEADLY SNARE!" || Boolean(activeTrap);
 
     return (
         <div className="w-full h-full flex flex-col relative overflow-hidden bg-black selection:bg-cyan-500/30">
@@ -338,6 +339,21 @@ export const DungeonView: React.FC<DungeonViewProps> = ({ heroes, dungeonState, 
                         const hasBottomPassage = y < GRID_SIZE - 1 && dungeonData.layout[y + 1][x] === 1;
                         const hasLeftPassage = x > 0 && dungeonData.layout[y][x - 1] === 1;
                         const hasRightPassage = x < GRID_SIZE - 1 && dungeonData.layout[y][x + 1] === 1;
+                        const dx = x - playerPos.x;
+                        const dy = y - playerPos.y;
+                        const isAdjacentMove = Math.abs(dx) + Math.abs(dy) === 1;
+                        const isReachableByClick = isAdjacentMove && !isWall && (isExplored || isScouted) && !isMovementLocked;
+                        const MoveArrowIcon = dy === -1 ? ChevronUp : dy === 1 ? ChevronDown : dx === -1 ? ChevronLeft : ChevronRight;
+                        const moveArrowAnchorClass =
+                            dy === -1 ? "absolute bottom-1 left-1/2 -translate-x-1/2" :
+                            dy === 1 ? "absolute top-1 left-1/2 -translate-x-1/2" :
+                            dx === -1 ? "absolute right-1 top-1/2 -translate-y-1/2" :
+                            "absolute left-1 top-1/2 -translate-y-1/2";
+                        const moveArrowNudgeClass =
+                            dy === -1 ? "group-hover/move:-translate-y-0.5" :
+                            dy === 1 ? "group-hover/move:translate-y-0.5" :
+                            dx === -1 ? "group-hover/move:-translate-x-0.5" :
+                            "group-hover/move:translate-x-0.5";
                         const caveWallHorizontal = "h-[3px] bg-[linear-gradient(to_right,rgba(9,9,11,0.98),rgba(39,39,42,0.9),rgba(9,9,11,0.98))] shadow-[0_0_10px_rgba(0,0,0,0.9)]";
                         const caveWallVertical = "w-[3px] bg-[linear-gradient(to_bottom,rgba(9,9,11,0.98),rgba(39,39,42,0.9),rgba(9,9,11,0.98))] shadow-[0_0_10px_rgba(0,0,0,0.9)]";
                         const fogWallHorizontal = "h-[3px] bg-[linear-gradient(to_right,rgba(82,82,91,0.8),rgba(161,161,170,0.75),rgba(82,82,91,0.8))] shadow-[0_0_6px_rgba(39,39,42,0.35)]";
@@ -352,7 +368,34 @@ export const DungeonView: React.FC<DungeonViewProps> = ({ heroes, dungeonState, 
                         if (isWall) return <div key={i} className="w-full h-full" />;
 
                         return (
-                            <div key={i} className={clsx("relative w-full aspect-square transition-all duration-700 overflow-hidden bg-zinc-950 shadow-[inset_0_0_40px_rgba(0,0,0,0.8)]", (isExplored || isScouted) ? "scale-100 opacity-100" : "opacity-0 scale-90", isNewlyExplored && "animate-glitch-in", isPlayer && "z-10")}>
+                            <div
+                                key={i}
+                                onClick={() => {
+                                    if (!isReachableByClick) return;
+                                    handleMove(dx, dy);
+                                }}
+                                className={clsx(
+                                    "relative w-full aspect-square transition-all duration-700 overflow-hidden bg-zinc-950 shadow-[inset_0_0_40px_rgba(0,0,0,0.8)]",
+                                    (isExplored || isScouted) ? "scale-100 opacity-100" : "opacity-0 scale-90",
+                                    isNewlyExplored && "animate-glitch-in",
+                                    isPlayer && "z-10",
+                                    isReachableByClick && "group/move cursor-pointer"
+                                )}
+                            >
+                                {isReachableByClick && (
+                                    <div className={clsx("z-30 pointer-events-none", moveArrowAnchorClass)}>
+                                        <div className="w-8 h-8 rounded-full border border-cyan-300/35 bg-black/35 backdrop-blur-[1px] flex items-center justify-center transition-all duration-100 ease-out group-hover/move:scale-125 group-hover/move:border-cyan-200/90 group-hover/move:bg-cyan-500/20 group-hover/move:shadow-[0_0_20px_rgba(34,211,238,0.35)]">
+                                            <MoveArrowIcon
+                                                size={18}
+                                                className={clsx(
+                                                    "text-cyan-300/80 drop-shadow-[0_0_8px_rgba(34,211,238,0.35)] transition-all duration-100 ease-out",
+                                                    moveArrowNudgeClass,
+                                                    "group-hover/move:text-cyan-100 group-hover/move:drop-shadow-[0_0_12px_rgba(34,211,238,0.65)]"
+                                                )}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
                                 <div className={clsx("absolute inset-0 transition-opacity duration-1000", isExplored ? "opacity-90" : "opacity-0")}>
                                     <img src={interactable?.type === 'STAIRS' ? 'assets/tiles/tile_stairs_down.png' : interactable?.type === 'PREV_FLOOR' ? 'assets/tiles/tile_stairs_up.png' : `assets/tiles/tile_${bgIndex}.${bgIndex <= 4 ? 'png' : 'jpg'}`} className="w-full h-full object-cover" style={{ transform: `rotate(${tileRotation}deg) scale(1.1)` }} alt="" />
                                     <div className="absolute inset-0 bg-black/20" />
@@ -571,9 +614,10 @@ export const HeroStatusCard: React.FC<{ hero: Combatant, party: Combatant[] }> =
                             base={hero.power} 
                             icon={hero.job === 'Bard' ? <Music size={8} className="text-pink-500" /> : <Sword size={8} className="text-amber-500" />} 
                             breakdown={hero.getStatBreakdown?.('ATK', party)} 
+                            hideTooltip
                         />
-                        <StatLine label="Def" current={hero.getDEF(party)} base={hero.def} icon={<Shield size={8} className="text-blue-500" />} breakdown={hero.getStatBreakdown?.('DEF', party)} />
-                        <StatLine label="Spd" current={hero.getSPD(party)} base={hero.speed} icon={<Wind size={8} className="text-cyan-500" />} breakdown={hero.getStatBreakdown?.('SPD', party)} />
+                        <StatLine label="Def" current={hero.getDEF(party)} base={hero.def} icon={<Shield size={8} className="text-blue-500" />} breakdown={hero.getStatBreakdown?.('DEF', party)} hideTooltip />
+                        <StatLine label="Spd" current={hero.getSPD(party)} base={hero.speed} icon={<Wind size={8} className="text-cyan-500" />} breakdown={hero.getStatBreakdown?.('SPD', party)} hideTooltip />
                     </div>
                 </div>
             </div>

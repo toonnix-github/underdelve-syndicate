@@ -31,7 +31,7 @@ const DraftCard: React.FC<{ hero: any; isSelected: boolean; onClick: () => void 
                 unit={dummy}
                 hideAtb
                 className={clsx(
-                    "w-48 h-[340px] transition-all duration-500",
+                    "w-48 aspect-[5/7] transition-all duration-500",
                     isSelected 
                         ? "border-[4px] border-amber-500 shadow-[0_0_50px_rgba(245,158,11,0.6),inset_0_0_20px_rgba(245,158,11,0.4)] bg-zinc-900 brightness-125" 
                         : "border-zinc-800"

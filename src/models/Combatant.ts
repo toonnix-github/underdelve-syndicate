@@ -115,8 +115,8 @@ export class Combatant {
     clone(): Combatant {
         const copy = Object.assign(Object.create(Object.getPrototypeOf(this)), this);
         copy.equipment = { ...this.equipment };
-        copy.abilities = [...this.abilities];
-        copy.vfx = [...this.vfx];
+        copy.abilities = [...this.abilities].map(a => ({ ...a }));
+        copy.vfx = [...this.vfx].map(v => ({ ...v }));
         copy.trait = this.trait ? { ...this.trait } : null;
         
         copy.name = String(this.name);
@@ -125,6 +125,23 @@ export class Combatant {
         copy.isLeader = Boolean(this.isLeader);
         
         return copy;
+    }
+
+    static rehydrate(data: any): Combatant {
+        if (data instanceof Combatant) return data;
+        
+        // If it's a POJO that looks like a Combatant, wrap it
+        const instance = Object.assign(Object.create(Combatant.prototype), data);
+        
+        // Ensure standard fields are proper types
+        instance.hp = Number(instance.hp || 0);
+        instance.maxHp = Number(instance.maxHp || 100);
+        instance.atb = Number(instance.atb || 0);
+        instance.vfx = Array.isArray(instance.vfx) ? instance.vfx : [];
+        instance.abilities = Array.isArray(instance.abilities) ? instance.abilities : [];
+        instance.equipment = instance.equipment || {};
+        
+        return instance;
     }
 
     getATK(party: Combatant[] = []): number {
@@ -252,6 +269,50 @@ export class Combatant {
 
     addBattleEvasionBuff(bonus: number, maxTotal = 20) {
         this.battleEvasionBonus = Math.min(maxTotal, this.battleEvasionBonus + Math.max(0, bonus));
+    }
+
+    addVfx(text: string, tone: 'damage' | 'heal' | 'miss' | 'special' = 'damage') {
+        const now = Date.now();
+        const isImmediateDuplicate = this.vfx.some(v =>
+            v?.text === text &&
+            (v?.tone ?? v?.type) === tone &&
+            typeof v?.createdAt === 'number' &&
+            now - v.createdAt < 140
+        );
+
+        if (isImmediateDuplicate) return;
+
+        const vfxId = Math.random().toString(36).substr(2, 9);
+        this.vfx.push({ id: vfxId, text, tone, createdAt: now });
+        setTimeout(() => {
+            this.vfx = this.vfx.filter(v => v.id !== vfxId);
+        }, 1500);
+    }
+
+    triggerHit(hitType: 'slash' | 'broken' | 'burn' | null = 'slash') {
+        this.hitType = hitType;
+        this.hitShake = true;
+        this.showImpact = true;
+        setTimeout(() => {
+            this.hitShake = false;
+            this.showImpact = false;
+        }, 400);
+    }
+
+    triggerHeal() {
+        this.healSparkle = true;
+        setTimeout(() => {
+            this.healSparkle = false;
+        }, 600);
+    }
+
+    triggerChant(name: string) {
+        this.activeChant = name;
+        this.traitGlow = true;
+        setTimeout(() => {
+            this.activeChant = null;
+            this.traitGlow = false;
+        }, 2000);
     }
 
     clearBattleBuffs() {

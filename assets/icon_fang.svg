@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Fang icon">
+  <defs>
+    <linearGradient id="fangGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fee2e2"/>
+      <stop offset="45%" stop-color="#fca5a5"/>
+      <stop offset="100%" stop-color="#ef4444"/>
+    </linearGradient>
+    <linearGradient id="fangCore" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#fca5a5"/>
+    </linearGradient>
+    <filter id="fangShadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="2.2" result="blur"/>
+      <feOffset dx="0" dy="2" result="offset"/>
+      <feMerge>
+        <feMergeNode in="offset"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <g filter="url(#fangShadow)">
+    <path d="M30 22 C40 26 48 37 48 52 C48 80 37 101 26 112 C23 115 18 112 19 107 C22 90 21 75 15 57 C11 44 14 30 30 22 Z"
+          fill="url(#fangGlow)"/>
+    <path d="M98 22 C114 30 117 44 113 57 C107 75 106 90 109 107 C110 112 105 115 102 112 C91 101 80 80 80 52 C80 37 88 26 98 22 Z"
+          fill="url(#fangGlow)"/>
+
+    <path d="M38 34 C45 40 48 49 47 61 C45 82 37 97 30 106 C28 109 24 107 25 103 C28 88 28 75 23 59 C19 46 22 38 38 34 Z"
+          fill="url(#fangCore)"/>
+    <path d="M90 34 C106 38 109 46 105 59 C100 75 100 88 103 103 C104 107 100 109 98 106 C91 97 83 82 81 61 C80 49 83 40 90 34 Z"
+          fill="url(#fangCore)"/>
+  </g>
+</svg>

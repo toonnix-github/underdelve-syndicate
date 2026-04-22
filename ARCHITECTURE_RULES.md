@@ -31,7 +31,7 @@ All characters must be selected from the following list:
 10. **Titan**
 
 ## 2. Visual Style Guidelines
-*   **Aspect Ratio**: Hero portraits must be **3:5 dimension**.
+*   **Aspect Ratio**: Hero portraits and Item cards must be **5:7 dimension**.
 *   **Art Style**: JRPG Dark Fantasy / Gacha Anime style.
 *   **Composition**: No frames, no text, and no UI elements within the image file itself.
 *   **Signifiers**:

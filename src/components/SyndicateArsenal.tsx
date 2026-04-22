@@ -148,7 +148,7 @@ export const SyndicateArsenal: React.FC<SyndicateArsenalProps> = ({
                                                         setSelectedItemId(prev => (prev === item.id ? null : item.id));
                                                     }}
                                                     className={clsx(
-                                                        'group relative w-full aspect-square rounded-xl border text-left overflow-hidden transition will-change-transform',
+                                                        'group relative w-full aspect-[5/7] rounded-xl border text-left overflow-hidden transition will-change-transform',
                                                         rarityClasses[item.rarity] ?? rarityClasses.Common,
                                                         isSelected
                                                             ? 'border-cyan-300 shadow-[0_0_16px_rgba(34,211,238,0.35)]'

@@ -148,7 +148,7 @@ export const ITEM_DATABASE: Item[] = [
     statBoost: { def: 8, spd: 2 },
     value: 100,
     allowedJobs: null,
-    imagePath: "/assets/item_chest.png"
+    imagePath: "/assets/item_padded_tunic.png"
   },
   {
     id: "chest_heavy_plate",
@@ -159,7 +159,7 @@ export const ITEM_DATABASE: Item[] = [
     statBoost: { def: 25, spd: -6 },
     value: 400,
     allowedJobs: ["Knight", "Guardian", "Paladin", "Berserker"],
-    imagePath: "/assets/item_chest.png"
+    imagePath: "/assets/item_heavy_plate.png"
   },
   {
     id: "chest_nightshade_cloak",

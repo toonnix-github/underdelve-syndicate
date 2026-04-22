@@ -12,18 +12,29 @@ interface DeploymentPhaseProps {
 
 export const DeploymentPhase: React.FC<DeploymentPhaseProps> = ({ heroes: initialHeroes, onFinalize }) => {
     const [heroes, setHeroes] = useState([...initialHeroes]);
+    const [draggedHeroName, setDraggedHeroName] = useState<string | null>(null);
+    const [activeDropLine, setActiveDropLine] = useState<'VANGUARD' | 'REARGUARD' | null>(null);
 
-    const togglePosition = (name: string) => {
-        console.log(`[DeploymentPhase] Toggling position for ${name}`);
+    const moveHeroToLine = (name: string, line: 'VANGUARD' | 'REARGUARD') => {
         setHeroes(prev => prev.map(h => {
             if (h.name === name) {
                 const next = h.clone();
-                // Defensive primitive casting
+                next.positionLine = line;
+                next.name = String(h.name);
+                return next;
+            }
+            return h;
+        }));
+    };
+
+    const togglePosition = (name: string) => {
+        setHeroes(prev => prev.map(h => {
+            if (h.name === name) {
+                const next = h.clone();
                 const oldPos = String(h.positionLine || 'VANGUARD');
                 const newPos = oldPos === 'VANGUARD' ? 'REARGUARD' : 'VANGUARD';
                 next.positionLine = newPos;
                 next.name = String(h.name);
-                console.log(`[DeploymentPhase] Next position for ${next.name}: ${next.positionLine}`);
                 return next;
             }
             return h;
@@ -47,6 +58,7 @@ export const DeploymentPhase: React.FC<DeploymentPhaseProps> = ({ heroes: initia
                     Squad <span className="text-emerald-500">Formation</span>
                 </h2>
                 <p className="text-zinc-500 text-[9px] uppercase font-bold tracking-[0.3em]">Operational 2x2 Tactical Grid</p>
+                <p className="mt-1 text-zinc-600 text-[9px] uppercase font-bold tracking-[0.2em]">Drag cards between rows, or click to swap quickly.</p>
                 <p className="mt-2 text-zinc-600 text-[9px] uppercase font-bold tracking-[0.2em]">Frontline screens the backline. Rows now shape damage style, not raw defense or speed.</p>
                 {formationWarning && (
                     <p className="mt-2 text-rose-400 text-[9px] uppercase font-black tracking-[0.2em]">
@@ -60,9 +72,37 @@ export const DeploymentPhase: React.FC<DeploymentPhaseProps> = ({ heroes: initia
                 {/* VANGUARD SECTION */}
                 <div className="flex flex-col items-center gap-3 group animate-in slide-in-from-left-10 duration-1000">
                     <div className="text-[9px] font-black uppercase tracking-widest text-red-500/60 pb-1">Vanguard (blocks rear, melee +10%)</div>
-                    <div className="grid grid-cols-1 gap-3 w-[160px] p-2 bg-zinc-900/20 border border-zinc-800 rounded-3xl transition-all duration-500 hover:border-red-900/30">
+                    <div
+                        onDragOver={(event) => {
+                            event.preventDefault();
+                            if (draggedHeroName) setActiveDropLine('VANGUARD');
+                        }}
+                        onDragLeave={() => setActiveDropLine(current => current === 'VANGUARD' ? null : current)}
+                        onDrop={(event) => {
+                            event.preventDefault();
+                            const heroName = event.dataTransfer.getData('text/plain') || draggedHeroName;
+                            if (heroName) moveHeroToLine(heroName, 'VANGUARD');
+                            setDraggedHeroName(null);
+                            setActiveDropLine(null);
+                        }}
+                        className={clsx(
+                            "grid grid-cols-1 gap-3 w-[160px] p-2 bg-zinc-900/20 border border-zinc-800 rounded-3xl transition-all duration-500 hover:border-red-900/30",
+                            activeDropLine === 'VANGUARD' && "border-red-500/70 shadow-[0_0_20px_rgba(239,68,68,0.25)] bg-red-950/10"
+                        )}
+                    >
                         {vanguard.map(hero => (
-                            <CompactCard key={hero.name} hero={hero} onClick={() => togglePosition(hero.name)} color="red" />
+                            <CompactCard
+                                key={hero.name}
+                                hero={hero}
+                                onClick={() => togglePosition(hero.name)}
+                                color="red"
+                                onDragStart={() => setDraggedHeroName(hero.name)}
+                                onDragEnd={() => {
+                                    setDraggedHeroName(null);
+                                    setActiveDropLine(null);
+                                }}
+                                isDragging={draggedHeroName === hero.name}
+                            />
                         ))}
                         {Array.from({ length: Math.max(0, 2 - vanguard.length) }).map((_, i) => (
                             <EmptySlot key={i} />
@@ -80,9 +120,37 @@ export const DeploymentPhase: React.FC<DeploymentPhaseProps> = ({ heroes: initia
                 {/* REARGUARD SECTION */}
                 <div className="flex flex-col items-center gap-3 group animate-in slide-in-from-right-10 duration-1000">
                     <div className="text-[9px] font-black uppercase tracking-widest text-blue-500/60 pb-1">Rearguard (melee -35%, ranged/support +10%)</div>
-                    <div className="grid grid-cols-1 gap-3 w-[160px] p-2 bg-zinc-900/20 border border-zinc-800 rounded-3xl transition-all duration-500 hover:border-blue-900/30">
+                    <div
+                        onDragOver={(event) => {
+                            event.preventDefault();
+                            if (draggedHeroName) setActiveDropLine('REARGUARD');
+                        }}
+                        onDragLeave={() => setActiveDropLine(current => current === 'REARGUARD' ? null : current)}
+                        onDrop={(event) => {
+                            event.preventDefault();
+                            const heroName = event.dataTransfer.getData('text/plain') || draggedHeroName;
+                            if (heroName) moveHeroToLine(heroName, 'REARGUARD');
+                            setDraggedHeroName(null);
+                            setActiveDropLine(null);
+                        }}
+                        className={clsx(
+                            "grid grid-cols-1 gap-3 w-[160px] p-2 bg-zinc-900/20 border border-zinc-800 rounded-3xl transition-all duration-500 hover:border-blue-900/30",
+                            activeDropLine === 'REARGUARD' && "border-blue-500/70 shadow-[0_0_20px_rgba(59,130,246,0.25)] bg-blue-950/10"
+                        )}
+                    >
                         {rearguard.map(hero => (
-                            <CompactCard key={hero.name} hero={hero} onClick={() => togglePosition(hero.name)} color="blue" />
+                            <CompactCard
+                                key={hero.name}
+                                hero={hero}
+                                onClick={() => togglePosition(hero.name)}
+                                color="blue"
+                                onDragStart={() => setDraggedHeroName(hero.name)}
+                                onDragEnd={() => {
+                                    setDraggedHeroName(null);
+                                    setActiveDropLine(null);
+                                }}
+                                isDragging={draggedHeroName === hero.name}
+                            />
                         ))}
                         {Array.from({ length: Math.max(0, 2 - rearguard.length) }).map((_, i) => (
                             <EmptySlot key={i} />
@@ -111,11 +179,33 @@ export const DeploymentPhase: React.FC<DeploymentPhaseProps> = ({ heroes: initia
     );
 };
 
-const CompactCard = ({ hero, onClick, color }: { hero: Combatant, onClick: () => void, color: 'red' | 'blue' }) => (
+const CompactCard = ({
+    hero,
+    onClick,
+    color,
+    onDragStart,
+    onDragEnd,
+    isDragging
+}: {
+    hero: Combatant;
+    onClick: () => void;
+    color: 'red' | 'blue';
+    onDragStart: () => void;
+    onDragEnd: () => void;
+    isDragging: boolean;
+}) => (
     <div 
+        draggable
+        onDragStart={(event) => {
+            event.dataTransfer.effectAllowed = 'move';
+            event.dataTransfer.setData('text/plain', hero.name);
+            onDragStart();
+        }}
+        onDragEnd={onDragEnd}
         onClick={onClick}
         className={clsx(
-            "w-full h-24 relative rounded-2xl border-2 overflow-hidden cursor-pointer group/item transition-all duration-500 hover:z-20",
+            "w-full h-24 relative rounded-2xl border-2 overflow-hidden cursor-grab active:cursor-grabbing group/item transition-all duration-500 hover:z-20",
+            isDragging && "opacity-45 scale-95",
             color === 'red' ? "border-zinc-800 hover:border-red-500" : "border-zinc-800 hover:border-blue-500"
         )}
     >
