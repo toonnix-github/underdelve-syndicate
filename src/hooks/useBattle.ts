@@ -17,8 +17,8 @@ export interface ActiveAction {
 const getActionVisuals = (
     unit: Combatant,
     skillActionType: RowActionType,
-    selectedSkillType: 'damage' | 'heal',
-    targetType: 'single' | 'row' | 'all',
+    selectedSkillType: Ability['type'],
+    targetType: Ability['targetType'],
     isHero: boolean
 ) => {
     let icon: 'sword' | 'bow' | 'fang' | 'fire' | 'heart' | 'zap' | 'note' | 'skull' = 'sword';

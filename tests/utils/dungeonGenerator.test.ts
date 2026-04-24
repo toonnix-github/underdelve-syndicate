@@ -4,7 +4,9 @@ import {
   findLootChestSpawnTile,
   generateFloor,
   getNextLootKillThreshold,
-  GRID_SIZE
+  GRID_SIZE,
+  MAX_FLOOR,
+  getAdjacentFloor
 } from '../../src/utils/dungeonGenerator';
 
 describe('dungeonGenerator', () => {
@@ -17,6 +19,12 @@ describe('dungeonGenerator', () => {
   it('creates stairs on every floor', () => {
     const floor = generateFloor(1);
     expect(floor.interactables.some(item => item.type === 'STAIRS')).toBe(true);
+  });
+
+  it('does not create descend stairs on the final floor', () => {
+    const floor = generateFloor(MAX_FLOOR);
+    expect(floor.interactables.some(item => item.type === 'STAIRS')).toBe(false);
+    expect(floor.interactables.some(item => item.type === 'PREV_FLOOR')).toBe(true);
   });
 
   it('does not pre-spawn chest interactables (chests are kill-driven random spawns)', () => {
@@ -40,7 +48,8 @@ describe('dungeonGenerator', () => {
     const types = new Set(floor2.interactables.map(item => item.type));
     expect(types.has('STAIRS')).toBe(true);
     expect(types.has('PREV_FLOOR')).toBe(true);
-    expect(types.size).toBe(2);
+    expect(types.has('TRADER')).toBe(true);
+    expect(types.size).toBe(3);
   });
 
   it('spawns trap interactables with full trap metadata when trap rate is 100%', () => {
@@ -59,15 +68,35 @@ describe('dungeonGenerator', () => {
   });
 
   it('spawns only enemies (besides stairs metadata) when enemy rate is 100%', () => {
-    const floor = generateFloor(2, GRID_SIZE, { enemyRate: 100, trapRate: 0, lootRate: 0 });
+    const floor = generateFloor(1, GRID_SIZE, { enemyRate: 100, trapRate: 0, lootRate: 0 });
     const content = floor.interactables.filter(item => item.type !== 'STAIRS' && item.type !== 'PREV_FLOOR');
     expect(content.length).toBeGreaterThan(0);
     expect(content.every(item => item.type === 'ENEMY')).toBe(true);
   });
 
+  it('spawns trader on floor 2 adjacent to the stairs-up tile', () => {
+    const floor2 = generateFloor(2, GRID_SIZE, { enemyRate: 0, trapRate: 0, lootRate: 0 });
+    const stairsUp = floor2.interactables.find(item => item.type === 'PREV_FLOOR');
+    const trader = floor2.interactables.find(item => item.type === 'TRADER');
+
+    expect(stairsUp).toBeDefined();
+    expect(trader).toBeDefined();
+    if (stairsUp && trader) {
+      const manhattan = Math.abs(stairsUp.x - trader.x) + Math.abs(stairsUp.y - trader.y);
+      expect(manhattan).toBe(1);
+    }
+  });
+
   it('calculates loot kill threshold ranges from loot rate', () => {
     expect(getNextLootKillThreshold(0)).toBeGreaterThanOrEqual(4);
     expect(getNextLootKillThreshold(100)).toBeLessThanOrEqual(2);
+  });
+
+  it('caps floor traversal between floor 1 and the final floor', () => {
+    expect(getAdjacentFloor(1, 'UP')).toBe(1);
+    expect(getAdjacentFloor(1, 'DOWN')).toBe(2);
+    expect(getAdjacentFloor(MAX_FLOOR, 'DOWN')).toBe(MAX_FLOOR);
+    expect(getAdjacentFloor(MAX_FLOOR, 'UP')).toBe(MAX_FLOOR - 1);
   });
 
   it('finds random chest spawn tile that is walkable and not blocked', () => {

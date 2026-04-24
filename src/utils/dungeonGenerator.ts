@@ -3,6 +3,7 @@
  */
 
 export const GRID_SIZE = 9;
+export const MAX_FLOOR = 5;
 
 export interface TilePos {
     x: number;
@@ -11,7 +12,7 @@ export interface TilePos {
 
 export interface Interactable extends TilePos {
     id: string;
-    type: 'TRAP' | 'CHEST' | 'STAIRS' | 'PREV_FLOOR' | 'ENEMY';
+    type: 'TRAP' | 'CHEST' | 'STAIRS' | 'PREV_FLOOR' | 'ENEMY' | 'TRADER';
     trapType?: 'SPIKES' | 'ACID' | 'BLADES';
     status: 'ACTIVE' | 'TRIGGERED' | 'DISARMED' | 'FAILED';
     resolution?: {
@@ -44,9 +45,35 @@ export const DEFAULT_FLOOR_SPAWN_RATES: FloorSpawnRates = {
 
 const clampRate = (rate: number) => Math.max(0, Math.min(100, Math.floor(rate)));
 
+export const getAdjacentFloor = (floor: number, direction: 'UP' | 'DOWN') => (
+    direction === 'UP'
+        ? Math.max(1, floor - 1)
+        : Math.min(MAX_FLOOR, floor + 1)
+);
+
 const randomIntInclusive = (min: number, max: number) => {
     if (max <= min) return min;
     return Math.floor(Math.random() * (max - min + 1)) + min;
+};
+
+const findAdjacentWalkableTile = (
+    layout: number[][],
+    origin: TilePos,
+    occupiedTiles: Set<string>
+): TilePos | null => {
+    const candidates: TilePos[] = [
+        { x: origin.x, y: origin.y - 1 },
+        { x: origin.x, y: origin.y + 1 },
+        { x: origin.x - 1, y: origin.y },
+        { x: origin.x + 1, y: origin.y }
+    ].filter(pos => {
+        if (pos.x < 0 || pos.y < 0 || pos.y >= layout.length || pos.x >= layout[0].length) return false;
+        if (layout[pos.y][pos.x] !== 1) return false;
+        return !occupiedTiles.has(`${pos.x},${pos.y}`);
+    });
+
+    if (candidates.length === 0) return null;
+    return candidates[Math.floor(Math.random() * candidates.length)];
 };
 
 export const getNextLootKillThreshold = (lootRate = DEFAULT_FLOOR_SPAWN_RATES.lootRate): number => {
@@ -169,7 +196,20 @@ export const generateFloor = (
         interactables.push({ id: `p${floor}`, x: centerX, y: centerY, type: 'PREV_FLOOR', status: 'ACTIVE' });
     }
 
-    interactables.push({ id: `s${floor}`, ...getLoc(), type: 'STAIRS', status: 'ACTIVE' });
+    const stairsLoc = getLoc();
+
+    if (floor < MAX_FLOOR) {
+        interactables.push({ id: `s${floor}`, ...stairsLoc, type: 'STAIRS', status: 'ACTIVE' });
+    }
+
+    if (floor === 2) {
+        const occupied = new Set(interactables.map(interactable => `${interactable.x},${interactable.y}`));
+        const traderAnchor = { x: centerX, y: centerY };
+        const traderLoc = findAdjacentWalkableTile(layout, traderAnchor, occupied);
+        if (traderLoc) {
+            interactables.push({ id: `m${floor}`, ...traderLoc, type: 'TRADER', status: 'ACTIVE' });
+        }
+    }
 
     const enemyRate = clampRate(spawnRates.enemyRate);
     const trapRate = clampRate(spawnRates.trapRate);

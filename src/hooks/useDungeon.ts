@@ -2,12 +2,14 @@ import { useState, useCallback } from 'react';
 import {
     generateFloor,
     GRID_SIZE,
+    MAX_FLOOR,
     TilePos,
     Interactable,
     FloorSpawnRates,
     DungeonFloorData,
     findLootChestSpawnTile,
-    getNextLootKillThreshold
+    getNextLootKillThreshold,
+    getAdjacentFloor
 } from '../utils/dungeonGenerator';
 import { Combatant } from '../models/Combatant';
 
@@ -83,7 +85,7 @@ export const useDungeon = (initialFloor: number, heroes: Combatant[], spawnRates
             [floor]: { dungeonData, exploredCells, lootProgress }
         }));
 
-        const nf = direction === 'UP' ? Math.max(1, floor - 1) : floor + 1;
+        const nf = getAdjacentFloor(floor, direction);
         setFloor(nf);
 
         // Restore from cache or generate fresh
@@ -101,10 +103,11 @@ export const useDungeon = (initialFloor: number, heroes: Combatant[], spawnRates
     }, [floor, dungeonData, exploredCells, floorCache, lootProgress, spawnRates]);
 
     const resetDungeon = useCallback((newFloor = 1) => {
-        setFloor(newFloor);
+        const boundedFloor = Math.max(1, Math.min(MAX_FLOOR, newFloor));
+        setFloor(boundedFloor);
         setPlayerPos({ x: 4, y: 4 });
         setExploredCells(new Set(['4,4']));
-        setDungeonData(generateFloor(newFloor, GRID_SIZE, spawnRates));
+        setDungeonData(generateFloor(boundedFloor, GRID_SIZE, spawnRates));
         setLootProgress(getInitialLootProgress(spawnRates.lootRate));
         setFloorCache({});
     }, [spawnRates]);

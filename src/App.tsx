@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { HeroTemplate, HERO_ROSTER } from './data/heroes';
 import { ENEMY_POOL } from './data/enemies';
-import { Item } from './types';
+import { Item, Job, Race } from './types';
 import { Button } from './components/UI';
 import { RecruitPhase } from './components/RecruitPhase';
 import { LeadershipPhase } from './components/LeadershipPhase';
@@ -36,6 +36,12 @@ const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
 };
 
 const clampRate = (value: number) => Math.max(0, Math.min(100, Math.floor(value)));
+
+const VALID_JOBS: Job[] = ['Swordsman', 'Archer', 'Priest', 'Knight', 'Thief', 'Mage', 'Berserker', 'Guardian', 'Scout', 'Paladin', 'Bard'];
+const VALID_RACES: Race[] = ['Human', 'Elf', 'Night-Elf', 'Dwarf', 'Orc', 'Undead', 'Beastman', 'Demon', 'Dragon', 'Titan'];
+
+const isJob = (value: unknown): value is Job => typeof value === 'string' && VALID_JOBS.includes(value as Job);
+const isRace = (value: unknown): value is Race => typeof value === 'string' && VALID_RACES.includes(value as Race);
 
 const HeroArchiveCard: React.FC<{ hero: HeroTemplate; className?: string; interactive?: boolean }> = ({ hero, className, interactive = false }) => {
     const dummy = useMemo(
@@ -256,8 +262,8 @@ const App: React.FC = () => {
             ? (normalizedRole as any)
             : 'DPS';
         hero.imageId = String(hero.imageId || 'unknown');
-        hero.job = String(hero.job || 'N/A');
-        hero.race = String(hero.race || 'N/A');
+        hero.job = isJob(hero.job) ? hero.job : 'Swordsman';
+        hero.race = isRace(hero.race) ? hero.race : 'Human';
         hero.hp = typeof hero.hp === 'number' ? hero.hp : hero.maxHp;
         return hero;
     };

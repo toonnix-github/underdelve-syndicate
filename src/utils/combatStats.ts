@@ -42,14 +42,23 @@ export const getCombatStatBreakdown = (unit: Combatant, allies: Combatant[]): Co
     } else if (unit.race === 'Elf') {
         spdFinal += 3;
         push('SPD', 3, 'Race (Elf)');
-    } else if (unit.race === 'Construct') {
-        defFinal += 5;
-        push('DEF', 5, 'Race (Construct)');
-        spdFinal -= 2;
-        push('SPD', -2, 'Race (Construct)');
     } else if (unit.race === 'Dwarf') {
         defFinal += 4;
         push('DEF', 4, 'Race (Dwarf)');
+    } else if (unit.race === 'Dragon') {
+        defFinal += 5;
+        push('DEF', 5, 'Race (Dragon)');
+        spdFinal -= 2;
+        push('SPD', -2, 'Race (Dragon)');
+    } else if (unit.race === 'Beastman') {
+        spdFinal += 2;
+        push('SPD', 2, 'Race (Beastman)');
+    } else if (unit.race === 'Night-Elf') {
+        spdFinal += 5;
+        push('SPD', 5, 'Race (Night-Elf)');
+    } else if (unit.race === 'Titan') {
+        spdFinal -= 5;
+        push('SPD', -5, 'Race (Titan)');
     }
 
     // --- Equipment ---
@@ -81,7 +90,7 @@ export const getCombatStatBreakdown = (unit: Combatant, allies: Combatant[]): Co
         push('DEF', boosted - defFinal, 'Job (Knight)');
         defFinal = boosted;
     }
-    if (unit.job === 'Slayer' || unit.job === 'Rogue') {
+    if (unit.job === 'Thief' || unit.job === 'Scout') {
         const boosted = Math.floor(spdFinal * 1.15);
         push('SPD', boosted - spdFinal, `Job (${unit.job})`);
         spdFinal = boosted;

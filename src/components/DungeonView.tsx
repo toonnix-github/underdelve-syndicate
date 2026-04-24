@@ -1,14 +1,15 @@
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { TilePos, Interactable, GRID_SIZE } from '../utils/dungeonGenerator';
 import { useDungeon } from '../hooks/useDungeon';
 import { Combatant } from '../models/Combatant';
-import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Compass, Crown, Sword, Shield, Zap, Coins, Package, X, Wind, Music } from 'lucide-react';
+import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Compass, Crown, Sword, Shield, Zap, Coins, Package, X, Wind, Music, Store } from 'lucide-react';
 import { Button, StatLine } from './UI';
 import { clsx } from 'clsx';
 import { getHeroPortraitUrl } from '../utils/heroPortraits';
 import { ITEM_DATABASE } from '../data/items';
 import { Item } from '../types';
 import { SyndicateArsenal } from './SyndicateArsenal';
+import { MerchantOffer, purchaseMerchantOffer, buildMerchantEquipPreviews } from '../utils/merchant';
 
 interface DungeonViewProps {
     heroes: Combatant[];
@@ -88,7 +89,8 @@ const Minimap: React.FC<{
                                     "w-1.5 h-1.5 rounded-full",
                                     interactable.type === 'ENEMY' && "bg-rose-500 shadow-[0_0_4px_rgba(244,63,94,0.4)]",
                                     interactable.type === 'CHEST' && "bg-amber-500 shadow-[0_0_4px_rgba(245,158,11,0.4)]",
-                                    interactable.type === 'STAIRS' && "bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.4)]"
+                                    interactable.type === 'STAIRS' && "bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.4)]",
+                                    interactable.type === 'TRADER' && "bg-fuchsia-500 shadow-[0_0_4px_rgba(217,70,239,0.45)]"
                                 )} />
                             )}
                         </div>
@@ -200,6 +202,8 @@ export const DungeonView: React.FC<DungeonViewProps> = ({ heroes, dungeonState, 
     const [triggeredEvents, setTriggeredEvents] = useState<Set<string>>(new Set());
     const [activeTrap, setActiveTrap] = useState<Interactable | null>(null);
     const [showArsenal, setShowArsenal] = useState(false);
+    const [showMerchant, setShowMerchant] = useState(false);
+    const [merchantOffers, setMerchantOffers] = useState<MerchantOffer[]>([]);
     const eventTimeoutRef = useRef<any>(null);
 
     const TILE_SIZE = 160;
@@ -211,8 +215,48 @@ export const DungeonView: React.FC<DungeonViewProps> = ({ heroes, dungeonState, 
         eventTimeoutRef.current = setTimeout(() => setActiveEvent(null), 3000);
     };
 
+    const createMerchantOffers = useCallback((): MerchantOffer[] => {
+        const premiumPool = ITEM_DATABASE
+            .filter(item => item.rarity === 'Rare' || item.rarity === 'Epic' || item.rarity === 'Legendary')
+            .sort(() => Math.random() - 0.5)
+            .slice(0, 3);
+
+        return premiumPool.map(item => ({
+            id: `${item.id}-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+            item,
+            price: Math.max(200, Math.round(item.value * 1.15))
+        }));
+    }, []);
+
+    const handleOpenMerchant = useCallback(() => {
+        setMerchantOffers(prev => prev.length > 0 ? prev : createMerchantOffers());
+        setShowMerchant(true);
+        pushEvent("MERCHANT COMPANY AHEAD");
+    }, [createMerchantOffers]);
+
+    const handleBuyMerchantOffer = useCallback((offerId: string) => {
+        const result = purchaseMerchantOffer({
+            offers: merchantOffers,
+            offerId,
+            scrip
+        });
+
+        if (result.status === 'not_found') return;
+        if (result.status === 'insufficient') {
+            pushEvent(result.message);
+            return;
+        }
+
+        onReward(result.scripDelta);
+        if (result.grantedItem) {
+            onVaultReward(result.grantedItem);
+        }
+        pushEvent(result.message);
+        setMerchantOffers(result.nextOffers);
+    }, [merchantOffers, onReward, onVaultReward, scrip]);
+
     const handleMove = useCallback((dx: number, dy: number) => {
-        if (activeEvent === "ROLL FOR INITIATIVE!" || activeEvent === "A DEADLY SNARE!" || activeTrap) return;
+        if (activeEvent === "ROLL FOR INITIATIVE!" || activeEvent === "A DEADLY SNARE!" || activeTrap || showMerchant) return;
         
         const newX = playerPos.x + dx;
         const newY = playerPos.y + dy;
@@ -248,9 +292,11 @@ export const DungeonView: React.FC<DungeonViewProps> = ({ heroes, dungeonState, 
             } else if (interactable.type === 'STAIRS') {
                 pushEvent("THE WAY DEEPER IS REVEALED!");
                 setTriggeredEvents(prev => new Set(prev).add(interactable.id));
+            } else if (interactable.type === 'TRADER') {
+                handleOpenMerchant();
             }
         }
-    }, [playerPos, dungeonData, movePlayer, onEncounter, onStairs, onTrap, triggeredEvents, onVaultReward, activeTrap, activeEvent, updateInteractable]);
+    }, [playerPos, dungeonData, movePlayer, onEncounter, onStairs, onTrap, triggeredEvents, onVaultReward, activeTrap, activeEvent, updateInteractable, showMerchant, handleOpenMerchant]);
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -277,8 +323,13 @@ export const DungeonView: React.FC<DungeonViewProps> = ({ heroes, dungeonState, 
         centerOnPlayer();
     }, [centerOnPlayer]);
 
+    useEffect(() => {
+        setShowMerchant(false);
+        setMerchantOffers([]);
+    }, [floor]);
+
     const activeInteractable = dungeonData.interactables.find(i => i.x === playerPos.x && i.y === playerPos.y);
-    const isMovementLocked = activeEvent === "ROLL FOR INITIATIVE!" || activeEvent === "A DEADLY SNARE!" || Boolean(activeTrap);
+    const isMovementLocked = activeEvent === "ROLL FOR INITIATIVE!" || activeEvent === "A DEADLY SNARE!" || Boolean(activeTrap) || showMerchant;
 
     return (
         <div className="w-full h-full flex flex-col relative overflow-hidden bg-black selection:bg-cyan-500/30">
@@ -363,7 +414,14 @@ export const DungeonView: React.FC<DungeonViewProps> = ({ heroes, dungeonState, 
 
                         let bgIndex = (dungeonData.bgs[cellKey] % 9) + 1;
                         if (bgIndex === 2) bgIndex = 1; 
-                        const tileRotation = (interactable?.type === 'STAIRS' || interactable?.type === 'PREV_FLOOR') ? 0 : (dungeonData.bgs[cellKey] % 4) * 90;
+                        const tileRotation = (interactable?.type === 'STAIRS' || interactable?.type === 'PREV_FLOOR' || interactable?.type === 'TRADER') ? 0 : (dungeonData.bgs[cellKey] % 4) * 90;
+                        const tileImage = interactable?.type === 'STAIRS'
+                            ? 'assets/tiles/tile_stairs_down.png'
+                            : interactable?.type === 'PREV_FLOOR'
+                                ? 'assets/tiles/tile_stairs_up.png'
+                                : interactable?.type === 'TRADER'
+                                    ? 'assets/tiles/tile_8.jpg'
+                                    : `assets/tiles/tile_${bgIndex}.${bgIndex <= 4 ? 'png' : 'jpg'}`;
 
                         if (isWall) return <div key={i} className="w-full h-full" />;
 
@@ -397,10 +455,10 @@ export const DungeonView: React.FC<DungeonViewProps> = ({ heroes, dungeonState, 
                                     </div>
                                 )}
                                 <div className={clsx("absolute inset-0 transition-opacity duration-1000", isExplored ? "opacity-90" : "opacity-0")}>
-                                    <img src={interactable?.type === 'STAIRS' ? 'assets/tiles/tile_stairs_down.png' : interactable?.type === 'PREV_FLOOR' ? 'assets/tiles/tile_stairs_up.png' : `assets/tiles/tile_${bgIndex}.${bgIndex <= 4 ? 'png' : 'jpg'}`} className="w-full h-full object-cover" style={{ transform: `rotate(${tileRotation}deg) scale(1.1)` }} alt="" />
+                                    <img src={tileImage} className="w-full h-full object-cover" style={{ transform: `rotate(${tileRotation}deg) scale(1.1)` }} alt="" />
                                     <div className="absolute inset-0 bg-black/20" />
                                 </div>
-                                {isExplored && !isWall && interactable?.type !== 'STAIRS' && interactable?.type !== 'PREV_FLOOR' && <DetritusLayer x={x} y={y} floor={floor} />}
+                                {isExplored && !isWall && interactable?.type !== 'STAIRS' && interactable?.type !== 'PREV_FLOOR' && interactable?.type !== 'TRADER' && <DetritusLayer x={x} y={y} floor={floor} />}
                                 <div className={clsx("absolute inset-0 transition-opacity duration-700", (isScouted && !isExplored) ? "opacity-100" : "opacity-0")}>
                                     <img
                                         src="assets/tiles/unrevealed.jpg"
@@ -458,6 +516,12 @@ export const DungeonView: React.FC<DungeonViewProps> = ({ heroes, dungeonState, 
                                     <div className="absolute inset-0 flex items-center justify-center text-zinc-500">
                                         {interactable.type === 'STAIRS' && <div className="text-emerald-500 font-black text-xs uppercase bg-emerald-950/50 px-3 py-1 rounded-full border border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.3)]">Stairs</div>}
                                         {interactable.type === 'CHEST' && <div className="text-amber-500 font-black text-xs uppercase bg-amber-950/50 px-3 py-1 rounded-full border border-amber-500/50 shadow-[0_0_15px_rgba(245,158,11,0.3)]">Loot</div>}
+                                        {interactable.type === 'TRADER' && (
+                                            <div className="text-fuchsia-400 font-black text-xs uppercase bg-fuchsia-950/50 px-3 py-1 rounded-full border border-fuchsia-500/50 shadow-[0_0_15px_rgba(217,70,239,0.35)] flex items-center gap-1.5">
+                                                <Store size={12} />
+                                                Trader
+                                            </div>
+                                        )}
                                         {interactable.type === 'TRAP' && interactable.status !== 'DISARMED' && ( <div className="text-red-500 font-black text-xs uppercase bg-red-950/50 px-3 py-1 rounded-full border border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.3)] animate-pulse">Trap</div> )}
                                         {interactable.type === 'TRAP' && interactable.status === 'DISARMED' && ( <div className="text-zinc-600 font-bold text-[8px] uppercase tracking-tighter italic">Neutralized</div> )}
                                         {interactable.type === 'ENEMY' && ( <div className="flex flex-col items-center gap-1 animate-pulse"><div className="w-8 h-8 rounded-full bg-red-600/20 border border-red-600/50 flex items-center justify-center"><Zap size={16} className="text-red-500" /></div><span className="text-[8px] font-black text-red-500 uppercase tracking-tighter">Hostile</span></div> )}
@@ -545,6 +609,16 @@ export const DungeonView: React.FC<DungeonViewProps> = ({ heroes, dungeonState, 
                 </div>
             )}
 
+            {showMerchant && (
+                <MerchantCompanyOverlay
+                    scrip={scrip}
+                    offers={merchantOffers}
+                    heroes={heroes}
+                    onBuy={handleBuyMerchantOffer}
+                    onClose={() => setShowMerchant(false)}
+                />
+            )}
+
             {activeTrap && (
                 <TrapResolutionOverlay 
                     trap={activeTrap}
@@ -571,6 +645,220 @@ export const DungeonView: React.FC<DungeonViewProps> = ({ heroes, dungeonState, 
                 onEquip={onEquip}
                 onUnequip={onUnequip}
             />
+        </div>
+    );
+};
+
+interface MerchantCompanyOverlayProps {
+    scrip: number;
+    offers: MerchantOffer[];
+    heroes: Combatant[];
+    onBuy: (offerId: string) => void;
+    onClose: () => void;
+}
+
+const MerchantCompanyOverlay: React.FC<MerchantCompanyOverlayProps> = ({ scrip, offers, heroes, onBuy, onClose }) => {
+    const [selectedOfferId, setSelectedOfferId] = useState<string | null>(null);
+    const [confirmingOfferId, setConfirmingOfferId] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (selectedOfferId && !offers.some(offer => offer.id === selectedOfferId)) {
+            setSelectedOfferId(null);
+        }
+    }, [offers, selectedOfferId]);
+
+    useEffect(() => {
+        setConfirmingOfferId(null);
+    }, [selectedOfferId]);
+
+    const selectedOffer = selectedOfferId ? offers.find(offer => offer.id === selectedOfferId) ?? null : null;
+    const equipPreviews = useMemo(
+        () => selectedOffer ? buildMerchantEquipPreviews({ heroes, item: selectedOffer.item }) : [],
+        [heroes, selectedOffer]
+    );
+    const qualifiedPreviews = equipPreviews.filter(preview => preview.qualified);
+
+    const getBoostLine = (item: Item) => {
+        const boosts = item.statBoost ?? {};
+        const lines: string[] = [];
+        if (boosts.atk) lines.push(`ATK ${boosts.atk > 0 ? '+' : ''}${boosts.atk}`);
+        if (boosts.def) lines.push(`DEF ${boosts.def > 0 ? '+' : ''}${boosts.def}`);
+        if (boosts.spd) lines.push(`SPD ${boosts.spd > 0 ? '+' : ''}${boosts.spd}`);
+        if (boosts.hp) lines.push(`HP ${boosts.hp > 0 ? '+' : ''}${boosts.hp}`);
+        return lines.length > 0 ? lines.join('  |  ') : 'No direct stat modifiers';
+    };
+
+    const formatDelta = (before: number, after: number) => {
+        const diff = after - before;
+        if (diff === 0) return '0';
+        return `${diff > 0 ? '+' : ''}${diff}`;
+    };
+
+    return (
+        <div className="fixed inset-0 z-[220] flex items-center justify-center p-6 animate-in fade-in duration-300">
+            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+            <div className="relative w-[min(1100px,95vw)] h-[min(740px,92vh)] rounded-3xl border border-fuchsia-500/35 bg-zinc-950/90 shadow-[0_0_80px_rgba(217,70,239,0.22)] overflow-hidden">
+                <div className="absolute inset-0 pointer-events-none">
+                    <img src="assets/bg_inventory_modal.png" className="w-full h-full object-cover opacity-45" alt="" />
+                    <div className="absolute inset-0 bg-gradient-to-b from-black/35 via-black/55 to-black/85" />
+                </div>
+
+                <button
+                    onClick={onClose}
+                    className="absolute top-4 right-4 z-20 w-10 h-10 rounded-md border border-zinc-700 bg-zinc-900/80 text-zinc-300 hover:text-rose-400 hover:border-rose-500/50 transition"
+                    aria-label="Close merchant"
+                >
+                    <X size={18} className="mx-auto" />
+                </button>
+
+                <div className="relative z-10 h-full flex flex-col p-6">
+                    <div className="flex items-center justify-between gap-4 mb-6">
+                        <div>
+                            <h3 className="text-xl font-black italic uppercase tracking-tight text-white">Relic Market</h3>
+                            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-400">Click an item to inspect full card</p>
+                        </div>
+                        <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-amber-500/35 bg-amber-950/30">
+                            <Coins size={14} className="text-amber-400" />
+                            <span className="text-sm font-black text-amber-300 tabular-nums">{scrip.toLocaleString()}</span>
+                            <span className="text-[9px] font-bold uppercase tracking-wider text-amber-500/80">Scrip</span>
+                        </div>
+                    </div>
+
+                    <div className="flex-1 min-h-0 rounded-2xl border border-zinc-700/50 bg-black/35 backdrop-blur-sm p-4">
+                        <div className="flex items-center justify-between mb-3">
+                            <p className="text-[11px] font-black uppercase tracking-[0.22em] text-zinc-300">Market Offers</p>
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">{offers.length} Remaining</p>
+                        </div>
+
+                        {offers.length === 0 ? (
+                            <div className="h-full flex items-center justify-center text-zinc-500 text-sm font-bold uppercase tracking-wider">
+                                Market sold out - try deeper floors
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-4 gap-3">
+                                {offers.map(offer => (
+                                    <button
+                                        key={offer.id}
+                                        type="button"
+                                        onClick={() => setSelectedOfferId(offer.id)}
+                                        className={clsx(
+                                            "relative aspect-square rounded-xl border overflow-hidden text-left transition-all",
+                                            selectedOfferId === offer.id
+                                                ? "border-fuchsia-300 shadow-[0_0_18px_rgba(217,70,239,0.35)] scale-[1.02]"
+                                                : "border-zinc-700/70 hover:border-fuchsia-400/70 hover:scale-[1.01]"
+                                        )}
+                                    >
+                                        <img src={offer.item.imagePath || 'assets/item_weapon.png'} alt={offer.item.name} className="absolute inset-0 w-full h-full object-cover" />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent" />
+                                        <div className="absolute left-2 right-2 bottom-2">
+                                            <p className="text-[11px] font-black uppercase text-white leading-tight line-clamp-2">{offer.item.name}</p>
+                                            <div className="mt-1 flex items-center justify-between">
+                                                <span className="text-[9px] font-bold uppercase tracking-wider text-fuchsia-300">{offer.item.rarity}</span>
+                                                <span className="text-[9px] font-black text-amber-300 tabular-nums">{offer.price}</span>
+                                            </div>
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {selectedOffer && (
+                    <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/55 backdrop-blur-[2px]" onClick={() => setSelectedOfferId(null)}>
+                        <div className="relative w-[320px] rounded-2xl border border-fuchsia-400/55 bg-zinc-950/95 overflow-hidden shadow-[0_24px_60px_rgba(0,0,0,0.7)]" onClick={(event) => event.stopPropagation()}>
+                            <button
+                                onClick={() => setSelectedOfferId(null)}
+                                className="absolute top-2 right-2 z-40 w-7 h-7 rounded-md border border-zinc-700 bg-zinc-900/90 text-zinc-300 hover:text-rose-400 hover:border-rose-500/50 transition"
+                            >
+                                <X size={14} className="mx-auto" />
+                            </button>
+
+                            <div className="relative h-56">
+                                <img src={selectedOffer.item.imagePath || 'assets/item_weapon.png'} alt={selectedOffer.item.name} className="w-full h-full object-cover" />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/35 to-transparent" />
+                                <div className="absolute left-3 right-3 bottom-3">
+                                    <p className="text-sm font-black uppercase tracking-tight text-white">{selectedOffer.item.name}</p>
+                                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-fuchsia-300">{selectedOffer.item.type} | {selectedOffer.item.rarity}</p>
+                                </div>
+                            </div>
+
+                            <div className="p-3 space-y-3">
+                                <p className="text-[10px] font-bold text-zinc-200 leading-snug">{getBoostLine(selectedOffer.item)}</p>
+                                <p className="text-[10px] text-zinc-400 leading-relaxed">{selectedOffer.item.description}</p>
+
+                                <div className="space-y-1">
+                                    <p className="text-[9px] font-bold uppercase tracking-wider text-zinc-500">Jobs: {selectedOffer.item.allowedJobs ? selectedOffer.item.allowedJobs.join(', ') : 'Any'}</p>
+                                    <p className="text-[9px] font-bold uppercase tracking-wider text-zinc-500">Races: {selectedOffer.item.allowedRaces ? selectedOffer.item.allowedRaces.join(', ') : 'Any'}</p>
+                                </div>
+
+                                {qualifiedPreviews.length > 0 && (
+                                    <div className="space-y-2">
+                                        <p className="text-[9px] font-black uppercase tracking-[0.18em] text-cyan-300">Equip Compare</p>
+                                        <div className="space-y-1 max-h-28 overflow-y-auto pr-1 custom-scrollbar">
+                                            {qualifiedPreviews.map(preview => (
+                                                <div key={preview.heroId} className="rounded-md border border-cyan-500/20 bg-cyan-950/15 px-2 py-1">
+                                                    <p className="text-[9px] font-black uppercase text-zinc-100">{preview.heroName}</p>
+                                                    <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 mt-1 text-[8px] font-bold uppercase tracking-wide text-zinc-300">
+                                                        <p className="text-amber-200">ATK {preview.current.atk} {'->'} {preview.after.atk} <span className={clsx(preview.after.atk >= preview.current.atk ? 'text-emerald-300' : 'text-rose-300')}>({formatDelta(preview.current.atk, preview.after.atk)})</span></p>
+                                                        <p className="text-sky-200">DEF {preview.current.def} {'->'} {preview.after.def} <span className={clsx(preview.after.def >= preview.current.def ? 'text-emerald-300' : 'text-rose-300')}>({formatDelta(preview.current.def, preview.after.def)})</span></p>
+                                                        <p className="text-cyan-200">SPD {preview.current.spd} {'->'} {preview.after.spd} <span className={clsx(preview.after.spd >= preview.current.spd ? 'text-emerald-300' : 'text-rose-300')}>({formatDelta(preview.current.spd, preview.after.spd)})</span></p>
+                                                        <p className="text-rose-200">HP {preview.current.hp} {'->'} {preview.after.hp} <span className={clsx(preview.after.hp >= preview.current.hp ? 'text-emerald-300' : 'text-rose-300')}>({formatDelta(preview.current.hp, preview.after.hp)})</span></p>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                {qualifiedPreviews.length === 0 && (
+                                    <p className="text-[9px] font-bold uppercase tracking-wide text-rose-300">No current hero can equip this item.</p>
+                                )}
+
+                                <div className="flex items-center justify-between pt-1">
+                                    <div className="flex items-center gap-1.5">
+                                        <Coins size={13} className="text-amber-400" />
+                                        <span className="text-base font-black text-amber-300 tabular-nums">{selectedOffer.price}</span>
+                                    </div>
+                                    <button
+                                        onClick={() => {
+                                            if (confirmingOfferId !== selectedOffer.id) {
+                                                setConfirmingOfferId(selectedOffer.id);
+                                                return;
+                                            }
+                                            onBuy(selectedOffer.id);
+                                            setSelectedOfferId(null);
+                                            setConfirmingOfferId(null);
+                                        }}
+                                        disabled={scrip < selectedOffer.price}
+                                        className={clsx(
+                                            "px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-md border transition",
+                                            scrip >= selectedOffer.price
+                                                ? confirmingOfferId === selectedOffer.id
+                                                    ? "border-amber-300/70 bg-amber-500/15 text-amber-100 hover:bg-amber-500/25"
+                                                    : "border-emerald-400/60 bg-emerald-500/15 text-emerald-200 hover:bg-emerald-500/25"
+                                                : "border-zinc-700 bg-zinc-900/70 text-zinc-500 cursor-not-allowed"
+                                        )}
+                                    >
+                                        {scrip >= selectedOffer.price
+                                            ? confirmingOfferId === selectedOffer.id
+                                                ? 'Confirm Buy'
+                                                : 'Purchase'
+                                            : 'Need More'}
+                                    </button>
+                                </div>
+                                {confirmingOfferId === selectedOffer.id && scrip >= selectedOffer.price && (
+                                    <button
+                                        onClick={() => setConfirmingOfferId(null)}
+                                        className="w-full py-1.5 text-[10px] font-black uppercase tracking-widest rounded-md border border-zinc-700 bg-zinc-900/70 text-zinc-300 hover:bg-zinc-800 transition"
+                                    >
+                                        Cancel
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
         </div>
     );
 };

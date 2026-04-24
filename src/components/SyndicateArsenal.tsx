@@ -38,6 +38,7 @@ export const SyndicateArsenal: React.FC<SyndicateArsenalProps> = ({
     const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
 
     const selectedInventoryItem = selectedItemId ? vault.find(item => item.id === selectedItemId) ?? null : null;
+    const selectedItemPassive = selectedInventoryItem?.passives?.[0] ?? null;
 
     if (!isOpen) return null;
 
@@ -203,13 +204,13 @@ export const SyndicateArsenal: React.FC<SyndicateArsenalProps> = ({
                                                 <div className="mt-1 text-[9px] font-bold uppercase text-cyan-300">
                                                     {formatBoosts(selectedInventoryItem)}
                                                 </div>
-                                                {selectedInventoryItem.skillName && (
+                                                {selectedItemPassive && (
                                                     <div className="mt-1.5 p-1.5 rounded border border-cyan-500/30 bg-cyan-950/40">
                                                         <div className="text-[9px] font-black uppercase text-cyan-200 leading-none mb-1 flex items-center gap-1">
-                                                            <Zap className="w-2.5 h-2.5" /> {selectedInventoryItem.skillName}
+                                                            <Zap className="w-2.5 h-2.5" /> {selectedItemPassive.name}
                                                         </div>
                                                         <div className="text-[8px] font-bold text-cyan-100/80 leading-tight normal-case">
-                                                            {selectedInventoryItem.skillDesc}
+                                                            {selectedItemPassive.description}
                                                         </div>
                                                     </div>
                                                 )}
