@@ -5,6 +5,7 @@ import { StatLine } from './UI';
 import { X, Sword, Shield, Zap, Heart, Package, Crown, Shirt, HardHat, Footprints, AlertTriangle, Wind, Music } from 'lucide-react';
 import { clsx } from 'clsx';
 import { getHeroPortraitUrl } from '../utils/heroPortraits';
+import { buildMerchantEquipPreviews } from '../utils/merchant';
 
 interface SyndicateArsenalProps {
     isOpen: boolean;
@@ -39,6 +40,14 @@ export const SyndicateArsenal: React.FC<SyndicateArsenalProps> = ({
 
     const selectedInventoryItem = selectedItemId ? vault.find(item => item.id === selectedItemId) ?? null : null;
     const selectedItemPassive = selectedInventoryItem?.passives?.[0] ?? null;
+    const equipPreviews = useMemo(
+        () => selectedInventoryItem ? buildMerchantEquipPreviews({ heroes: displayHeroes, item: selectedInventoryItem }) : [],
+        [displayHeroes, selectedInventoryItem]
+    );
+    const previewByHeroId = useMemo(
+        () => new Map(equipPreviews.map(preview => [preview.heroId, preview])),
+        [equipPreviews]
+    );
 
     if (!isOpen) return null;
 
@@ -104,6 +113,12 @@ export const SyndicateArsenal: React.FC<SyndicateArsenalProps> = ({
         return entries
             .map(([key, value]) => `${key.toUpperCase()} ${value >= 0 ? '+' : ''}${value}`)
             .join(' • ');
+    };
+
+    const formatDelta = (before: number, after: number) => {
+        const diff = after - before;
+        if (diff === 0) return null;
+        return `${diff > 0 ? '+' : ''}${diff}`;
     };
 
     return (
@@ -242,6 +257,16 @@ export const SyndicateArsenal: React.FC<SyndicateArsenalProps> = ({
                                     );
                                 }
 
+                                const equipPreview = previewByHeroId.get(hero.id);
+                                const qualifiedPreview = selectedInventoryItem && equipPreview?.qualified ? equipPreview : null;
+                                const showEquipPreview = Boolean(qualifiedPreview);
+                                const changedStats = qualifiedPreview ? [
+                                    { label: 'ATK', current: qualifiedPreview.current.atk, after: qualifiedPreview.after.atk, tone: 'text-emerald-300' },
+                                    { label: 'DEF', current: qualifiedPreview.current.def, after: qualifiedPreview.after.def, tone: 'text-sky-300' },
+                                    { label: 'SPD', current: qualifiedPreview.current.spd, after: qualifiedPreview.after.spd, tone: 'text-cyan-300' },
+                                    { label: 'HP', current: qualifiedPreview.current.hp, after: qualifiedPreview.after.hp, tone: 'text-rose-300' }
+                                ].filter(stat => stat.current !== stat.after) : [];
+
                                 return (
                                     <div key={hero.id} className="space-y-1.5">
                                         <div className="flex items-start gap-2 px-1">
@@ -373,25 +398,45 @@ export const SyndicateArsenal: React.FC<SyndicateArsenalProps> = ({
                                         <div className="px-1 py-1.5 space-y-1">
                                             <StatLine 
                                                 label="Atk" 
-                                                current={hero.getATK(heroes)} 
+                                                current={qualifiedPreview ? qualifiedPreview.after.atk : hero.getATK(heroes)} 
                                                 base={hero.power} 
                                                 icon={hero.job === 'Bard' ? <Music className="w-3 h-3 text-pink-500" /> : <Sword className="w-3 h-3 text-emerald-500" />}
                                                 breakdown={hero.getStatBreakdown?.('ATK', heroes)}
                                             />
                                             <StatLine 
                                                 label="Def" 
-                                                current={hero.getDEF(heroes)} 
+                                                current={qualifiedPreview ? qualifiedPreview.after.def : hero.getDEF(heroes)} 
                                                 base={hero.def} 
                                                 icon={<Shield className="w-3 h-3 text-blue-500" />}
                                                 breakdown={hero.getStatBreakdown?.('DEF', heroes)}
                                             />
                                             <StatLine 
                                                 label="Spd" 
-                                                current={hero.getSPD(heroes)} 
+                                                current={qualifiedPreview ? qualifiedPreview.after.spd : hero.getSPD(heroes)} 
                                                 base={hero.speed} 
                                                 icon={<Wind className="w-3 h-3 text-cyan-500" />}
                                                 breakdown={hero.getStatBreakdown?.('SPD', heroes)}
                                             />
+                                            {showEquipPreview && changedStats.length > 0 && (
+                                                <div className="rounded-md border border-emerald-500/30 bg-emerald-950/20 px-2 py-1.5">
+                                                    <div className="text-[8px] font-black uppercase tracking-[0.18em] text-emerald-200">After Equip</div>
+                                                    <div className="mt-1 flex flex-wrap gap-x-2 gap-y-1 text-[8px] font-bold uppercase">
+                                                        {changedStats.map(stat => (
+                                                            <span key={`${hero.id}-${stat.label}`} className={stat.tone}>
+                                                                {stat.label} {stat.current} {'->'} {stat.after} ({formatDelta(stat.current, stat.after)})
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                            {selectedInventoryItem && equipPreview && !equipPreview.qualified && (
+                                                <div className="rounded-md border border-rose-500/25 bg-rose-950/20 px-2 py-1">
+                                                    <div className="text-[8px] font-black uppercase tracking-[0.18em] text-rose-200">Cannot Equip</div>
+                                                    <div className="mt-0.5 text-[8px] font-bold uppercase text-rose-300/90">
+                                                        {equipPreview.restrictionReason}
+                                                    </div>
+                                                </div>
+                                            )}
                                             <div className="mt-2">
                                                 <div className="text-[9px] font-black uppercase tracking-widest text-zinc-500 mb-1">Skills</div>
                                                 <div className="text-[9px] font-bold text-zinc-300 leading-tight flex flex-wrap gap-x-1.5 gap-y-1">

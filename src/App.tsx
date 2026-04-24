@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { HeroTemplate, HERO_ROSTER } from './data/heroes';
-import { ENEMY_POOL } from './data/enemies';
+import { ENEMY_POOL, getEnemyPoolForFloor, getEncounterEnemyCountRange, scaleEnemyStatsForFloor } from './data/enemies';
 import { Item, Job, Race } from './types';
 import { Button } from './components/UI';
 import { RecruitPhase } from './components/RecruitPhase';
@@ -11,13 +11,14 @@ import { BattleView } from './components/BattleView';
 import { CombatantCard } from './components/CombatantCard';
 import { useDungeon } from './hooks/useDungeon';
 import { Combatant } from './models/Combatant';
-import { Settings, X as XIcon, Users, Brain, Sword, Target, Flame, Sparkles, Music, Skull } from 'lucide-react';
+import { Settings, X as XIcon, Users, Brain, Sword, Target, Flame, Sparkles, Music, Skull, Coins, Package, ShieldCheck } from 'lucide-react';
 import { DEFAULT_FLOOR_SPAWN_RATES, TilePos } from './utils/dungeonGenerator';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { clsx } from 'clsx';
 import { getHeroPortraitUrl } from './utils/heroPortraits';
+import { BattleRewardSummary, buildBattleRewardSummary, rollEncounterRewards } from './utils/battleRewards';
 
-type GamePhase = 'MAIN_MENU' | 'RECRUIT' | 'LEADERSHIP' | 'DEPLOYMENT' | 'EXPLORATION' | 'BATTLE' | 'GAME_OVER';
+type GamePhase = 'MAIN_MENU' | 'RECRUIT' | 'LEADERSHIP' | 'DEPLOYMENT' | 'EXPLORATION' | 'BATTLE' | 'BATTLE_REWARDS' | 'GAME_OVER';
 
 type AdminSettings = {
     forcedHeroNames: string[];
@@ -129,6 +130,7 @@ const App: React.FC = () => {
     const [scrip, setScrip] = useState(2500);
     const [vault, setVault] = useState<Item[]>([]);
     const [lastEncounterPos, setLastEncounterPos] = useState<TilePos | null>(null);
+    const [battleRewardSummary, setBattleRewardSummary] = useState<BattleRewardSummary | null>(null);
     const [showAdminTools, setShowAdminTools] = useState(false);
     const [showHeroArchive, setShowHeroArchive] = useState(false);
     const [selectedArchiveHero, setSelectedArchiveHero] = useState<HeroTemplate | null>(null);
@@ -220,22 +222,20 @@ const App: React.FC = () => {
     };
 
     const handleDungeonEncounter = (pos: { x: number, y: number }) => {
-        const floorMultiplier = 1 + (dungeon.floor - 1) * 0.2;
-        const enemyCount = 1 + Math.floor(Math.random() * 3);
-        const spawnableEnemies = ENEMY_POOL.filter(e => {
-            const minFloor = (e as any).minFloor;
-            return typeof minFloor === 'number' ? minFloor <= dungeon.floor : true;
-        });
+        const encounterRange = getEncounterEnemyCountRange(dungeon.floor);
+        const enemyCount = encounterRange.min + Math.floor(Math.random() * (encounterRange.max - encounterRange.min + 1));
+        const spawnableEnemies = getEnemyPoolForFloor(dungeon.floor);
         const enemyPool = spawnableEnemies.length > 0 ? spawnableEnemies : ENEMY_POOL;
         const encounterEnemies = Array.from({ length: enemyCount }).map((_, idx) => {
             const template = enemyPool[Math.floor(Math.random() * enemyPool.length)];
             const position = idx < Math.ceil(enemyCount / 2) ? 'VANGUARD' : 'REARGUARD';
             const enemy = Combatant.fromTemplate(template, false, position);
-            enemy.maxHp = Math.floor(enemy.maxHp * floorMultiplier);
+            const scaledStats = scaleEnemyStatsForFloor(template, dungeon.floor);
+            enemy.maxHp = scaledStats.hp;
             enemy.hp = enemy.maxHp;
-            enemy.power = Math.floor(enemy.power * floorMultiplier);
-            enemy.def = Math.floor(enemy.def * floorMultiplier);
-            enemy.speed = Math.floor(enemy.speed * floorMultiplier);
+            enemy.power = scaledStats.pwr;
+            enemy.def = scaledStats.def;
+            enemy.speed = scaledStats.spd;
             return enemy;
         });
         setEnemies(encounterEnemies);
@@ -270,6 +270,7 @@ const App: React.FC = () => {
 
     const handleBattleComplete = (victory: boolean, remainingHeroes?: Combatant[]) => {
         if (victory) {
+            let updatedParty = party;
             if (remainingHeroes) {
                 const stripBattleVisualState = (hero: Combatant): Combatant => {
                     const clean = hero.clone();
@@ -291,21 +292,42 @@ const App: React.FC = () => {
                 };
 
                 // Sync HP and state from battle back to party
-                const updatedParty = party.map(hp => {
+                updatedParty = party.map(hp => {
                     const matched = remainingHeroes.find(rh => rh.name === hp.name);
                     return matched ? stripBattleVisualState(matched) : stripBattleVisualState(hp);
                 });
                 setParty(updatedParty);
             }
+            const battleRewards = rollEncounterRewards({ defeatedEnemies: enemies.length });
+            const rewardSummary = buildBattleRewardSummary({
+                rewards: battleRewards,
+                heroes: updatedParty,
+                defeatedEnemies: enemies.length
+            });
+            if (battleRewards.scrip !== 0) {
+                setScrip(current => current + battleRewards.scrip);
+            }
+            if (battleRewards.droppedItem) {
+                setVault(current => [...current, battleRewards.droppedItem!]);
+            }
+            setBattleRewardSummary(rewardSummary);
             if (lastEncounterPos) {
                 dungeon.registerEnemyDefeat(lastEncounterPos);
             }
+            setEnemies([]);
             setLastEncounterPos(null);
-            setPhase('EXPLORATION');
+            setPhase('BATTLE_REWARDS');
         } else {
+            setBattleRewardSummary(null);
+            setEnemies([]);
             setLastEncounterPos(null);
             setPhase('GAME_OVER');
         }
+    };
+
+    const handleBattleRewardContinue = () => {
+        setBattleRewardSummary(null);
+        setPhase('EXPLORATION');
     };
 
     const dungeon = useDungeon(1, party, adminSpawnRates);
@@ -510,6 +532,115 @@ const App: React.FC = () => {
                         onVictory={(rh) => handleBattleComplete(true, rh)}
                         onDefeat={() => handleBattleComplete(false)} 
                     />
+                )}
+
+                {phase === 'BATTLE_REWARDS' && battleRewardSummary && (
+                    <div className="w-full h-full relative overflow-hidden bg-black">
+                        <div className="absolute inset-0">
+                            <img src="assets/bg_inventory_modal.png" className="w-full h-full object-cover opacity-35" alt="" />
+                            <div className="absolute inset-0 bg-gradient-to-b from-black via-black/65 to-black" />
+                            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(34,211,238,0.18),transparent_45%)]" />
+                        </div>
+
+                        <div className="relative z-10 w-full h-full flex items-center justify-center p-8">
+                            <div className="w-full max-w-5xl rounded-[2rem] border border-cyan-500/25 bg-zinc-950/75 backdrop-blur-xl shadow-[0_0_90px_rgba(0,0,0,0.75)] overflow-hidden">
+                                <div className="px-10 pt-10 pb-6 border-b border-zinc-800/70">
+                                    <div className="flex items-center gap-3 text-cyan-400 mb-3">
+                                        <ShieldCheck className="w-6 h-6" />
+                                        <span className="text-[11px] font-black uppercase tracking-[0.35em]">Battle Glory</span>
+                                    </div>
+                                    <h2 className="text-6xl font-black italic tracking-tighter uppercase text-white leading-none">Victory Secured</h2>
+                                    <p className="mt-3 text-sm font-bold uppercase tracking-[0.18em] text-zinc-500">
+                                        {battleRewardSummary.defeatedEnemies} hostiles neutralized on this floor
+                                    </p>
+                                </div>
+
+                                <div className="grid grid-cols-[1.1fr_0.9fr] gap-0">
+                                    <div className="p-8 border-r border-zinc-800/70">
+                                        <div className="flex items-center gap-2 mb-4 text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500">
+                                            <Users className="w-4 h-4 text-cyan-500" />
+                                            Syndicate Survivors
+                                        </div>
+                                        <div className="grid grid-cols-3 gap-4">
+                                            {battleRewardSummary.survivingHeroes.map(hero => (
+                                                <div key={hero.id} className="rounded-2xl border border-zinc-800 bg-zinc-900/60 overflow-hidden">
+                                                    <div className="relative h-44">
+                                                        <img src={getHeroPortraitUrl(hero.imageId)} alt={hero.name} className="w-full h-full object-cover object-top" />
+                                                        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
+                                                        <div className="absolute left-3 right-3 bottom-3">
+                                                            <p className="text-sm font-black uppercase text-white">{hero.name}</p>
+                                                            <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-cyan-300">{hero.job} • {hero.race}</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="px-3 py-2 text-[10px] font-black uppercase tracking-wide text-zinc-300 flex items-center justify-between">
+                                                        <span>HP</span>
+                                                        <span className="text-white">{Math.floor(hero.hp)}/{hero.maxHp}</span>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        {battleRewardSummary.fallenHeroes.length > 0 && (
+                                            <div className="mt-6 rounded-2xl border border-rose-500/20 bg-rose-950/15 px-4 py-3">
+                                                <div className="text-[10px] font-black uppercase tracking-[0.22em] text-rose-300">Fallen This Battle</div>
+                                                <div className="mt-2 text-sm font-bold text-zinc-300">
+                                                    {battleRewardSummary.fallenHeroes.map(hero => hero.name).join(', ')}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="p-8 flex flex-col">
+                                        <div className="flex items-center gap-2 mb-4 text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500">
+                                            <Package className="w-4 h-4 text-amber-400" />
+                                            Recovered Rewards
+                                        </div>
+
+                                        <div className="rounded-2xl border border-amber-500/25 bg-amber-950/15 px-5 py-4 flex items-center justify-between">
+                                            <div>
+                                                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-amber-300">Scrip Recovered</p>
+                                                <p className="mt-2 text-4xl font-black text-white tabular-nums">+{battleRewardSummary.scrip}</p>
+                                            </div>
+                                            <Coins className="w-10 h-10 text-amber-400" />
+                                        </div>
+
+                                        <div className="mt-4 rounded-2xl border border-cyan-500/20 bg-cyan-950/15 p-4 flex-1">
+                                            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-300 mb-3">Item Recovery</p>
+                                            {battleRewardSummary.droppedItem ? (
+                                                <div className="rounded-xl border border-zinc-800 bg-black/30 overflow-hidden">
+                                                    <div className="relative h-48">
+                                                        {battleRewardSummary.droppedItem.imagePath ? (
+                                                            <img src={battleRewardSummary.droppedItem.imagePath} alt={battleRewardSummary.droppedItem.name} className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            <div className="w-full h-full bg-gradient-to-br from-zinc-900 to-zinc-800" />
+                                                        )}
+                                                        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-transparent" />
+                                                        <div className="absolute left-4 right-4 bottom-4">
+                                                            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-300">{battleRewardSummary.droppedItem.rarity} • {battleRewardSummary.droppedItem.type}</p>
+                                                            <p className="text-xl font-black uppercase text-white">{battleRewardSummary.droppedItem.name}</p>
+                                                            <p className="mt-1 text-[11px] font-bold text-zinc-300 leading-snug">{battleRewardSummary.droppedItem.description}</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div className="h-full min-h-40 rounded-xl border border-dashed border-zinc-700 bg-black/20 flex items-center justify-center text-center px-6">
+                                                    <div>
+                                                        <p className="text-sm font-black uppercase tracking-[0.2em] text-zinc-500">No item recovered</p>
+                                                        <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-600">The monsters yielded scrip, but no usable salvage this time.</p>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="mt-6 flex justify-end">
+                                            <Button variant="primary" size="lg" className="min-w-56 tracking-[0.2em] font-black uppercase" onClick={handleBattleRewardContinue}>
+                                                Continue Expedition
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 )}
 
                 {phase === 'GAME_OVER' && (

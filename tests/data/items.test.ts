@@ -54,4 +54,12 @@ describe('items data', () => {
       }
     });
   });
+
+  it('includes consumable loot items for dungeon drops', () => {
+    const consumables = ITEM_DATABASE.filter(item => item.type === 'CONSUMABLE');
+    expect(consumables.length).toBeGreaterThan(0);
+    consumables.forEach(item => {
+      expect(item.statBoost?.hp).toBeGreaterThan(0);
+    });
+  });
 });

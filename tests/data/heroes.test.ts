@@ -53,6 +53,34 @@ describe('heroes data', () => {
     });
   });
 
+  it('keeps starting loadouts below epic rarity for balance', () => {
+    const itemLookup = new Map(ITEM_DATABASE.map(item => [item.id, item]));
+    HERO_ROSTER.forEach(hero => {
+      (hero.initialEquipment ?? []).forEach(itemId => {
+        const item = itemLookup.get(itemId);
+        expect(item).toBeDefined();
+        expect(item?.rarity === 'Epic' || item?.rarity === 'Legendary').toBe(false);
+      });
+    });
+  });
+
+  it('ensures starting equipment respects hero race and job restrictions', () => {
+    const itemLookup = new Map(ITEM_DATABASE.map(item => [item.id, item]));
+    HERO_ROSTER.forEach(hero => {
+      (hero.initialEquipment ?? []).forEach(itemId => {
+        const item = itemLookup.get(itemId);
+        expect(item).toBeDefined();
+        if (!item) return;
+        if (item.allowedJobs) {
+          expect(item.allowedJobs.includes(hero.job)).toBe(true);
+        }
+        if (item.allowedRaces) {
+          expect(item.allowedRaces.includes(hero.race)).toBe(true);
+        }
+      });
+    });
+  });
+
   it('ensures hero portrait assets exist', () => {
     HERO_ROSTER.forEach(hero => {
       const heroPath = path.resolve(process.cwd(), 'assets', `${hero.imageId}.png`);

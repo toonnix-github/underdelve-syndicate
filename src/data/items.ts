@@ -271,6 +271,35 @@ export const ITEM_DATABASE: Item[] = [
       { id: "eagle_eye", name: "Eagle Eye", description: "+15% Accuracy and Hit chance." }
     ],
     imagePath: "/assets/item_chronos_sandals.png"
+  },
+
+  // --- CONSUMABLES (3) ---
+  {
+    id: "cons_minor_healing_vial",
+    name: "Minor Healing Vial",
+    type: "CONSUMABLE",
+    rarity: "Common",
+    description: "A small red tonic that closes cuts and restores a little vitality.",
+    statBoost: { hp: 25 },
+    value: 40
+  },
+  {
+    id: "cons_field_bandage",
+    name: "Field Bandage",
+    type: "CONSUMABLE",
+    rarity: "Common",
+    description: "A quick battlefield wrap that helps a wounded fighter stay in the action.",
+    statBoost: { hp: 40 },
+    value: 65
+  },
+  {
+    id: "cons_emergency_elixir",
+    name: "Emergency Elixir",
+    type: "CONSUMABLE",
+    rarity: "Uncommon",
+    description: "A bitter restorative brew reserved for dangerous dives and worse injuries.",
+    statBoost: { hp: 60 },
+    value: 110
   }
 ];
 
